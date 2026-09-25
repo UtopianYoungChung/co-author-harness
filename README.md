@@ -88,6 +88,12 @@ Sessions that do not invoke `/seed-snowball-discovery`,
 `/extend-snowball-incremental`, or the Ph2 claim-coverage audit can
 proceed without either connector.
 
+On Claude Code the plugin installs a PreToolUse and Stop hook. Without a declared
+run scope it only guards harness territory (native projects and governed
+workspace roots) and lets every other write through; a declared
+`FRC_PARENT_SCOPE` must be set before the host starts. See the Hooks section of
+[`references/CLAUDE_CODE_HOST.md`](references/CLAUDE_CODE_HOST.md).
+
 Ordinary drafting and revision need a host that can spawn real child agents and
 keep an inspectable original trace. Registered adapters: Codex (`codex-jsonl`),
 Hermes (`hermes-hooks-jsonl`, [`references/HERMES_DESKTOP.md`](references/HERMES_DESKTOP.md)),

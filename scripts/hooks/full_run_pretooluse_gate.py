@@ -10,8 +10,17 @@ ACTIVATION
 ----------
 The driver must declare the parent scope in ``FRC_PARENT_SCOPE``.
 Known scopes: adhoc_review, project_independent, lab_iteration, full_lifecycle.
+The hook process inherits the host's environment, so the scope is set before
+the host starts (for Claude Code, the ``env`` block of ``settings.json`` or the
+launching shell); a model cannot declare it mid-session.
+
 A missing or unknown scope is not permission to write argument-bearing
-paths. Ordinary non-argument writes may still proceed.
+paths inside harness territory: a native project (an ancestor holding
+``reviews/phase_state.json`` or ``reviews/assignment_contract.json``) or a
+governed workspace root discovered by ``destination_capability``. Outside
+that territory a folder name is not evidence of a lifecycle, so ordinary
+writes proceed even when a path happens to contain ``research`` or
+``milestones``.
 
 ``FRC_REQUIRE_SCOPE=1`` is an opt-in that refuses every event when no valid
 scope is declared. Any other value, including ``0`` or unset, is the default
@@ -23,8 +32,12 @@ WHAT IT DOES
 It reads hook JSON on stdin and delegates in-scope decisions to
 ``scripts/full_run_contract_check.py``:
 
-  Write / Edit / MultiEdit into a manuscript/ tree
+  Write / Edit / MultiEdit into a lifecycle artefact (manuscript/,
+  milestones/, submission_bundle/)
         -> `authorize --run-scope <declared>` for the enclosing project.
+           adhoc_review is read-only, so its authorization always refuses.
+           An argument-bearing path inside a governed root but outside the
+           staging and private-shipment lanes is DEST-PROTECTED under any scope.
 
   Task / Agent (subagent dispatch; host naming varies)
         -> `scope --parent-scope <declared parent> --child-brief <the prompt>`.
@@ -32,11 +45,18 @@ It reads hook JSON on stdin and delegates in-scope decisions to
   Stop (terminal language, or structured terminal_phase_reached)
         -> `terminal --project-root <current project>`.
 
-Without a known scope, argument-bearing Write/Edit paths are denied, and
-Agent/Task briefs that name manuscript/ or run-generator-session are denied.
-Everything else without a scope is allowed so a user-scoped plugin does not
-freeze ordinary coding sessions; each such passthrough emits one stderr
-notice tagged ``[FRC-SCOPE-PASSTHROUGH]``.
+Without a known scope, argument-bearing Write/Edit paths inside harness
+territory are denied, Agent/Task briefs that name run-generator-session are
+denied, and briefs that name manuscript are denied when the session's cwd is
+inside harness territory. Everything else without a scope is allowed so a
+user-scoped plugin does not freeze ordinary coding sessions; each such
+passthrough emits one stderr notice tagged ``[FRC-SCOPE-PASSTHROUGH]``.
+
+Terminal markers match as whole words, so "fig.4" is not "G.4". When the host
+reports ``stop_hook_active`` (it is re-invoking Stop after an earlier block),
+structured state alone does not block again: the model cannot repair
+lifecycle state inside the same turn, and a repeated block would only loop.
+A fresh terminal claim in the new message still blocks.
 
 BLOCK CONTRACT
 --------------
@@ -48,16 +68,17 @@ and exits 0 (the decision travels in the JSON, not the exit code).
 FAIL MODE
 ---------
 Missing or unknown FRC_PARENT_SCOPE fails closed for argument-bearing
-Write/Edit paths and for Agent/Task briefs that name manuscript/ or
-run-generator-session. Internal errors and a missing gate fail closed
-when a valid scope is active or FRC_REQUIRE_SCOPE=1. Default-unset errors
-may pass only with a loud stderr diagnostic. FRC_GATE_HOOK_DISABLE remains
-an explicit off switch.
+Write/Edit paths in harness territory and for the Agent/Task briefs named
+above. Internal errors, a payload that is not a JSON object, and a missing
+gate fail closed when a valid scope is active or FRC_REQUIRE_SCOPE=1.
+Default-unset errors may pass only with a loud stderr diagnostic.
+FRC_GATE_HOOK_DISABLE remains an explicit off switch.
 """
 from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -79,9 +100,20 @@ ACTIVE_SCOPE_ENV = "FRC_PARENT_SCOPE"
 REQUIRE_SCOPE_ENV = "FRC_REQUIRE_SCOPE"
 SCOPES = set(invocation.SCOPES)
 MANUSCRIPT_DIR = "manuscript"
+# Path segments that hold lifecycle artefacts: the manuscript tree, the M1-M5
+# deliverables (references/role_output_contract.json), and the M5 export.
+LIFECYCLE_ARTIFACT_SEGMENTS = (MANUSCRIPT_DIR, "milestones", "submission_bundle")
+# Lifecycle artefacts plus the governed research tree.
+ARGUMENT_SEGMENTS = LIFECYCLE_ARTIFACT_SEGMENTS + ("research", "60_workbench")
+# destination_capability classes that lie inside a governed workspace root.
+GOVERNED_KINDS = frozenset({"staging", "shipment", "repin", "instrument", "protected"})
 TERMINAL_MARKERS = (
     "ladder complete", "terminal pass", "lifecycle complete",
     "terminal_phase_reached", "g.4", "converged", "shipped",
+)
+_TERMINAL_MARKER_RES = tuple(
+    re.compile(r"(?<![\w.])" + re.escape(marker) + r"(?!\w)")
+    for marker in TERMINAL_MARKERS
 )
 
 
@@ -176,14 +208,42 @@ def _path_from_input(path_str: str, cwd: str | None = None) -> Path:
     return path
 
 
-def _is_manuscript_path(path_str: str) -> bool:
-    parts = [part.casefold() for part in path_str.replace("\\", "/").split("/")]
-    return MANUSCRIPT_DIR in parts
+def _segments(path_str: str) -> list[str]:
+    return [part.casefold() for part in path_str.replace("\\", "/").split("/")]
+
+
+def _is_lifecycle_artifact_path(path_str: str) -> bool:
+    parts = _segments(path_str)
+    return any(segment in parts for segment in LIFECYCLE_ARTIFACT_SEGMENTS)
 
 
 def _is_argument_path(path_str: str) -> bool:
-    parts = [part.casefold() for part in path_str.replace("\\", "/").split("/")]
-    return any(part in parts for part in (MANUSCRIPT_DIR, "research", "60_workbench", "milestones"))
+    parts = _segments(path_str)
+    return any(segment in parts for segment in ARGUMENT_SEGMENTS)
+
+
+def _destination_kind(path: Path) -> str:
+    try:
+        return destination.classify(path)
+    except Exception:
+        return "unresolved"
+
+
+def _in_harness_territory(path: Path, *, is_dir: bool = False) -> bool:
+    """True inside a native project or a governed workspace root.
+
+    An unresolvable classification counts as inside: absence of a verdict is
+    not evidence that the path is ordinary.
+    """
+    start = path if is_dir else path.parent
+    if _find_project_root(start) is not None:
+        return True
+    kind = _destination_kind(path)
+    return kind in GOVERNED_KINDS or kind == "unresolved"
+
+
+def _has_terminal_marker(folded_message: str) -> bool:
+    return any(rx.search(folded_message) for rx in _TERMINAL_MARKER_RES)
 
 
 def _terminal_phase_reached(root: Path) -> bool:
@@ -212,10 +272,12 @@ def _handle_write(tool_input: dict, *, cwd: str | None = None,
             "adhoc_review, project_independent, lab_iteration, or full_lifecycle; refusing write"
         )
     if scope is None:
-        if path_str and _is_argument_path(path_str):
+        if path_str and _is_argument_path(path_str) and \
+                _in_harness_territory(_path_from_input(path_str, cwd)):
             return _deny(
-                "[FRC-SCOPE-REQUIRED] argument-bearing write refused without "
-                "FRC_PARENT_SCOPE in {adhoc_review, project_independent, lab_iteration, full_lifecycle}"
+                "[FRC-SCOPE-REQUIRED] argument-bearing write inside a harness project "
+                "or governed workspace refused without FRC_PARENT_SCOPE in "
+                "{adhoc_review, project_independent, lab_iteration, full_lifecycle}"
             )
         _passthrough_notice("PreToolUse", tool_name)
         return _allow()
@@ -248,7 +310,15 @@ def _handle_write(tool_input: dict, *, cwd: str | None = None,
             "direct writes are permitted only in governed staging or an exact "
             "private shipment lane"
         )
-    if not _is_manuscript_path(path_str):
+    if not _is_argument_path(path_str):
+        return _allow()
+    if _destination_kind(p) == "protected":
+        return _deny(
+            f"[{destination.DEST_PROTECTED}] {path_str!r} lies inside a governed "
+            "workspace root outside the harness staging and private-shipment lanes; "
+            "no run scope grants the harness write authority there"
+        )
+    if not _is_lifecycle_artifact_path(path_str):
         return _allow()
     root = _find_project_root(p.parent if p.parent != p else p)
     if root is None:
@@ -260,7 +330,7 @@ def _handle_write(tool_input: dict, *, cwd: str | None = None,
     return _deny(_first_finding(out)) if rc != 0 else _allow()
 
 
-def _handle_agent(tool_input: dict) -> int:
+def _handle_agent(tool_input: dict, *, cwd: str | None = None) -> int:
     parent_scope = _active_parent_scope()
     brief = tool_input.get("prompt") or tool_input.get("description") or ""
     if parent_scope is None:
@@ -269,10 +339,16 @@ def _handle_agent(tool_input: dict) -> int:
                 return _deny(_scope_unknown_reason("Agent/Task"))
             return _deny(_scope_required_reason("Agent/Task"))
         low = brief.casefold()
-        if "manuscript" in low or "run-generator-session" in low:
+        if "run-generator-session" in low:
             return _deny(
-                "[FRC-SCOPE-REQUIRED] Agent/Task that names manuscript or "
-                "run-generator-session refused without FRC_PARENT_SCOPE"
+                "[FRC-SCOPE-REQUIRED] Agent/Task that names run-generator-session "
+                "refused without FRC_PARENT_SCOPE"
+            )
+        if "manuscript" in low and \
+                _in_harness_territory(Path(cwd or os.getcwd()), is_dir=True):
+            return _deny(
+                "[FRC-SCOPE-REQUIRED] Agent/Task that names manuscript from inside a "
+                "harness project or governed workspace refused without FRC_PARENT_SCOPE"
             )
         _passthrough_notice("PreToolUse", "Agent")
         return _allow()
@@ -306,10 +382,19 @@ def _handle_stop(payload: dict) -> int:
         return _allow()
     message = payload.get("last_assistant_message") or ""
     low = " ".join(message.casefold().split())
-    has_marker = any(marker in low for marker in TERMINAL_MARKERS)
+    has_marker = _has_terminal_marker(low)
     cwd = payload.get("cwd") or os.getcwd()
     root = _find_project_root(Path(cwd)) or Path(cwd)
     structured = _terminal_phase_reached(root)
+    if structured and not has_marker and payload.get("stop_hook_active") is True:
+        # The host is re-invoking Stop after an earlier block. Structured state
+        # cannot be repaired inside this turn, so blocking again would loop.
+        print(
+            "full_run_pretooluse_gate: [FRC-STOP-REENTRY] terminal_phase_reached "
+            f"remains unverified at {root}; not re-blocking a host re-invoked Stop",
+            file=sys.stderr,
+        )
+        structured = False
     if scope == invocation.PROJECT_INDEPENDENT:
         if has_marker or structured:
             return _block_stop(
@@ -334,6 +419,8 @@ def main() -> int:
         return _allow()
     try:
         payload = json.load(sys.stdin)
+        if not isinstance(payload, dict):
+            raise ValueError(f"expected a JSON object, got {type(payload).__name__}")
     except Exception as e:
         reason = f"[FRC-HOOK-ERROR] unreadable hook payload: {e}"
         _hook_error_notice(reason)
@@ -357,7 +444,7 @@ def main() -> int:
         if tool in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
             return _handle_write(tool_input, cwd=payload.get("cwd"), tool_name=tool)
         if tool in ("Task", "Agent"):
-            return _handle_agent(tool_input)
+            return _handle_agent(tool_input, cwd=payload.get("cwd"))
         if _require_scope() and _active_parent_scope() is None:
             if _raw_scope():
                 return _deny(_scope_unknown_reason(tool or "event"))

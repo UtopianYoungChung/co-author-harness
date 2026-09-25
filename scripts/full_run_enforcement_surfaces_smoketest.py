@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FAILURES: list[str] = []
 CHECK_COUNT = 0
 # 34 existing checks plus 20 R-6/R-7 checks. No platform split.
-EXPECTED_CHECKS = 55
+EXPECTED_CHECKS = 72
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
@@ -711,6 +711,162 @@ def case_r7_structured_terminal_detection() -> None:
                 hook._run_gate = original
 
 
+def _decision(out: str) -> dict:
+    return json.loads(out) if out.strip() else {}
+
+
+def _denied(out: str, code: str = "") -> bool:
+    spec = _decision(out).get("hookSpecificOutput", {})
+    return spec.get("permissionDecision") == "deny" and code in spec.get(
+        "permissionDecisionReason", ""
+    )
+
+
+def case_territory_scoping_and_artifact_protection() -> None:
+    """Folder names alone never deny; lifecycle artefacts stay gated in scope.
+
+    Regression for the 2026-09-25 audit: an unscoped session was denied any
+    path with a ``research``/``milestones`` segment anywhere on disk, while a
+    declared read-only ``adhoc_review`` scope left ``milestones/`` open.
+    """
+    hook = load_module(
+        "full_run_pretooluse_gate_territory",
+        ROOT / "scripts" / "hooks" / "full_run_pretooluse_gate.py",
+    )
+    with tempfile.TemporaryDirectory() as td:
+        base = Path(td)
+        plain = base / "plain"
+        plain.mkdir()
+        project = base / "native-project"
+        (project / "reviews").mkdir(parents=True)
+        (project / "reviews" / "phase_state.json").write_text("{}", encoding="utf-8")
+        draft = project / "milestones" / "M4_complete_paper_draft.md"
+        workspace = base / "ws"
+        manifest = workspace / "governance" / "output-routing" / "output_routing.yaml"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text("schema_version: 1\n", encoding="utf-8")
+        governed_note = workspace / "research" / "60_Workbench" / "w1" / "notes.md"
+        governed_deliverable = (
+            workspace / "research" / "60_Workbench" / "w1" / "milestones" / "M4.md"
+        )
+        shipment = (
+            workspace / "research" / "60_Workbench" / "w1" / "reviews" / "harness"
+            / "shipments" / "s1" / "report.md"
+        )
+
+        def write(path: Path, cwd: Path, tool: str = "Write") -> dict:
+            return {
+                "hook_event_name": "PreToolUse",
+                "tool_name": tool,
+                "cwd": str(cwd),
+                "tool_input": {"file_path": str(path), "content": "x\n"},
+            }
+
+        def agent(prompt: str, cwd: Path) -> dict:
+            return {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "Task",
+                "cwd": str(cwd),
+                "tool_input": {"prompt": prompt},
+            }
+
+        with isolated_scope_env():
+            rc, out, err = run_hook_main(
+                hook, write(base / "Research" / "thesis" / "notes.md", plain)
+            )
+            check("unscoped Write under an ordinary Research folder passes",
+                  rc == 0 and not out.strip() and "FRC-SCOPE-PASSTHROUGH" in err,
+                  f"out={out!r}")
+            rc, out, _ = run_hook_main(
+                hook, write(plain / "src" / "milestones" / "api.py", plain, "Edit")
+            )
+            check("unscoped Edit to an unrelated milestones/ module passes",
+                  rc == 0 and not out.strip(), f"out={out!r}")
+            rc, out, _ = run_hook_main(hook, write(draft, project))
+            check("unscoped Write to a native project's M4 draft is denied",
+                  _denied(out, "FRC-SCOPE-REQUIRED"), out.strip())
+            rc, out, _ = run_hook_main(hook, write(governed_note, workspace))
+            check("unscoped Write inside a governed research tree is denied",
+                  _denied(out, "FRC-SCOPE-REQUIRED"), out.strip())
+            brief = "Summarize the manuscript upload endpoint."
+            rc, out, _ = run_hook_main(hook, agent(brief, plain))
+            check("unscoped brief naming manuscript outside harness territory passes",
+                  rc == 0 and not out.strip(), f"out={out!r}")
+            rc, out, _ = run_hook_main(hook, agent(brief, project))
+            check("unscoped brief naming manuscript inside a native project is denied",
+                  _denied(out, "FRC-SCOPE-REQUIRED"), out.strip())
+            rc, out, _ = run_hook_main(
+                hook, agent("Use run-generator-session on this text.", plain)
+            )
+            check("unscoped run-generator-session brief is denied anywhere",
+                  _denied(out, "FRC-SCOPE-REQUIRED"), out.strip())
+            rc, out, err = run_hook_main(hook, stdin_text="[1, 2]")
+            check("unscoped non-object payload is a loud passthrough",
+                  rc == 0 and not out.strip() and "FRC-HOOK-ERROR" in err,
+                  f"out={out!r} err={err!r}")
+
+        with isolated_scope_env(FRC_PARENT_SCOPE="adhoc_review"):
+            rc, out, _ = run_hook_main(hook, write(draft, project, "Edit"))
+            check("adhoc_review Edit to the canonical M4 draft is refused",
+                  _denied(out, "FRC-PROSE-FORBIDDEN"), out.strip())
+
+        with isolated_scope_env(FRC_PARENT_SCOPE="full_lifecycle"):
+            calls: list[tuple] = []
+            original = hook._run_gate
+
+            def refusing_gate(*args: str):
+                calls.append(args)
+                return 1, json.dumps({"findings": [
+                    {"code": "FRC-CONTRACT-MISSING", "message": "recorded"}
+                ]})
+
+            hook._run_gate = refusing_gate
+            try:
+                rc, out, _ = run_hook_main(hook, write(draft, project, "Edit"))
+            finally:
+                hook._run_gate = original
+            check("full_lifecycle Edit to M4 routes through authorize for the project",
+                  _denied(out, "FRC-CONTRACT-MISSING")
+                  and calls == [("authorize", "--project-root", str(project),
+                                 "--run-scope", "full_lifecycle")],
+                  f"out={out!r} calls={calls!r}")
+            rc, out, _ = run_hook_main(hook, write(governed_deliverable, workspace))
+            check("full_lifecycle Write to a protected governed deliverable is DEST-PROTECTED",
+                  _denied(out, "DEST-PROTECTED"), out.strip())
+            rc, out, _ = run_hook_main(hook, write(shipment, workspace))
+            check("full_lifecycle Write to the private shipment lane stays permitted",
+                  rc == 0 and not out.strip(), f"out={out!r}")
+            rc, out, _ = run_hook_main(hook, stdin_text="[1, 2]")
+            check("full_lifecycle non-object payload is denied",
+                  _denied(out, "FRC-HOOK-ERROR"), out.strip())
+
+            rc, out, _ = run_hook_main(
+                hook, stop_payload(str(plain), "See fig.4 for the chart.")
+            )
+            check("figure reference is not the G.4 terminal marker",
+                  rc == 0 and not out.strip(), f"out={out!r}")
+            rc, out, _ = run_hook_main(
+                hook, stop_payload(str(plain), "G.4 sign-off recorded.")
+            )
+            check("a whole-word G.4 claim still engages the terminal gate",
+                  rc == 0 and _decision(out).get("decision") == "block",
+                  f"out={out!r}")
+
+            terminal = base / "terminal-project"
+            write_synthetic_terminal_state(terminal)
+            reentry = stop_payload(str(terminal), NO_MARKER_MESSAGE)
+            reentry["stop_hook_active"] = True
+            rc, out, err = run_hook_main(hook, reentry)
+            check("host re-invoked Stop is not re-blocked on structured state alone",
+                  rc == 0 and not out.strip() and "FRC-STOP-REENTRY" in err,
+                  f"out={out!r} err={err!r}")
+            reentry["last_assistant_message"] = "Ladder complete; terminal PASS."
+            rc, out, _ = run_hook_main(hook, reentry)
+            check("host re-invoked Stop with a fresh terminal claim still blocks",
+                  rc == 0 and _decision(out).get("decision") == "block",
+                  f"out={out!r}")
+
+
 def main() -> int:
     print("full_run_enforcement_surfaces_smoketest")
     for case in (
@@ -723,6 +879,7 @@ def main() -> int:
         case_report_preserves_no_verdict_and_expected_roots,
         case_r6_require_scope_and_passthrough,
         case_r7_structured_terminal_detection,
+        case_territory_scoping_and_artifact_protection,
     ):
         print(f"\n{case.__name__}:")
         try:
