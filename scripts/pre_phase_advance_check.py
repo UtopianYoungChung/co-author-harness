@@ -1393,6 +1393,11 @@ def check_clause_g(ctx: CheckContext) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Verdict lines carry "→" and section titles; a Windows pipe defaults to
+    # the ANSI code page, which cannot encode them.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(
         description=(
             "Mandatory pre-flight guardrail before any section phase advance. "
