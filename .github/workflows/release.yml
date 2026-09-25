@@ -1,0 +1,76 @@
+# Release bundles — for each vX.Y.Z tag, build the Claude Desktop / Cowork
+# .plugin with the committed builder and attach it to that tag's GitHub
+# Release. The bundle is no longer committed to the repository. Claude Code
+# installs do not use it: they add the repository as a marketplace and track
+# main (README "Install").
+#
+# The newest bundle stays at a stable URL:
+#   https://github.com/UtopianYoungChung/co-author-harness/releases/latest/download/co-author-harness.plugin
+
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ws/platform/co-author-harness
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ws/platform/co-author-harness
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install pyyaml jsonschema
+      # build-plugin.py refuses output inside the package or a governed
+      # destination; a sandbox workspace mirrors the author's layout, as in
+      # structural-checks.yml.
+      - name: Governed sandbox workspace
+        run: |
+          mkdir -p ../../governance/output-routing
+          printf 'schema_version: 1\nworkspace_kind: ci-sandbox\nroutes: []\n' \
+            > ../../governance/output-routing/output_routing.yaml
+      - name: Tag matches version.json
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(python -c "import json; print(json.load(open('version.json'))['version'])")
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::tag $TAG does not match version.json version $version"
+            exit 1
+          fi
+      - name: Build bundle
+        run: python scripts/build-plugin.py --out "$RUNNER_TEMP/bundle"
+      - name: Verify bundle
+        run: |
+          python scripts/release_source_parity_check.py "$RUNNER_TEMP/bundle/co-author-harness.plugin"
+          python scripts/loader-compat-check.py --plugin-root . \
+            --plugin-file "$RUNNER_TEMP/bundle/co-author-harness.plugin"
+      - name: Release notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: python scripts/release_notes.py "${TAG#v}" > "$RUNNER_TEMP/bundle/notes.md"
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cd "$RUNNER_TEMP/bundle"
+          cp co-author-harness.plugin co-author-harness.zip
+          sha256sum co-author-harness.plugin co-author-harness.zip > SHA256SUMS
+          assets="co-author-harness.plugin co-author-harness.zip SHA256SUMS"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" $assets --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" $assets --verify-tag --repo "$GITHUB_REPOSITORY" \
+              --title "co-author-harness $TAG" --notes-file notes.md
+          fi

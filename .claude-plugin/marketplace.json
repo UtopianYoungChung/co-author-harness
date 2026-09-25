@@ -16,7 +16,6 @@
         "url": "https://github.com/UtopianYoungChung/co-author-harness.git"
       },
       "description": "Research and academic paper writing harness. Four roles: Planner, Evaluator, Generator, Reflector.",
-      "version": "0.50.2",
       "author": {
         "name": "Young Jo Chung",
         "email": "jo.chung@utoronto.ca"

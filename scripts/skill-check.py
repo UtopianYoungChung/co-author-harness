@@ -108,7 +108,8 @@ def validate_manifest(plugin_root: Path) -> Tuple[List[str], List[str]]:
 
     `.claude-plugin/plugin.json` is the Claude Desktop / Cowork host identity
     mirror. Its absence is not a skill-check blocker; when present,
-    version-check.py enforces name/version/license parity with version.json.
+    version-check.py enforces name/license parity with version.json and the
+    absence of a version.
     """
     blockers: List[str] = []
     warnings: List[str] = []

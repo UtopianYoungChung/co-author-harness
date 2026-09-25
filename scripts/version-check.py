@@ -8,17 +8,21 @@ THE MANIFEST IS THE SOLE AUTHORITY FOR THE CURRENT VERSION.
 Cowork host identity mirror, not an authority. Everything else either mirrors
 the manifest mechanically (and is gated) or must not state it at all.
 
-  HARD GATE   .claude-plugin/plugin.json — when present, name/version/license
-              must equal version.json. Restoring a second plugin id
-              (`co-author-harness-claude`) is a competing identity and is
-              refused.
+  HARD GATE   .claude-plugin/plugin.json — when present, name/license must
+              equal version.json and `version` must be ABSENT. Claude Code
+              keys its plugin cache on a declared version, so a mirrored
+              version held every marketplace install at that string until the
+              next bump; without one, Claude derives the version from the
+              source commit and installs track `main`. Restoring a second
+              plugin id (`co-author-harness-claude`) is a competing identity
+              and is refused.
 
-  HARD GATE   .claude-plugin/marketplace.json — self-referencing plugins[]
-              entries must equal the manifest. Both files ship inside the
-              .plugin ZIP and the loader rejects the install when they
-              disagree: v0.10.0 RC shipped marketplace.json "0.9.0" against a
-              manifest bumped to "0.10.0". This is mechanical parity between
-              two manifests, not prose mirroring it.
+  HARD GATE   .claude-plugin/marketplace.json — the self-referencing plugins[]
+              entry must equal the manifest's license and must not declare a
+              version, for the same reason (Claude reads the entry's version
+              when plugin.json has none). v0.10.0 RC shipped marketplace.json
+              "0.9.0" against a manifest bumped to "0.10.0": the gate keeps
+              the two files from disagreeing.
 
   REFUSED     README.md asserting a version — a shields.io badge or a
               standalone "## Version `X.Y.Z`" literal. This file used to
@@ -361,12 +365,13 @@ def extract_marketplace_self_referencing_metadata(
             continue
 
         name = str(entry.get("name", "")).strip()
+        # Returned as declared: main() refuses any version on the entry.
         version = str(entry.get("version", "")).strip()
         license_id = str(entry.get("license", "")).strip()
-        if not name or not version or not license_id:
+        if not name or not license_id:
             # Self-referencing entry but missing identity metadata — flag with a
             # placeholder so main() can surface a useful BLOCKER.
-            self_metadata.append((name or "<unnamed>", version or "<missing>",
+            self_metadata.append((name or "<unnamed>", version,
                                   license_id or "<missing>"))
             continue
         self_metadata.append((name, version, license_id))
@@ -476,16 +481,29 @@ def main() -> int:
         )
 
     # Host identities mechanically mirror version.json; neither is an authority.
+    # The Claude host identity mirrors name and license only: a declared
+    # version would pin Claude Code's plugin cache (see the module docstring).
+    claude_host = ".claude-plugin/plugin.json"
     for host_relative in (
         "plugin.json",
         ".codex-plugin/plugin.json",
-        ".claude-plugin/plugin.json",
+        claude_host,
     ):
         root_plugin = plugin_root / host_relative
         if root_plugin.exists():
             try:
                 root_manifest = json.loads(read_text(root_plugin))
-                for field in ("name", "version", "license"):
+                if host_relative == claude_host and "version" in root_manifest:
+                    blockers.append(
+                        f"{host_relative} declares version ({root_manifest['version']}); "
+                        "the Claude host identity must omit version so marketplace "
+                        "installs track the source commit"
+                    )
+                mirrored = (
+                    ("name", "license") if host_relative == claude_host
+                    else ("name", "version", "license")
+                )
+                for field in mirrored:
                     left = str(root_manifest.get(field, "")).strip()
                     right = str(json.loads(read_text(plugin_root / "version.json")).get(field, "")).strip() if (plugin_root / "version.json").exists() else {
                         "version": manifest_version,
@@ -522,14 +540,17 @@ def main() -> int:
         marketplace_summary = "<no self-referencing entries>"
     else:
         marketplace_summary = ", ".join(
-            f"{name}={version}/{license_id}"
+            f"{name}={version or '<no version: tracks commits>'}/{license_id}"
             for name, version, license_id in marketplace_metadata
         )
         for name, version, license_id in marketplace_metadata:
-            if version != manifest_version:
+            if version.startswith("<"):
+                blockers.append(f"marketplace.json plugin '{name}' {version}")
+            elif version:
                 blockers.append(
-                    f"marketplace.json plugin '{name}' version ({version}) "
-                    f"!= manifest version ({manifest_version})"
+                    f"marketplace.json plugin '{name}' declares version ({version}); "
+                    "the Claude marketplace entry must omit version so installs "
+                    "track the source commit"
                 )
             if license_id != manifest_license:
                 blockers.append(

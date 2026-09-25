@@ -118,6 +118,49 @@ binding records each effective path; override-mode bindings also record whether
 each root came from an explicit argument, the environment, or the running
 package root. Profile-mode output remains byte-compatible with existing binds.
 
+## Install
+
+**Claude Code.** Add this repository as a plugin marketplace, then install from it:
+
+```text
+/plugin marketplace add UtopianYoungChung/co-author-harness
+/plugin install co-author-harness@joseph-chung-co-author-harness
+```
+
+The Claude manifests declare no version, so an install tracks `main`: every push
+is an update, and there is nothing to uninstall or re-upload. Claude Code does not
+auto-update third-party marketplaces by default; turn it on once in `/plugin` →
+**Marketplaces** → `joseph-chung-co-author-harness` → **Enable auto-update**. The
+Claude Code docs also accept it declaratively, in a `settings.json` that covers your
+work (for example the governed workspace's `.claude/settings.json`):
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "joseph-chung-co-author-harness": {
+      "source": { "source": "github", "repo": "UtopianYoungChung/co-author-harness" },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": { "co-author-harness@joseph-chung-co-author-harness": true }
+}
+```
+
+Updates arrive in the background. A running session keeps the version it started
+with until `/reload-plugins`; new sessions load the latest. To update at once:
+`claude plugin marketplace update joseph-chung-co-author-harness`, then
+`claude plugin update co-author-harness@joseph-chung-co-author-harness`.
+
+**Claude Desktop / Cowork file upload.** Each `vX.Y.Z` tag publishes
+`co-author-harness.plugin` (and an identical `.zip`) on the
+[Releases](https://github.com/UtopianYoungChung/co-author-harness/releases) page;
+the newest is always at
+[`releases/latest/download/co-author-harness.plugin`](https://github.com/UtopianYoungChung/co-author-harness/releases/latest/download/co-author-harness.plugin).
+An uploaded file does not update itself: load the newer file after a release.
+
+**Hermes Agent.** `hermes plugins install UtopianYoungChung/co-author-harness`, then
+`hermes plugins enable co-author-harness`.
+
 ## Quick start
 
 1. **Open this repository** so package-root path resolution matches your actual layout (see [`references/AGENTS.md`](references/AGENTS.md) for embedded vs plugin-root deployment).
@@ -131,7 +174,7 @@ Draft a short research memo from these supplied excerpts. Declare project_indepe
 follow the native drafting/review/reflection workflow, and deliver the reviewed memo.
 ```
 
-Plugin identity and version are authoritative in [`version.json`](version.json). Root [`plugin.json`](plugin.json) is the portable Agent Plugins v1.0.0 manifest Hermes Agent loads (`hermes plugins install UtopianYoungChung/co-author-harness`, then `hermes plugins enable co-author-harness`). Claude Desktop / Cowork loads the Claude host pack at [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) (direct `.plugin` install) and [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) (`/plugin marketplace add`). Those files mirror `version.json` identity; they are not a second authority. That is loadability, not installed-cache or startup qualification.
+Plugin identity and version are authoritative in [`version.json`](version.json). Root [`plugin.json`](plugin.json) is the portable Agent Plugins v1.0.0 manifest Hermes Agent loads. The Claude host pack is [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json): they mirror the name and license of `version.json` and deliberately omit its version, so marketplace installs track commits. None of these files is a second authority. That is loadability, not installed-cache or startup qualification.
 
 ---
 
@@ -149,8 +192,8 @@ Plugin identity and version are authoritative in [`version.json`](version.json).
 | [`docs/release-notes/`](docs/release-notes/) | Release notes and packaging records for `.plugin` and legacy `.zip` builds |
 | [`version.json`](version.json) | Published plugin `name` / `version` / `license` |
 | [`plugin.json`](plugin.json) | Portable Agent Plugins v1 host identity; identity fields mirror `version.json` |
-| [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) | Claude Desktop / Cowork host identity; name, version, and license mirror `version.json` |
-| [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) | Claude marketplace add entry; self-referencing identity mirrors `version.json` |
+| [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) | Claude Code / Desktop / Cowork host identity; name and license mirror `version.json`, no version (installs track `main`) |
+| [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) | Claude marketplace entry (HTTPS source, also read by Codex); name and license mirror `version.json`, no version |
 
 ---
 

@@ -8,7 +8,9 @@ THE CONTRACT (AGENTS.md, version.json authority)
 `version.json` is the SOLE authority for the CURRENT version. Root
 `plugin.json` must mechanically mirror name, version, and license.
 `.claude-plugin/plugin.json` is the Claude Desktop / Cowork host identity
-mirror: when present it must match those same fields and is not an authority.
+mirror: when present it must match name and license, must NOT declare a
+version (Claude Code would pin marketplace installs to it), and is not an
+authority.
 
   * Descriptive prose must not manually mirror it. A README badge and a
     standalone "## Version `X.Y.Z`" literal are duplicated authority: they
@@ -24,7 +26,8 @@ mirror: when present it must match those same fields and is not an authority.
     trailer-strip invariant (version-check.py `_VERSION_TRAILER_EXEMPT_PATHS`).
   * Root `plugin.json` must mechanically mirror `version.json` name, version,
     and license. `.claude-plugin/plugin.json` and marketplace self-entries,
-    when present, are the same class of host/marketplace mirror.
+    when present, mirror name and license and omit version, so marketplace
+    installs track the source commit.
 
 So: the changelog is validated for STRUCTURE and RELEASE CONSISTENCY, but is
 never treated as the authority for the current version.
@@ -162,16 +165,22 @@ def case_codex_host_identity_mirrors_authority() -> None:
 
 
 def case_claude_host_identity_mirrors_authority() -> None:
+    """Name and license mirror version.json; any declared version is refused.
+
+    Claude Code keys its plugin cache on a declared version, so even a
+    matching one holds marketplace installs at that string until a bump.
+    """
     with tempfile.TemporaryDirectory() as td:
         root = fixture(Path(td))
         authority = json.loads((root / "version.json").read_text(encoding="utf-8"))
+        unpinned = {key: value for key, value in authority.items() if key != "version"}
         native = root / ".claude-plugin/plugin.json"
-        _w(native, json.dumps(authority) + "\n")
+        _w(native, json.dumps(unpinned) + "\n")
         rc, out = run(root)
-        check("matching Claude host identity PASSES", rc == 0, blockers(out))
-        for field in ("name", "version", "license"):
+        check("unpinned Claude host identity PASSES", rc == 0, blockers(out))
+        for field in ("name", "license"):
             for missing in (False, True):
-                value = dict(authority)
+                value = dict(unpinned)
                 if missing:
                     value.pop(field)
                 else:
@@ -183,6 +192,51 @@ def case_claude_host_identity_mirrors_authority() -> None:
                     rc == 1 and blocked_for(out, ".claude-plugin/plugin.json", field),
                     blockers(out),
                 )
+        for label, version in (("matching", authority["version"]), ("stale", "0.0.1")):
+            _w(native, json.dumps(unpinned | {"version": version}) + "\n")
+            rc, out = run(root)
+            check(
+                f"Claude host declaring a {label} version is REFUSED",
+                rc == 1 and blocked_for(out, ".claude-plugin/plugin.json", "declares version"),
+                blockers(out),
+            )
+
+
+def case_claude_marketplace_entry_does_not_pin_version() -> None:
+    """The marketplace self-entry mirrors the license and omits version."""
+    with tempfile.TemporaryDirectory() as td:
+        root = fixture(Path(td))
+        authority = json.loads((root / "version.json").read_text(encoding="utf-8"))
+        entry = {
+            "name": "co-author-harness",
+            "source": {"source": "url",
+                       "url": "https://github.com/example/co-author-harness.git"},
+            "repository": "https://github.com/example/co-author-harness",
+            "license": authority["license"],
+            "description": "d",
+        }
+        market = root / ".claude-plugin/marketplace.json"
+
+        def write(plugin_entry: dict) -> tuple[int, str]:
+            _w(market, json.dumps({"name": "m", "owner": {"name": "o"},
+                                   "plugins": [plugin_entry]}) + "\n")
+            return run(root)
+
+        rc, out = write(entry)
+        check("marketplace self-entry without version PASSES", rc == 0, blockers(out))
+        for label, version in (("matching", authority["version"]), ("stale", "0.0.1")):
+            rc, out = write(entry | {"version": version})
+            check(
+                f"marketplace self-entry declaring a {label} version is REFUSED",
+                rc == 1 and blocked_for(out, "marketplace.json", "declares version"),
+                blockers(out),
+            )
+        rc, out = write(entry | {"license": "wrong"})
+        check(
+            "marketplace self-entry license mismatch is REFUSED",
+            rc == 1 and blocked_for(out, "marketplace.json", "license"),
+            blockers(out),
+        )
 
 
 def case_agent_plugins_v1_schema_is_required() -> None:
@@ -518,6 +572,7 @@ def main() -> int:
     for fn in (case_compliant_readme_passes,
                case_codex_host_identity_mirrors_authority,
                case_claude_host_identity_mirrors_authority,
+               case_claude_marketplace_entry_does_not_pin_version,
                case_agent_plugins_v1_schema_is_required,
                case_native_hermes_yaml_is_refused,
                case_closed_agent_plugin_manifest_is_required,

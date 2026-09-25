@@ -12,7 +12,7 @@ The canonical harness substrate lives at the top level of this directory:
 co-author-harness/
 ├── version.json                 # authoritative package name, version, and license
 ├── plugin.json                  # portable Agent Plugins v1 host identity; identity mirrors version.json
-├── .claude-plugin/              # Claude Desktop / Cowork host pack; identity mirrors version.json
+├── .claude-plugin/              # Claude host pack + marketplace entry; name/license mirror version.json, no version (installs track main)
 ├── agents/                      # agent prompts (planner, evaluator, generator; reflector router + reflector-probe / reflector-closeout split)
 ├── skills/                      # slash-command skills (public ladder run-draft / run-iterate / run-finalize; compatibility bodies run-phase-1/3/4 + legacy routers; run-reflection, etc.)
 ├── references/                  # canonical governance references (AGENT_ORCHESTRATION, REVIEW_ORCHESTRATION, GROUNDING_PROTOCOL, PHASE_PROTOCOL, etc.)
@@ -20,7 +20,7 @@ co-author-harness/
 ├── research_notes/              # package-tier lessons_learned.md
 ├── reviews/                     # package-tier review artefacts (ground-truth verification)
 ├── legacy/                      # plugin-internal legacy (marshal-f1, rule-digest-v060, etc.)
-├── releases/                    # build outputs from `scripts/build-release-zip.sh` (`.zip`) and `scripts/build-plugin.py` (`.plugin`); gitignored — local artefacts only
+├── releases/                    # build outputs from `scripts/build-release-zip.sh` (`.zip`) and `scripts/build-plugin.py` (`.plugin`); gitignored — local artefacts only (published bundles: GitHub Releases, `.github/workflows/release.yml`)
 ├── CHANGELOG.md, README.md
 ├── docs/                        # agent-instructions/, concepts/, release-notes/RELEASE_NOTES_v*.md, …
 └── AGENTS.md                    # harness root instructions (this repo)
