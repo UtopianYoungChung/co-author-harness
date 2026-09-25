@@ -138,27 +138,41 @@ def main() -> int:
         real_replace = evidence_publication.os.replace
         replace_attempts = 0
 
-        def transient_replace(source: Path, destination: Path) -> None:
+        # The stubs take the dir_fd keywords the POSIX path passes to os.replace.
+        def transient_replace(source: Path, destination: Path, **kwargs) -> None:
             nonlocal replace_attempts
             replace_attempts += 1
             if replace_attempts < 3:
                 raise PermissionError("injected transient sharing denial")
-            real_replace(source, destination)
+            real_replace(source, destination, **kwargs)
 
         evidence_publication.os.replace = transient_replace
+        transient_error: PermissionError | None = None
         try:
             with evidence_publication._hold_bound_tree(root):
                 evidence_publication._durable_write(retry_target, b"durable\n", root=root)
+        except PermissionError as exc:
+            transient_error = exc
         finally:
             evidence_publication.os.replace = real_replace
-        assert replace_attempts == 3
-        assert retry_target.read_bytes() == b"durable\n"
+        if os.name == "nt":
+            # Windows sharing denials are transient: retried until the replace lands.
+            assert transient_error is None
+            assert replace_attempts == 3
+            assert retry_target.read_bytes() == b"durable\n"
+        else:
+            # POSIX renames within a held directory descriptor: a denial is real,
+            # is not retried, and publishes nothing or leaves temp debris behind.
+            assert transient_error is not None
+            assert replace_attempts == 1
+            assert not retry_target.exists()
+            assert list(retry_target.parent.iterdir()) == []
 
         persistent_target = root / "persistent-replace" / "journal.json"
         persistent_attempts = 0
         real_sleep = evidence_publication.time.sleep
 
-        def persistent_denial(source: Path, destination: Path) -> None:
+        def persistent_denial(source: Path, destination: Path, **kwargs) -> None:
             nonlocal persistent_attempts
             persistent_attempts += 1
             raise PermissionError("injected persistent sharing denial")
@@ -178,7 +192,7 @@ def main() -> int:
         finally:
             evidence_publication.os.replace = real_replace
             evidence_publication.time.sleep = real_sleep
-        assert persistent_attempts == 8
+        assert persistent_attempts == (8 if os.name == "nt" else 1)
         assert not persistent_target.exists()
 
         activation = build_activation_fixture(root / "future-control")

@@ -23,7 +23,7 @@
     "scripts/analysis/fixture_infrastructure_check.py": {
       "class": "test_only",
       "justification": "hermetic self-probes: writes only inside tempfile.TemporaryDirectory sandboxes and disposable clones it creates and removes",
-      "sha256": "d41e2197c2b5ac81976cc8f55edf120ee669186abcbb8117d08a04509c44f7d7"
+      "sha256": "c86ad64d1969fac27a5f4b8634eb77be90a51f6a61abeff6af1c1bc38c462760"
     },
     "scripts/analysis/fixture_process_supervisor.py": {
       "class": "test_only",
@@ -176,7 +176,7 @@
     "scripts/scholarly_assurance_fixture_support.py": {
       "class": "test_only",
       "justification": "C2-C6 scholarly-assurance fixture support writes only beneath caller-supplied hermetic synthetic project roots",
-      "sha256": "7b34f7e381fba900fa1c3e6711a131371d13cf5d7c654e4be3d3ec2b7e733507"
+      "sha256": "9f2e426907e71dae21ebd3aca0521a07422718767efb8b369588836364ce4a4e"
     },
     "scripts/check8_g_prefilter.py": {
       "class": "guarded",
@@ -310,6 +310,26 @@
     "scripts/install_hermes.py": {
       "class": "guarded",
       "regression": "scripts/hermes_host_smoketest.py"
+    },
+    "scripts/citation_gate/reconcile_citations_test.py": {
+      "class": "test_only",
+      "justification": "vendored citation-gate test; writes only case files beneath its own tempfile.TemporaryDirectory",
+      "sha256": "ae4cd16e8962b7ea5e5bfea282c291fc0b194f61c6eb1807fe6d90aa7aec7c13"
+    },
+    "scripts/citation_gate/verify_locators_test.py": {
+      "class": "test_only",
+      "justification": "vendored citation-gate test; writes beneath its own TemporaryDirectory sandboxes (LOCATOR_CACHE pointed into one) plus one transient _parity_probe.pdf beside itself, unlinked in a finally block",
+      "sha256": "f38db3a5f49385939f9b206c782100484227adf6bf6103067e53e5bd47bc289f"
+    },
+    "scripts/citation_gate/validate_sources.py": {
+      "class": "excluded",
+      "reason": "only writes are a per-DOI metadata cache file under ~/.claude/cache/crossref, named from the sanitised DOI; no project, manuscript or governed destination is ever an input",
+      "sha256": "c29d45cb65c7f503d86f7bf5333566b82cf276f0deba9bfb7f8fc13fe4d770c6"
+    },
+    "scripts/citation_gate/verify_locators.py": {
+      "class": "excluded",
+      "reason": "only write is a page-text cache file named by the PDF's sha256 under LOCATOR_CACHE or ~/.claude/cache/locator-text; no project, manuscript or governed destination is ever an input",
+      "sha256": "6fcc2aebd127f81403a69313d25745e7cf7d42976842ab537daa8b01070c5da1"
     }
   }
 }

@@ -669,6 +669,30 @@ def _capture_identity(ctl, identities: dict[int, str], pid: object) -> None:
     identities.setdefault(pid, token)
 
 
+def _posix_pid_running(pid: int) -> bool:
+    try:
+        raw = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+    except OSError:
+        return False
+    state = raw[raw.rfind(")") + 1:].split()[:1]
+    return bool(state) and state[0] not in {"Z", "X", "x"}
+
+
+def _capture_crashing_worker_identity(ctl, identities: dict[int, str], pid: object) -> None:
+    """Capture a worker that fault injection may already have terminated.
+
+    ``crash_after_supervisor_spawn_before_journal`` makes the POSIX worker
+    ``os._exit(72)`` right after it spawns the product, so the worker can be
+    gone or a zombie before the frontend returns. A process that no longer runs
+    has nothing to terminate later; a live one must still yield its token.
+    """
+    if not isinstance(pid, int) or pid <= 0:
+        raise AssertionError(f"invalid frontend PID for identity capture: {pid!r}")
+    if ctl._process_token(pid) is None and not _posix_pid_running(pid):
+        return
+    _capture_identity(ctl, identities, pid)
+
+
 def _windows_observation_contract(ctl) -> tuple[int, list[str]]:
     def windows_error(code: int, message: str) -> OSError:
         error = OSError(message)
@@ -3678,7 +3702,9 @@ while True:
                     _test_fault="crash_after_supervisor_spawn_before_journal",
                     allowed_output_roots=[root / "work"],
                 )
-                _capture_identity(ctl, prejournal_identities, started.get("worker", {}).get("pid"))
+                _capture_crashing_worker_identity(
+                    ctl, prejournal_identities, started.get("worker", {}).get("pid")
+                )
                 receipt = _wait(ctl, root, "prejournal-crash")
             finally:
                 if prejournal_pids.is_file():

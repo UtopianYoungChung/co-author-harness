@@ -162,19 +162,28 @@ def case_classifier() -> None:
             ext = Path(td) / "unrelated" / "x.txt"
             check("path outside every governed root -> external",
                   dc.classify(ext) == "external", dc.classify(ext))
-            # junction alias: a link OUTSIDE the governed root that resolves INTO it
+            # directory alias: a link OUTSIDE the governed root that resolves INTO it
+            # (an NTFS junction on Windows, a symlink elsewhere)
             link = Path(td) / "jx"
-            r = subprocess.run(
-                ["cmd", "/c", "mklink", "/J", str(link),
-                 str(fake / "research" / "60_Workbench")],
-                capture_output=True, text=True, encoding="utf-8", errors="replace")
-            if r.returncode == 0:
+            alias_target = fake / "research" / "60_Workbench"
+            if os.name == "nt":
+                r = subprocess.run(
+                    ["cmd", "/c", "mklink", "/J", str(link), str(alias_target)],
+                    capture_output=True, text=True, encoding="utf-8", errors="replace")
+                alias_error = "" if r.returncode == 0 else r.stderr.strip()
+            else:
+                try:
+                    os.symlink(alias_target, link, target_is_directory=True)
+                    alias_error = ""
+                except OSError as exc:
+                    alias_error = str(exc)
+            if not alias_error:
                 got = dc.classify(link / "probe.md")
-                check("junction alias into research -> protected",
+                check("directory alias into research -> protected",
                       got == "protected", got)
             else:
-                print("  SKIP  junction creation unavailable in this environment "
-                      f"({r.stderr.strip()[:60]})")
+                print("  SKIP  directory alias creation unavailable in this environment "
+                      f"({alias_error[:60]})")
             refused = None
             try:
                 dc.assert_writable(probe)
