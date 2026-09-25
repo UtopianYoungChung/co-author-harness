@@ -131,8 +131,17 @@ The Claude manifests declare no version, so an install tracks `main`: every push
 is an update, and there is nothing to uninstall or re-upload. Claude Code does not
 auto-update third-party marketplaces by default; turn it on once in `/plugin` →
 **Marketplaces** → `joseph-chung-co-author-harness` → **Enable auto-update**. The
-Claude Code docs also accept it declaratively, in a `settings.json` that covers your
-work (for example the governed workspace's `.claude/settings.json`):
+Claude Code docs also accept it declaratively, in one of two `settings.json` files:
+
+- **One workspace or project:** `<folder>/.claude/settings.json`, which applies to
+  sessions opened in that folder. Claude Code does not create this `.claude` folder
+  on its own, so create it (and the file) if it is not there; Claude Code asks you
+  to trust the folder the next time you open a session in it.
+- **Every project:** your user settings, `~/.claude/settings.json`
+  (`%USERPROFILE%\.claude\settings.json` on Windows). This file usually exists
+  already, so add the keys below to it rather than replacing it.
+
+Either file takes these keys:
 
 ```json
 {
