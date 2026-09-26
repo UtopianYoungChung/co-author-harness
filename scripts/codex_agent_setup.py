@@ -4,13 +4,23 @@
 Default is a dry run. Use --write with an explicit personal/project agents
 directory. Existing different files are refused; remove/update them explicitly.
 Role instructions stay canonical in agents/*.md, not duplicated in TOML.
+
+Like scripts/init_governed_workspace.py, this user-invoked setup step never
+writes inside the harness package, into a directory that encloses it, or
+anywhere inside a governed workspace; dry runs refuse the same destinations.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import sys
 import tomllib
 from pathlib import Path
+
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+import destination_capability as capability  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 ROLES = {
@@ -77,11 +87,30 @@ def render_config(destination: Path, *, root: Path = ROOT, include_hooks: bool =
     return '\n\n'.join(blocks) + '\n'
 
 
+def refuse_destination(path: Path, *, root: Path = ROOT) -> None:
+    """Raise ValueError for the package, a directory enclosing it, or a governed workspace."""
+    target = path.resolve()
+    package = root.resolve()
+    if target == package or package in target.parents:
+        raise ValueError(f'{capability.DEST_MISROUTED}: {target} is inside the harness package; '
+                         'choose a Codex configuration directory outside the plugin')
+    if target in package.parents:
+        raise ValueError(f'SETUP-ENCLOSES-PACKAGE: {target} contains the harness package; '
+                         'choose a dedicated Codex configuration directory')
+    workspace = capability.discovered_destination_workspace_root(target)
+    if workspace is not None:
+        raise ValueError(f'SETUP-IN-GOVERNED-WORKSPACE: {target} is inside the governed workspace '
+                         f'{workspace}; use a personal Codex directory such as ~/.codex/agents')
+
+
 def install(destination: Path, *, write: bool = False, root: Path = ROOT,
             config_output: Path | None = None, include_hooks: bool = False) -> dict:
     rendered = render_roles(root)
     if include_hooks and config_output is None:
         raise ValueError('--include-hooks requires --config-output')
+    for target in (destination, config_output):
+        if target is not None:
+            refuse_destination(target, root=root)
     outputs = {destination / name: content for name, content in rendered.items()}
     if config_output is not None:
         if config_output in outputs:

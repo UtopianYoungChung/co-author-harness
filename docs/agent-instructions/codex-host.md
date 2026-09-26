@@ -30,7 +30,12 @@ python scripts/codex_agent_setup.py --agent-dir "$env:USERPROFILE/.codex/agents"
 
 The first command previews the six destinations. The second creates them;
 different existing files are refused before any write. For project-only roles,
-pass that project's `.codex/agents` directory instead. Names use `coauthor_`
+pass that project's `.codex/agents` directory instead, provided the project lies
+outside every governed workspace. Both commands refuse, before writing anything,
+a destination inside the harness package (`DEST-MISROUTED`), a directory that
+encloses the package (`SETUP-ENCLOSES-PACKAGE`), and any path inside a governed
+workspace (`SETUP-IN-GOVERNED-WORKSPACE`); keep roles for governed research in
+the personal directory above. Names use `coauthor_`
 followed by the role, with underscores replacing hyphens. The setup changes no
 model, reasoning effort, permissions, or hook trust. Refresh/reopen Codex and
 verify discovery in a new chat. Rerun from the desired package after its root
