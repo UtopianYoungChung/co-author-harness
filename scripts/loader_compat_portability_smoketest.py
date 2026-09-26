@@ -179,14 +179,15 @@ def case_codex_hook_events() -> None:
                COAUTHOR_HOOK_PYTHON=sys.executable)
     command = handler['commandWindows'] if os.name == 'nt' else handler['command']
     failed = subprocess.run(command, shell=True, input='{}', capture_output=True,
-                            text=True, env={**env, 'COAUTHOR_HOOK_PYTHON': str(ROOT / 'missing-python')},
+                            text=True, encoding='utf-8', errors='replace',
+                            env={**env, 'COAUTHOR_HOOK_PYTHON': str(ROOT / 'missing-python')},
                             timeout=30)
     assert failed.returncode == 2 and 'HOOK-INTERPRETER' in failed.stderr
     # Exercise the POSIX launcher as well (Git Bash supplies it on Windows).
     bash = _hook_shell('bash')
     posix = subprocess.run([bash, (ROOT / 'scripts/hooks/run_codex_hook.sh').as_posix()],
-                           input='{}', capture_output=True, text=True,
-                           env={**env, 'PLUGIN_ROOT': ROOT.as_posix()}, timeout=30)
+                           input='{}', capture_output=True, text=True, encoding='utf-8',
+                           errors='replace', env={**env, 'PLUGIN_ROOT': ROOT.as_posix()}, timeout=30)
     assert posix.returncode == 0 and json.loads(posix.stdout) == {}, posix.stderr
 
     def run(payload, scope=None, *, launch=False):
@@ -196,7 +197,7 @@ def case_codex_hook_events() -> None:
         proc = subprocess.run(
             command if launch else [sys.executable, str(ROOT / 'scripts/hooks/codex_gate.py')],
             shell=launch, input=json.dumps(payload), capture_output=True,
-            text=True, encoding='utf-8', env=bound, timeout=30,
+            text=True, encoding='utf-8', errors='replace', env=bound, timeout=30,
         )
         assert proc.returncode == 0, proc.stderr
         return json.loads(proc.stdout)
@@ -278,6 +279,33 @@ def case_codex_native_roles() -> None:
         else:
             raise AssertionError('must refuse a user-edited role')
         assert edited.read_text(encoding='utf-8') == 'user edit'
+
+    def refused(code, target, **kwargs):
+        try:
+            setup.install(target, **kwargs)
+        except ValueError as exc:
+            assert str(exc).startswith(code), exc
+        else:
+            raise AssertionError(f'must refuse {target} with {code}')
+
+    # Dry runs refuse the same destinations; the package cases stay dry so a
+    # broken guard cannot write into the checkout or its parent.
+    refused('DEST-MISROUTED', ROOT / 'codex-agents')
+    refused('SETUP-ENCLOSES-PACKAGE', ROOT.parent)
+    assert not (ROOT / 'codex-agents').exists()
+    with tempfile.TemporaryDirectory() as td:
+        workspace = Path(td) / 'workspace'
+        routing = workspace / 'governance' / 'output-routing' / 'output_routing.yaml'
+        routing.parent.mkdir(parents=True)
+        routing.write_text('schema_version: 1\nroutes: []\n', encoding='utf-8')
+        project_agents = workspace / 'project' / '.codex' / 'agents'
+        for write in (False, True):
+            refused('SETUP-IN-GOVERNED-WORKSPACE', project_agents, write=write)
+        personal = Path(td) / 'personal' / 'agents'
+        refused('SETUP-IN-GOVERNED-WORKSPACE', personal, write=True,
+                config_output=workspace / 'coauthor-harness.config.toml')
+        assert not (workspace / 'project').exists() and not personal.exists(), \
+            'refusal must precede every write'
 
 
 def main() -> int:

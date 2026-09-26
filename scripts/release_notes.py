@@ -27,7 +27,9 @@ INSTALL = """\
 /plugin install co-author-harness@joseph-chung-co-author-harness
 ```
 
-**Codex** — add the same repository as a Codex plugin marketplace (skills only):
+**Codex** — add the same repository as a Codex plugin marketplace; the
+[Codex host setup](https://github.com/UtopianYoungChung/co-author-harness/blob/main/docs/agent-instructions/codex-host.md)
+covers the role setup and hook trust:
 
 ```
 codex plugin marketplace add UtopianYoungChung/co-author-harness

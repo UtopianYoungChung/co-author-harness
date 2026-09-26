@@ -335,6 +335,11 @@
       "class": "excluded",
       "reason": "user-invoked setup tool: creates only a routing manifest (exclusive create, never overwritten) and the outputs/co-author-harness/staging lane at an explicitly named directory; refuses the harness package, a directory enclosing it, and any directory already inside a governed workspace",
       "sha256": "22f006a06158b8ef30b9fb34805a743c4796659af6b02bd2533e21912c066291"
+    },
+    "scripts/codex_agent_setup.py": {
+      "class": "excluded",
+      "reason": "user-invoked Codex setup tool: dry run by default; with --write creates only the six coauthor_*.toml role pointers in the explicitly named --agent-dir and, when requested, one --config-output fragment; refuses the harness package, a directory enclosing it, and any destination inside a governed workspace (dry runs included), and never overwrites a different existing file",
+      "sha256": "6ac1f2b84e8fe429b2a10192b4cff0e5d9ce35a92ffcb7ea9d5d212c567ba526"
     }
   }
 }

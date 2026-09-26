@@ -34,11 +34,14 @@ this package root, the governed staging lane
 shipment lane above. Script writers resolve destinations through
 `scripts/destination_capability.py` (`DEST-MISROUTED` for package-local project
 output; `DEST-PROTECTED` refusal; `DEST-UNGOVERNED` fail-closed without
-discoverable workspace governance). The one setup-time exception is
-`scripts/init_governed_workspace.py`: run by the user, it creates a new
+discoverable workspace governance). There are two setup-time exceptions, both
+run by the user. `scripts/init_governed_workspace.py` creates a new
 workspace's routing manifest and staging lane at an explicitly named directory,
 never inside the package or an existing governed workspace, and never
-overwrites a manifest. Read-only modes (`--stdout`, `--stdout-only`, `--check`)
+overwrites a manifest. `scripts/codex_agent_setup.py --write` creates Codex
+role pointers (and, when asked, one configuration fragment) at explicitly named
+paths, never inside the package, in a directory enclosing it, or inside a
+governed workspace, and never overwrites a different file. Read-only modes (`--stdout`, `--stdout-only`, `--check`)
 write nothing and so need no write capability.
 The lookalike path `co-author-harness/outputs/co-author-harness/` is forbidden:
 project output must never become package state or make one project a governing
