@@ -1168,7 +1168,9 @@ def _systemd_tools() -> tuple[str, str]:
         )
     if not Path("/sys/fs/cgroup/cgroup.controllers").is_file():
         raise FixtureProcessError(
-            "FIXTURE-PROCESS-UNSUPPORTED", "Linux suite supervision requires cgroup v2",
+            "FIXTURE-PROCESS-UNSUPPORTED",
+            "Linux suite supervision requires cgroup v2 (on a root-capable host "
+            "without it, run under scripts/analysis/systemd-user-sandbox.sh)",
         )
     return str(Path(run).resolve()), str(Path(control).resolve())
 

@@ -28,7 +28,7 @@
     "scripts/analysis/fixture_process_supervisor.py": {
       "class": "test_only",
       "justification": "internal fixture-suite supervisor writes only anonymous OS temporary capture files and inherited pipe descriptors; it exposes no persistent destination argument",
-      "sha256": "9cba37f1f7b5d72623563e4ff1f91c65d9709d7ec67f8dc46e5805f766ef29a9"
+      "sha256": "0e1d7f7ec7054ab6ea0d5af770e2dc4ecdd9adc2647048c69adec888da716388"
     },
     "scripts/analysis/fixture_runner.py": {
       "class": "guarded",

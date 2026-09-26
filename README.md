@@ -248,6 +248,14 @@ a pass under `--allow-unavailable`, which hosted CI uses and which cannot write
 canonical evidence. Hosted CI runs the registry from a sandbox governed
 workspace with Poppler `pdftotext` installed.
 
+On Linux the fixture preflight and registry run each suite as a `systemd-run --user`
+unit, which needs cgroup v2 and a user manager. Containers and VMs often have neither.
+There, run the command as root under `scripts/analysis/systemd-user-sandbox.sh`: it
+starts a private user manager in its own mount namespace for the length of the
+command, leaving the host untouched (for example
+`scripts/analysis/systemd-user-sandbox.sh python3 scripts/analysis/fixture_infrastructure_check.py`).
+Where the host's user manager already works, it runs the command directly.
+
 Full release packaging: `scripts/release-gate.sh` (see script header). Release zip: `scripts/build-release-zip.sh`—artefact naming and notes in [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
