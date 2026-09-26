@@ -871,7 +871,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "c535ce791a3cdc6ebda08d0f41af365373cfce1a257b1173dd7a1befd605f956",
+      "sha256": "2a1a4f3b3d8405225fa485c1382d129d4ef31adf531ff14a3914993b01486ed2",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -907,7 +907,7 @@
       "id": "review-orchestration",
       "path": "references/REVIEW_ORCHESTRATION.md",
       "revision_kind": "sha256",
-      "sha256": "9af9bd1f9ce48d2288ba1dac1b0191f557f7d33f9298b42ac3b1c766687a63d9",
+      "sha256": "3119fb6b6bb9ca822400df3684f2c23ced184dd89602ad2fc6cdea5af5f5374c",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
