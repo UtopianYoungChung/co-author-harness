@@ -64,6 +64,8 @@ SK-32 stays CLOSED. Graph `extraction_mode` structural-only remains; 2026-07-25 
 | [`references/REVIEW_ORCHESTRATION.md`](references/REVIEW_ORCHESTRATION.md) | Classification, per-step review protocol, findings format. |
 | [`references/AGENTS.md`](references/AGENTS.md) | **Package-level** invocation rules and component map. |
 
+**No governed workspace yet?** Governed writes (project bootstrap, reports under `reviews/`) are refused with `DEST-UNGOVERNED` until one exists. Run `python scripts/init_governed_workspace.py <workspace-dir>` once and keep projects in its `outputs/co-author-harness/staging/<work-id>/<run-id>/` lane; read-only modes such as `scripts/audit/run_all.py <file> --stdout` need no workspace.
+
 **New project?** Use `scripts/native_project_bootstrap.py` exactly as specified in [`references/PROJECT_BOOTSTRAP.md`](references/PROJECT_BOOTSTRAP.md); it atomically seeds the standard directories and the mandatory graph-independent reader-profile v2 binding. Hand-built native ledgers are not supported. **Discovery and lifecycle:** [`docs/agent-instructions/harness-discovery-lifecycle.md`](docs/agent-instructions/harness-discovery-lifecycle.md).
 
 ---
@@ -84,9 +86,22 @@ least one of them to do useful work.
   discovery loop's verifier fall-through path. Same no-op behaviour
   applies when the connector is absent.
 
+- **Poppler `pdftotext`** — required for canonical PDF evidence (source
+  extraction, scholarly evaluation, the product gate). The reference build is
+  Poppler 24.04.0 on Windows; any other `pdftotext` on `PATH` is admitted when it
+  reproduces the committed conformance fixture byte for byte (for example
+  `poppler-utils` 24.02 on Ubuntu 24.04). Without one, PDF extraction refuses
+  with `EXTRACTOR-UNAVAILABLE` or `EXTRACTOR-IDENTITY-MISMATCH`.
+
 Sessions that do not invoke `/seed-snowball-discovery`,
 `/extend-snowball-incremental`, or the Ph2 claim-coverage audit can
 proceed without either connector.
+
+On Claude Code the plugin installs a PreToolUse and Stop hook. Without a declared
+run scope it only guards harness territory (native projects and governed
+workspace roots) and lets every other write through; a declared
+`FRC_PARENT_SCOPE` must be set before the host starts. See the Hooks section of
+[`references/CLAUDE_CODE_HOST.md`](references/CLAUDE_CODE_HOST.md).
 
 Ordinary drafting and revision need a host that can spawn real child agents and
 keep an inspectable original trace. Registered adapters: Codex (`codex-jsonl`),
@@ -103,6 +118,81 @@ binding records each effective path; override-mode bindings also record whether
 each root came from an explicit argument, the environment, or the running
 package root. Profile-mode output remains byte-compatible with existing binds.
 
+## Install
+
+**Claude Code.** Add this repository as a plugin marketplace, then install from it:
+
+```text
+/plugin marketplace add UtopianYoungChung/co-author-harness
+/plugin install co-author-harness@joseph-chung-co-author-harness
+```
+
+The Claude manifests declare no version, so an install tracks `main`: every push
+is an update, and there is nothing to uninstall or re-upload. Claude Code does not
+auto-update third-party marketplaces by default; turn it on once in `/plugin` →
+**Marketplaces** → `joseph-chung-co-author-harness` → **Enable auto-update**. The
+Claude Code docs also accept it declaratively, in one of two `settings.json` files:
+
+- **One workspace or project:** `<folder>/.claude/settings.json`, which applies to
+  sessions opened in that folder. Claude Code does not create this `.claude` folder
+  on its own, so create it (and the file) if it is not there; Claude Code asks you
+  to trust the folder the next time you open a session in it.
+- **Every project:** your user settings, `~/.claude/settings.json`
+  (`%USERPROFILE%\.claude\settings.json` on Windows). This file usually exists
+  already, so add the keys below to it rather than replacing it.
+
+Either file takes these keys:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "joseph-chung-co-author-harness": {
+      "source": { "source": "github", "repo": "UtopianYoungChung/co-author-harness" },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": { "co-author-harness@joseph-chung-co-author-harness": true }
+}
+```
+
+Updates arrive in the background. A running session keeps the version it started
+with until `/reload-plugins`; new sessions load the latest. To update at once:
+`claude plugin marketplace update joseph-chung-co-author-harness`, then
+`claude plugin update co-author-harness@joseph-chung-co-author-harness`.
+
+**Claude Desktop / Cowork file upload.** Each version bump on `main` publishes
+`co-author-harness.plugin` (and an identical `.zip`) on the
+[Releases](https://github.com/UtopianYoungChung/co-author-harness/releases) page;
+the newest is always at
+[`releases/latest/download/co-author-harness.plugin`](https://github.com/UtopianYoungChung/co-author-harness/releases/latest/download/co-author-harness.plugin).
+An uploaded file does not update itself: load the newer file after a release.
+
+**Codex.** Add the same repository as a Codex plugin marketplace, then install from it:
+
+```text
+codex plugin marketplace add UtopianYoungChung/co-author-harness
+codex plugin add co-author-harness@joseph-chung-co-author-harness
+```
+
+Codex loads the harness skills. It does not load the Claude agents or hooks: the
+Codex manifest ([`.codex-plugin/plugin.json`](.codex-plugin/plugin.json)) declares
+skills only, so full-lifecycle hook enforcement runs in Claude Code alone. Codex
+labels the install with that manifest's version, which changes only at releases, so
+the label does not show which commit you have. To take the latest `main`, refresh the
+marketplace and re-run the install:
+
+```text
+codex plugin marketplace upgrade
+codex plugin add co-author-harness@joseph-chung-co-author-harness
+```
+
+To see the installed commit, run `git log --oneline -1` in
+`~/.codex/plugins/cache/joseph-chung-co-author-harness/co-author-harness/<version>/`
+(under `$CODEX_HOME` instead of `~/.codex` if you set it).
+
+**Hermes Agent.** `hermes plugins install UtopianYoungChung/co-author-harness`, then
+`hermes plugins enable co-author-harness`.
+
 ## Quick start
 
 1. **Open this repository** so package-root path resolution matches your actual layout (see [`references/AGENTS.md`](references/AGENTS.md) for embedded vs plugin-root deployment).
@@ -116,7 +206,7 @@ Draft a short research memo from these supplied excerpts. Declare project_indepe
 follow the native drafting/review/reflection workflow, and deliver the reviewed memo.
 ```
 
-Plugin identity and version are authoritative in [`version.json`](version.json). Root [`plugin.json`](plugin.json) is the portable Agent Plugins v1.0.0 manifest Hermes Agent loads (`hermes plugins install UtopianYoungChung/co-author-harness`, then `hermes plugins enable co-author-harness`). Claude Desktop / Cowork loads the Claude host pack at [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) (direct `.plugin` install) and [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) (`/plugin marketplace add`). Those files mirror `version.json` identity; they are not a second authority. That is loadability, not installed-cache or startup qualification.
+Plugin identity and version are authoritative in [`version.json`](version.json). Root [`plugin.json`](plugin.json) is the portable Agent Plugins v1.0.0 manifest Hermes Agent loads. The Claude host pack is [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json): they mirror the name and license of `version.json` and deliberately omit its version, so marketplace installs track commits. None of these files is a second authority. That is loadability, not installed-cache or startup qualification.
 
 ---
 
@@ -134,8 +224,8 @@ Plugin identity and version are authoritative in [`version.json`](version.json).
 | [`docs/release-notes/`](docs/release-notes/) | Release notes and packaging records for `.plugin` and legacy `.zip` builds |
 | [`version.json`](version.json) | Published plugin `name` / `version` / `license` |
 | [`plugin.json`](plugin.json) | Portable Agent Plugins v1 host identity; identity fields mirror `version.json` |
-| [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) | Claude Desktop / Cowork host identity; name, version, and license mirror `version.json` |
-| [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) | Claude marketplace add entry; self-referencing identity mirrors `version.json` |
+| [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) | Claude Code / Desktop / Cowork host identity; name and license mirror `version.json`, no version (installs track `main`) |
+| [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) | Claude marketplace entry (HTTPS source, also read by Codex); name and license mirror `version.json`, no version |
 
 ---
 
@@ -173,6 +263,22 @@ The fixture registry is the single behavioral-test authority. Omit
 `--no-write` only to regenerate the committed manifest after the full corpus
 passes.
 
+A case may declare `requires_workspace_paths` (files beside the package in a
+governed workspace, such as the sibling knowledge wiki), or
+`unavailable_on_github_hosted` (platforms whose GitHub-hosted runner cannot run
+it). Where one applies the case is `UNAVAILABLE`: a failure by default, and listed but never counted as
+a pass under `--allow-unavailable`, which hosted CI uses and which cannot write
+canonical evidence. Hosted CI runs the registry from a sandbox governed
+workspace with Poppler `pdftotext` installed.
+
+On Linux the fixture preflight and registry run each suite as a `systemd-run --user`
+unit, which needs cgroup v2 and a user manager. Containers and VMs often have neither.
+There, run the command as root under `scripts/analysis/systemd-user-sandbox.sh`: it
+starts a private user manager in its own mount namespace for the length of the
+command, leaving the host untouched (for example
+`scripts/analysis/systemd-user-sandbox.sh python3 scripts/analysis/fixture_infrastructure_check.py`).
+Where the host's user manager already works, it runs the command directly.
+
 Full release packaging: `scripts/release-gate.sh` (see script header). Release zip: `scripts/build-release-zip.sh`—artefact naming and notes in [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
@@ -183,6 +289,7 @@ The current version is recorded in [`version.json`](version.json), which is its 
 
 | Release | Highlights |
 | --- | --- |
+| **0.51.0** | Claude Code installs track `main` through the repository marketplace (no version in the Claude manifests); release bundles move to GitHub Releases via a tag workflow. The PreToolUse/Stop hook guards harness territory, not folder names. `init_governed_workspace.py` gives installers a governed workspace, and read-only modes need none. Any `pdftotext` that reproduces the conformance fixture qualifies as an extractor and is re-qualified wherever a receipt is validated. Hosted CI runs the fixture registry on Linux and Windows in a sandbox workspace; Linux suite timeouts keep their diagnostic and output. |
 | **0.50.1** | Patch since 0.50.0: WR-20260903 stabilize (FIVE docs, verifier/capability, centroid HOT, paper2 unique land, fail-closed kernel repair), reflector FIVE bind (probe/closeout/grounding; router skipped), printed-page running-head footers. KEEP WIP `c4563c8`+`d5fe3c0`; July stashes kept; no promote; SK-32 closed. |
 | **0.50.0** | SemVer identity 0.5.0 to 0.50.0 (monotonically newer than 0.43.0). Evaluation-lane is dest-safe mechanical only (`d-style-profile`, `deterministic-audit`); scholarly rows fail closed and do not mint CLEAN. Joseph is the only R-plane actor. `GRAPH-SEMANTIC-INELIGIBLE` stays eligibility, not `RA-POLICY`. |
 | **0.43.1** | Shipment-v2 treats `inputs/` as immutable preimage evidence and requires operation bijection only across `work/`, `state/`, and `evidence/`. Qualification coverage routes `RUNTIME-PLANE-MISSING` diagnostics and includes the static output-economy guard. This slice is not source qualification, clearance, shipment, or activation. |

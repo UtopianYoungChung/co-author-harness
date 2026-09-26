@@ -124,6 +124,10 @@ else:  # pragma: no cover
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent.parent
 MANIFEST_PATH = PLUGIN_ROOT / "docs" / "analysis" / "generated" / "fixture_manifest.json"
+# The directory that holds the package in a governed workspace layout
+# (<workspace>/platform/co-author-harness). A case's requires_workspace_paths
+# name files beside the package there, such as the sibling knowledge wiki.
+WORKSPACE_ROOT = PLUGIN_ROOT.parents[1]
 SUITE_TIMEOUT_S = 900
 
 _DESTINATION_PATH = PLUGIN_ROOT / "scripts" / "destination_capability.py"
@@ -269,10 +273,14 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/alias_parity_smoketest.py": [_default_case()],
     "scripts/archive_runtime_probe_smoketest.py": [_default_case()],
     "scripts/qualification_plane_topology_smoketest.py": [_default_case()],
+    # Passes on the maintainer's Windows host; on the GitHub-hosted Windows
+    # runner the release-gate facade's detached worker is refused ("cannot
+    # escape the enclosing Job"), cause not yet established.
     "scripts/release_qualification_controller_smoketest.py": [{
         **_default_case(),
         "case_id": "fixture-owner",
         "argv": ["--fixture-owner"],
+        "unavailable_on_github_hosted": ["nt"],
     }],
     "scripts/command_surface_smoketest.py": [_default_case()],
     "scripts/assignment_dispatch_claim_smoketest.py": [_default_case()],
@@ -328,9 +336,11 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/lifecycle_verifier_binding_smoketest.py": [_default_case()],
     "scripts/loader_compat_portability_smoketest.py": [_default_case()],
     "scripts/mcr_convergence_evidence_smoketest.py": [_default_case()],
-    "scripts/migrate_lab_iteration_derived_handoff_smoketest.py": [
-        _default_case(timeout_s=2400)
-    ],
+    # Re-derives the reader-accessibility policy from the pinned wiki corpus.
+    "scripts/migrate_lab_iteration_derived_handoff_smoketest.py": [{
+        **_default_case(timeout_s=2400),
+        "requires_workspace_paths": ["knowledge/LLM wiki/graphify-out/graph.json"],
+    }],
     "scripts/migrate_legacy_milestones_adversarial_smoketest.py": [_default_case()],
     "scripts/migrate_legacy_milestones_smoketest.py": [_default_case()],
     "scripts/migrate_v0150pre_stage_profile_smoketest.py": [_default_case()],
@@ -421,7 +431,13 @@ REGISTRY: dict[str, list[dict]] = {
     ],
     "scripts/scholarly_lifecycle_integration_smoketest.py": [_default_case()],
     "scripts/semantic_predication_contract_smoketest.py": [_default_case()],
-    "scripts/semantic_qualification_consumer_smoketest.py": [_default_case()],
+    # Consumes the sibling knowledge wiki's qualification script; where that
+    # checkout is absent the case is UNAVAILABLE, a failure unless the caller
+    # passes --allow-unavailable (never PASS, never canonical evidence).
+    "scripts/semantic_qualification_consumer_smoketest.py": [{
+        **_default_case(),
+        "requires_workspace_paths": ["knowledge/LLM wiki/scripts/semantic_qualification.py"],
+    }],
     "scripts/shipment_manifest_smoketest.py": [_default_case()],
     "scripts/staging_authority_mode_smoketest.py": [_default_case()],
     "scripts/source_extract_smoketest.py": [_default_case()],
@@ -617,6 +633,7 @@ def run(registry: dict[str, list[dict]],
         cache_mode: str = "off",
         tier: str = "full",
         failure_transcript_root: str | Path | None = None,
+        allow_unavailable: bool = False,
         _test_only_allow_noncanonical_write: bool = False) -> int:
     """Execute the registry; write the manifest only on a fully green run.
 
@@ -646,6 +663,10 @@ def run(registry: dict[str, list[dict]],
     if tier == "quick" and write_manifest:
         print("ERROR: quick tier is NON_AUTHORITATIVE_PARTIAL and requires --no-write",
               file=sys.stderr)
+        return 2
+    if allow_unavailable and write_manifest:
+        print("ERROR: --allow-unavailable is non-authoritative and requires --no-write; "
+              "canonical evidence needs every declared precondition", file=sys.stderr)
         return 2
     transcript_root = None
     if failure_transcript_root is not None:
@@ -688,6 +709,7 @@ def run(registry: dict[str, list[dict]],
             cache_mode=cache_mode,
             tier=tier,
             failure_transcript_root=transcript_root,
+            allow_unavailable=allow_unavailable,
         )
     finally:
         _release_lock(lock)
@@ -698,7 +720,8 @@ def _run_locked(registry: dict[str, list[dict]],
                 *, write_manifest: bool,
                 cache_mode: str,
                 tier: str,
-                failure_transcript_root: Path | None = None) -> int:
+                failure_transcript_root: Path | None = None,
+                allow_unavailable: bool = False) -> int:
     universe = set(universe_arg if universe_arg is not None
                    else discover_suite_universe())
     registered = set(registry)
@@ -740,6 +763,7 @@ def _run_locked(registry: dict[str, list[dict]],
     suites_out: list[dict] = []
     failures: list[str] = []
     failure_transcripts: list[dict] = []
+    unavailable: list[str] = []
     staged: list[fixture_cache.StagedEntry] = []
     cache_hits = 0
     cache_misses = 0
@@ -749,6 +773,22 @@ def _run_locked(registry: dict[str, list[dict]],
     for rel in sorted(registry):
         suite_path = PLUGIN_ROOT / rel
         for case in registry[rel]:
+            missing = [
+                entry for entry in case.get("requires_workspace_paths", [])
+                if not (WORKSPACE_ROOT / entry).is_file()
+            ]
+            reason = None
+            if missing:
+                reason = f"requires {', '.join(missing)} under {WORKSPACE_ROOT}"
+            elif (os.name in case.get("unavailable_on_github_hosted", ())
+                  and os.environ.get("RUNNER_ENVIRONMENT") == "github-hosted"):
+                reason = f"requires a {os.name} host other than the GitHub-hosted runner"
+            if reason:
+                print(f"  UNAVAILABLE  precondition missing  {rel}::{case['case_id']}  {reason}")
+                unavailable.append(f"{rel}::{case['case_id']}: {reason}")
+                if not allow_unavailable:
+                    failures.append(f"{rel}::{case['case_id']}: UNAVAILABLE: {reason}")
+                continue
             cacheable = cache_mode != "off" and rel in CACHEABLE_SUITES
             basis = _cache_basis(rel, case, pre) if cacheable else None
             proc = None
@@ -920,6 +960,11 @@ def _run_locked(registry: dict[str, list[dict]],
     if not write_manifest:
         print(f"\nPASS: {len(suites_out)} suites, {len(cases_out)} cases; "
               "--no-write preserved committed evidence")
+        if unavailable:
+            print(f"  {len(unavailable)} case(s) UNAVAILABLE and NOT passed "
+                  "(tolerated by --allow-unavailable):")
+            for entry in unavailable:
+                print(f"    {entry}")
         return 0
 
     manifest = {
@@ -1032,6 +1077,12 @@ def main() -> int:
              "requires --no-write). Exact path, unique basename, or unique stem. Repeatable.",
     )
     ap.add_argument(
+        "--allow-unavailable",
+        action="store_true",
+        help="report cases whose declared workspace preconditions are absent as "
+             "UNAVAILABLE (never PASS) instead of failing; non-authoritative, requires --no-write",
+    )
+    ap.add_argument(
         "--cache-mode",
         choices=("off", "use", "refresh"),
         default="off",
@@ -1064,6 +1115,7 @@ def main() -> int:
             cache_mode=args.cache_mode,
             tier="suite",
             failure_transcript_root=args.failure_transcript_root,
+            allow_unavailable=args.allow_unavailable,
         )
     if args.tier == "quick":
         selected = {rel: REGISTRY[rel] for rel in QUICK_SUITES}
@@ -1074,6 +1126,7 @@ def main() -> int:
             cache_mode=args.cache_mode,
             tier="quick",
             failure_transcript_root=args.failure_transcript_root,
+            allow_unavailable=args.allow_unavailable,
         )
     return run(
         REGISTRY,
@@ -1081,6 +1134,7 @@ def main() -> int:
         cache_mode=args.cache_mode,
         tier="full",
         failure_transcript_root=args.failure_transcript_root,
+        allow_unavailable=args.allow_unavailable,
     )
 
 

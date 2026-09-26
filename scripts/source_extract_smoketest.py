@@ -15,8 +15,16 @@ from jsonschema import Draft202012Validator
 
 import evidence_publication
 import source_extract
-from c2_evidence_fixture_support import ASSET_ROOT, build_activation_fixture
-from c2_evidence_validation import validate_extract_receipt
+from c2_evidence_fixture_support import (
+    ASSET_ROOT,
+    build_activation_fixture,
+    page_map_seed_for_active_extractor,
+)
+from c2_evidence_validation import (
+    EvidenceValidationError,
+    validate_extract_receipt,
+    validate_extractor_identity,
+)
 from evidence_publication import (
     EvidencePublicationError,
     publish_committed,
@@ -130,6 +138,11 @@ def run_future_extract(
     )
 
 
+def lf(data: bytes) -> bytes:
+    """utf8-lf-v1 line endings: the raw form differs only there across extractors."""
+    return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
 def main() -> int:
     failures: list[str] = []
     with tempfile.TemporaryDirectory(prefix="coauthor-source-extract-c2-") as td:
@@ -138,27 +151,41 @@ def main() -> int:
         real_replace = evidence_publication.os.replace
         replace_attempts = 0
 
-        def transient_replace(source: Path, destination: Path) -> None:
+        # The stubs take the dir_fd keywords the POSIX path passes to os.replace.
+        def transient_replace(source: Path, destination: Path, **kwargs) -> None:
             nonlocal replace_attempts
             replace_attempts += 1
             if replace_attempts < 3:
                 raise PermissionError("injected transient sharing denial")
-            real_replace(source, destination)
+            real_replace(source, destination, **kwargs)
 
         evidence_publication.os.replace = transient_replace
+        transient_error: PermissionError | None = None
         try:
             with evidence_publication._hold_bound_tree(root):
                 evidence_publication._durable_write(retry_target, b"durable\n", root=root)
+        except PermissionError as exc:
+            transient_error = exc
         finally:
             evidence_publication.os.replace = real_replace
-        assert replace_attempts == 3
-        assert retry_target.read_bytes() == b"durable\n"
+        if os.name == "nt":
+            # Windows sharing denials are transient: retried until the replace lands.
+            assert transient_error is None
+            assert replace_attempts == 3
+            assert retry_target.read_bytes() == b"durable\n"
+        else:
+            # POSIX renames within a held directory descriptor: a denial is real,
+            # is not retried, and publishes nothing or leaves temp debris behind.
+            assert transient_error is not None
+            assert replace_attempts == 1
+            assert not retry_target.exists()
+            assert list(retry_target.parent.iterdir()) == []
 
         persistent_target = root / "persistent-replace" / "journal.json"
         persistent_attempts = 0
         real_sleep = evidence_publication.time.sleep
 
-        def persistent_denial(source: Path, destination: Path) -> None:
+        def persistent_denial(source: Path, destination: Path, **kwargs) -> None:
             nonlocal persistent_attempts
             persistent_attempts += 1
             raise PermissionError("injected persistent sharing denial")
@@ -178,7 +205,7 @@ def main() -> int:
         finally:
             evidence_publication.os.replace = real_replace
             evidence_publication.time.sleep = real_sleep
-        assert persistent_attempts == 8
+        assert persistent_attempts == (8 if os.name == "nt" else 1)
         assert not persistent_target.exists()
 
         activation = build_activation_fixture(root / "future-control")
@@ -204,6 +231,9 @@ def main() -> int:
             errors="replace",
         )
         assert pinned["version"] in version.stderr + version.stdout
+        # The committed seed binds the reference extractor's raw bytes; a
+        # fixture-qualified extractor gets the same seed rebased onto its own.
+        active_seed = page_map_seed_for_active_extractor(root / "active-page-map-seed.json")
 
         generated_root = activation.root / "generated"
         generated_text = generated_root / "normalized.txt"
@@ -220,7 +250,7 @@ def main() -> int:
             receipt_out=generated_receipt,
             raw_out=generated_raw,
             page_map_out=generated_map,
-            page_map_seed=ASSET_ROOT / "expected_page_span_map.json",
+            page_map_seed=active_seed,
             manifest_out=generated_manifest,
             marker_out=generated_marker,
         )
@@ -248,6 +278,27 @@ def main() -> int:
             wiki_root=activation.wiki_root,
         )
         assert validated["value"]["schema_version"] == "2.0.0"
+        # Whatever extractor this host qualified, a receipt cannot forge or drop
+        # the qualification that admitted it.
+        executable = validated["value"]["extraction"]["executable"]
+        validate_extractor_identity(executable)
+        if "qualification" in executable:
+            forgeries = [
+                dict(executable, qualification=dict(
+                    executable["qualification"], normalized_sha256="0" * 64)),
+                dict(executable, qualification=dict(
+                    executable["qualification"], fixture_id="another-fixture")),
+                {key: value for key, value in executable.items() if key != "qualification"},
+            ]
+            for forged in forgeries:
+                try:
+                    validate_extractor_identity(forged)
+                except EvidenceValidationError as exc:
+                    assert exc.code in {
+                        "EXTRACTOR-UNSUPPORTED", "EXTRACTOR-IDENTITY-MISMATCH",
+                    }, exc.code
+                else:
+                    raise AssertionError(f"forged extractor qualification admitted: {forged}")
         assert generated_text.read_bytes() == (
             ASSET_ROOT / "expected_utf8_lf_v1.txt"
         ).read_bytes()
@@ -284,9 +335,7 @@ def main() -> int:
                 (activation.root / "miniature.pdf", sha(activation.root / "miniature.pdf")),
                 (activation.project_manifest, sha(activation.project_manifest)),
                 (tool, sha(tool)),
-                (ASSET_ROOT / "expected_page_span_map.json", sha(
-                    ASSET_ROOT / "expected_page_span_map.json"
-                )),
+                (active_seed, sha(active_seed)),
             ],
             inventory_preconditions=[],
             outputs=recovery_outputs,
@@ -312,7 +361,7 @@ def main() -> int:
             receipt_out=generated_receipt,
             raw_out=generated_raw,
             page_map_out=generated_map,
-            page_map_seed=ASSET_ROOT / "expected_page_span_map.json",
+            page_map_seed=active_seed,
             manifest_out=generated_manifest,
             marker_out=generated_marker,
         )
@@ -322,7 +371,7 @@ def main() -> int:
 
         stale_seed = root / "stale-page-map.json"
         stale_value = json.loads(
-            (ASSET_ROOT / "expected_page_span_map.json").read_text(
+            active_seed.read_text(
                 encoding="utf-8"
             )
         )
@@ -428,14 +477,15 @@ def main() -> int:
             ASSET_ROOT / "miniature.pdf", benign_text, benign_receipt
         )
         assert benign.returncode == 0, benign.stdout + benign.stderr
-        assert benign_text.read_bytes() == (
+        assert lf(benign_text.read_bytes()) == lf((
             ASSET_ROOT / "expected_pdftotext_raw.txt"
-        ).read_bytes()
+        ).read_bytes())
 
         shadow_root = root / "shadow-tool"
         shadow_root.mkdir()
         shadow_tool = shadow_root / "pdftotext.exe"
         shadow_tool.write_bytes(b"unqualified extractor shadow\n")
+        shadow_tool.chmod(0o755)  # discoverable on POSIX PATH as it is on Windows
         shadow_env = dict(os.environ)
         shadow_env["PATH"] = os.pathsep.join((
             str(shadow_root),
@@ -450,9 +500,9 @@ def main() -> int:
             env=shadow_env,
         )
         assert shadowed.returncode == 0, shadowed.stdout + shadowed.stderr
-        assert shadow_text.read_bytes() == (
+        assert lf(shadow_text.read_bytes()) == lf((
             ASSET_ROOT / "expected_pdftotext_raw.txt"
-        ).read_bytes()
+        ).read_bytes())
 
         only_shadow_text = root / "only-shadow" / "extract.txt"
         only_shadow_receipt = root / "only-shadow" / "receipt.json"
@@ -468,6 +518,31 @@ def main() -> int:
         assert only_shadow.returncode == 4
         assert "EXTRACTOR-IDENTITY-MISMATCH" in only_shadow.stderr
         assert tree_state(root / "only-shadow") == only_shadow_before
+
+        if os.name != "nt":
+            # A runnable pdftotext that reports a version but does not reproduce
+            # the conformance fixture is refused, not qualified.
+            imposter_root = root / "imposter-tool"
+            imposter_root.mkdir()
+            imposter = imposter_root / "pdftotext"
+            imposter.write_text(
+                "#!/bin/sh\n"
+                'if [ "$1" = "-v" ]; then echo "pdftotext version 24.02.0" >&2; exit 0; fi\n'
+                'printf "forged text\\n" > "$4"\n',
+                encoding="ascii",
+            )
+            imposter.chmod(0o755)
+            imposter_env = dict(os.environ)
+            imposter_env["PATH"] = str(imposter_root)
+            imposter_run = run_extract(
+                ASSET_ROOT / "miniature.pdf",
+                root / "imposter" / "extract.txt",
+                root / "imposter" / "receipt.json",
+                env=imposter_env,
+            )
+            assert imposter_run.returncode == 4, imposter_run.stderr
+            assert "EXTRACTOR-IDENTITY-MISMATCH" in imposter_run.stderr
+            assert not (root / "imposter" / "receipt.json").exists()
 
         attack_text = root / "unavailable" / "extract.txt"
         attack_receipt = root / "unavailable" / "receipt.json"

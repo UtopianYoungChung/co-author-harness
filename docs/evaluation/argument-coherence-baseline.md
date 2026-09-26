@@ -28,9 +28,11 @@ documents. "Implemented" means an enforcement point exists in code and is tested
 When an agent edits a manuscript directly from chat, the package's only mechanical
 control is the `hooks/hooks.json` PreToolUse gate. That gate is a **routing** gate:
 it asks whether a scope was declared and whether the destination is permitted. With
-no `FRC_PARENT_SCOPE` it denies writes to paths containing `manuscript`, `research`,
-`60_workbench`, or `milestones`; under `project_independent` it additionally
-confines writes to the bound PIW staging root. It never asks whether a review ran,
+no `FRC_PARENT_SCOPE` it denies writes to `manuscript`, `milestones`,
+`submission_bundle`, `research`, or `60_workbench` paths that lie inside a native
+project or a governed workspace root (the same folder names elsewhere on disk
+pass); under `project_independent` it additionally confines writes to the bound
+PIW staging root. It never asks whether a review ran,
 and it cannot: a semantic obligation is not expressible as a path predicate.
 
 Three limits are stated rather than papered over:

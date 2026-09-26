@@ -143,20 +143,37 @@ def prepare_contract(
         ) from exc
     contract_data = _canonical(contract)
     contract_path = lane / "contract.json"
-    transaction_id = f"draft-governance-prepare-{_digest(contract_data)[:16]}"
-    marker_value = {
-        "schema_version": "1.0.0",
-        "publication_type": "draft_governance_contract",
-        "state": "committed",
-        "transaction_id": transaction_id,
-        "contract": {
-            "path": contract_path.relative_to(project).as_posix(),
-            "sha256": _digest(contract_data),
-            "byte_length": len(contract_data),
-        },
-    }
+    contract_rel = contract_path.relative_to(project).as_posix()
     marker_path = lane / "contract-commit-marker.json"
-    marker_data = _canonical(marker_value)
+
+    def contract_marker(transaction_id: str) -> bytes:
+        return _canonical({
+            "schema_version": "1.0.0",
+            "publication_type": "draft_governance_contract",
+            "state": "committed",
+            "transaction_id": transaction_id,
+            "contract": {
+                "path": contract_rel,
+                "sha256": _digest(contract_data),
+                "byte_length": len(contract_data),
+            },
+        })
+
+    # The contract carries no lane, so the same contract published under two
+    # evidence labels needs the lane in its transaction id: a contract-only
+    # id gave both one transaction, and the second was refused as a differing
+    # intent. A lane already committed under the contract-only id keeps it,
+    # so re-preparing that unchanged contract stays idempotent.
+    transaction_id = "draft-governance-prepare-" + _digest(
+        contract_rel.encode("utf-8") + b"\n" + contract_data
+    )[:16]
+    legacy_transaction_id = f"draft-governance-prepare-{_digest(contract_data)[:16]}"
+    if (
+        marker_path.is_file()
+        and marker_path.read_bytes() == contract_marker(legacy_transaction_id)
+    ):
+        transaction_id = legacy_transaction_id
+    marker_data = contract_marker(transaction_id)
     artifact_digest = _file_digest(artifact_path)
 
     def current_contract() -> None:

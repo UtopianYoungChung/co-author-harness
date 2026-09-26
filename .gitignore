@@ -35,19 +35,15 @@ Thumbs.db
 *~
 
 # Plugin bundles (build artefacts; built by scripts/build-plugin.py from
-# git ls-tree HEAD). Ordinary *.plugin files stay untracked. The two
-# Claude Desktop file-picker snapshots below are tracked so `git pull`
-# delivers them locally. scripts/package_enumeration.py drops every
-# `.plugin` / `.zip` from the next official bundle, so a tracked snapshot
-# cannot nest inside a rebuild.
+# git ls-tree HEAD) are never tracked. .github/workflows/release.yml builds
+# the Claude Desktop / Cowork .plugin and .zip for each version bump on main
+# (or vX.Y.Z tag) and attaches them to that GitHub Release; Claude Code
+# installs track main through the marketplace instead.
 *.plugin
-!.claude-plugin/co-author-harness.plugin
 
-# Pre-built release ZIPs stay untracked except the Claude Desktop zip
-# snapshot next to the host pack (same bytes as the .plugin file).
+# Pre-built release ZIPs stay untracked.
 releases/*.zip
 .claude-plugin/*.zip
-!.claude-plugin/co-author-harness.zip
 
 # Calibrator + semantic-review + pre-flight session outputs. Per the
 # v0.10.0 stage close-notes convention, these are session-scope and
@@ -78,8 +74,8 @@ reviews/findings.json
 # a generated scratch artifact and must never be committed.
 scripts/audit/reviews/
 
-# (cleanup 2026-05-27) ignore local scratch dir. Stray Claude-pack zips stay
-# ignored; the current Desktop zip snapshot is excepted above.
+# (cleanup 2026-05-27) ignore local scratch dir. Claude-pack zips stay
+# ignored (see Plugin bundles above).
 scratch/
 
 # Lawfully acquired local source texts are user-local inputs. They must never

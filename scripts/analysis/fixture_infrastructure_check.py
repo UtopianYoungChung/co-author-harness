@@ -411,6 +411,26 @@ def case_cache_contract() -> None:
 # R3: runner concurrency + void semantics (disposable clone)
 # --------------------------------------------------------------------------
 
+def _staging_capture_root(prefix: str) -> tuple[Path, Path]:
+    """Return (sandbox workspace, empty capture dir inside its staging lane).
+
+    The runner refuses a transcript root the destination guard cannot classify
+    as writable. A bare temp directory is writable only on a host that already
+    has a governed workspace; everywhere else it is DEST-UNGOVERNED. The probe
+    therefore builds the smallest governed workspace (its routing manifest) and
+    captures inside that workspace's staging lane, which is writable on every
+    host. The caller removes the workspace.
+    """
+    workspace = Path(tempfile.mkdtemp(prefix=prefix))
+    manifest = workspace / "governance" / "output-routing" / "output_routing.yaml"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text("schema_version: 1\nroutes: []\n", encoding="utf-8")
+    capture = (workspace / "outputs" / "co-author-harness" / "staging"
+               / "fixture-probe" / "transcripts")
+    capture.mkdir(parents=True)
+    return workspace, capture
+
+
 def case_runner_concurrency_and_void(repo: Path) -> None:
     runner = _load(repo / "scripts" / "analysis" / "fixture_runner.py", "fr_clone",
                    repo=repo)
@@ -465,7 +485,9 @@ def case_runner_concurrency_and_void(repo: Path) -> None:
     transcript_registry = {
         transcript_suite: [dict(runner._default_case(), expected_exit=1)]
     }
-    transcript_root = Path(tempfile.mkdtemp(prefix="fixture-failure-transcripts-"))
+    transcript_workspace, transcript_root = _staging_capture_root(
+        "fixture-failure-transcripts-"
+    )
     rc = runner.run(
         transcript_registry,
         [transcript_suite],
@@ -498,7 +520,7 @@ def case_runner_concurrency_and_void(repo: Path) -> None:
                       stream_binding.get("byte_length") == len(expected))
                 check(f"{stream} transcript SHA-256 is bound",
                       stream_binding.get("sha256") == hashlib.sha256(expected).hexdigest())
-    shutil.rmtree(transcript_root)
+    shutil.rmtree(transcript_workspace)
 
     # Green mini run writes evidence again.
     rc = runner.run(
@@ -638,10 +660,14 @@ def case_suite_process_tree_ownership() -> None:
             f"os.write(2,{infrastructure_stderr!r})\n"
             "time.sleep(5)\n",
         )
-        transcript_root = root / "infrastructure-error-transcripts"
-        transcript_root.mkdir()
+        transcript_workspace, transcript_root = _staging_capture_root(
+            "infrastructure-error-transcripts-"
+        )
+        # The budget must cover supervised startup (systemd unit, anchor and
+        # suite interpreters, about 0.3s on Linux) so the suite writes its
+        # bytes before it times out.
         rc = runner.run(
-            {infrastructure_suite: [runner._default_case(timeout_s=0.25)]},
+            {infrastructure_suite: [runner._default_case(timeout_s=3)]},
             [infrastructure_suite],
             failure_transcript_root=transcript_root,
             _test_only_allow_noncanonical_write=True,
@@ -681,6 +707,7 @@ def case_suite_process_tree_ownership() -> None:
                           stream_binding.get("sha256") == hashlib.sha256(expected).hexdigest())
         check("infrastructure transcripts stay inside the capture root",
               all(path.parent == transcript_root for path in transcript_root.iterdir()))
+        shutil.rmtree(transcript_workspace)
 
         if os.name == "nt":
             identity_sentinel = root / "windows-executable-identity-ran.txt"

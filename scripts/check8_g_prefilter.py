@@ -322,12 +322,14 @@ def main() -> int:
     )
     args = ap.parse_args()
     project_root = args.project_root.resolve()
-    from destination_capability import DestinationRefused, guard_project_root
-    try:
-        guard_project_root(project_root)
-    except DestinationRefused as exc:
-        print(f"[BLOCKER] {exc}")
-        return 4
+    if not args.stdout_only:
+        # --stdout-only writes nothing, so it needs no write capability.
+        from destination_capability import DestinationRefused, guard_project_root
+        try:
+            guard_project_root(project_root)
+        except DestinationRefused as exc:
+            print(f"[BLOCKER] {exc}")
+            return 4
     ms_path = args.manuscript
     if not ms_path.is_file():
         ms_path = (project_root / args.manuscript).resolve()

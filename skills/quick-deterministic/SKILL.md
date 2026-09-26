@@ -36,6 +36,16 @@ You are running a fast mechanical pre-flight on an academic manuscript. As of v0
 
 5. **Do not re-count anything.** If the script under-detected (false negative), file a bug against `scripts/audit/` — do not paper over it with manual counting.
 
+## Without a governed workspace
+
+Writing `reviews/findings.json` needs a writable destination. On a machine with
+no governed workspace, either run
+`python ${CLAUDE_PLUGIN_ROOT}/scripts/init_governed_workspace.py <workspace-dir>` once
+and work in its staging lane, or run the read-only form, which writes nothing:
+`python ${CLAUDE_PLUGIN_ROOT}/scripts/audit/run_all.py <target> --stdout` (add
+`--project-root <root> --skip-d-style-profile --skip-accessibility` to read a
+project without writing its reports).
+
 ## What you do NOT do
 
 - **Do not run regexes yourself.** The patterns live in `scripts/audit/audit_style.py`; LLM-side regex counting is the anti-pattern this version retired.

@@ -11,7 +11,7 @@ Clean-checkout verification may use a temporary **detached** worktree, which mus
 be removed after its receipts are copied back. Before deleting a legacy branch,
 first prove its tip is reachable from `main` so no committed history is lost.
 
-**Authoritative version.** `version.json` is the single source of truth for the package's **current** version, name, and license. Root `plugin.json` is the portable Agent Plugins v1.0.0 host identity and mechanically mirrors those identity fields so Hermes Agent can load the package. `.claude-plugin/plugin.json` is the Claude Desktop / Cowork host identity and mechanically mirrors the same name, version, and license; `.claude-plugin/marketplace.json` self-entries do the same for marketplace add. Neither Claude file is an authority. Native `plugin.yaml` is refused because it would hide that portable loader. Descriptive prose must not manually mirror the current version — point readers at `version.json` instead. Historical release identifiers (`CHANGELOG.md` headings, `docs/release-notes/`, release-history tables) are records of what shipped, not claims about the current version. Enforced by `scripts/version-check.py`; pinned by `scripts/version_policy_smoketest.py`. `.claude-plugin/ssot.yaml` remains retired.
+**Authoritative version.** `version.json` is the single source of truth for the package's **current** version, name, and license. Root `plugin.json` is the portable Agent Plugins v1.0.0 host identity and mechanically mirrors those identity fields so Hermes Agent can load the package. `.claude-plugin/plugin.json` is the Claude Desktop / Cowork host identity and mechanically mirrors the same name and license; `.claude-plugin/marketplace.json` self-entries do the same for marketplace add. Neither Claude file declares a version: Claude Code pins a marketplace install to a declared version, so without one every install tracks the commit on `main` and receives each push. Neither Claude file is an authority. Native `plugin.yaml` is refused because it would hide that portable loader. Descriptive prose must not manually mirror the current version — point readers at `version.json` instead. Historical release identifiers (`CHANGELOG.md` headings, `docs/release-notes/`, release-history tables) are records of what shipped, not claims about the current version. Enforced by `scripts/version-check.py`; pinned by `scripts/version_policy_smoketest.py`. `.claude-plugin/ssot.yaml` remains retired.
 
 **Relationship to the package substrate.** This file decides *when* and *how* the package is invoked. The substrate lives in `agents/`, `skills/`, `references/`, and `scripts/` — **Harness Root → Package Substrate → Component Files.** This root file does not duplicate orchestration rules inside those trees.
 
@@ -34,7 +34,12 @@ this package root, the governed staging lane
 shipment lane above. Script writers resolve destinations through
 `scripts/destination_capability.py` (`DEST-MISROUTED` for package-local project
 output; `DEST-PROTECTED` refusal; `DEST-UNGOVERNED` fail-closed without
-discoverable workspace governance).
+discoverable workspace governance). The one setup-time exception is
+`scripts/init_governed_workspace.py`: run by the user, it creates a new
+workspace's routing manifest and staging lane at an explicitly named directory,
+never inside the package or an existing governed workspace, and never
+overwrites a manifest. Read-only modes (`--stdout`, `--stdout-only`, `--check`)
+write nothing and so need no write capability.
 The lookalike path `co-author-harness/outputs/co-author-harness/` is forbidden:
 project output must never become package state or make one project a governing
 body for the harness.

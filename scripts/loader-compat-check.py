@@ -214,7 +214,10 @@ def check_manifest(report: Report, plugin_path: Path) -> Optional[dict]:
 
     report.emit("PASS", "C3.json", "plugin.json parses as JSON")
 
-    for field in ("name", "version", "description"):
+    # `version` is optional in the Claude plugin schema, and this package
+    # omits it so marketplace installs track the source commit
+    # (version-check.py); it is shape-checked below only when present.
+    for field in ("name", "description"):
         if field not in manifest:
             report.emit("BLOCK", "C3.field", f"Missing required field: {field}")
         elif not isinstance(manifest[field], str):
@@ -234,11 +237,16 @@ def check_manifest(report: Report, plugin_path: Path) -> Optional[dict]:
     else:
         report.emit("PASS", "C3.name-shape", "name has no slashes/whitespace")
 
-    version = manifest.get("version", "")
-    if not re.match(r"^\d+\.\d+\.\d+(?:[-+].+)?$", version):
-        report.emit("BLOCK", "C3.version-shape", f"version {version!r} is not semver")
+    if "version" not in manifest:
+        report.emit("PASS", "C3.version-shape",
+                    "version absent: Claude derives it from the source commit")
     else:
-        report.emit("PASS", "C3.version-shape", f"version is semver ({version!r})")
+        version = manifest["version"]
+        if not isinstance(version, str) or not re.match(
+                r"^\d+\.\d+\.\d+(?:[-+].+)?$", version):
+            report.emit("BLOCK", "C3.version-shape", f"version {version!r} is not semver")
+        else:
+            report.emit("PASS", "C3.version-shape", f"version is semver ({version!r})")
 
     desc_len = len(manifest.get("description", ""))
     if desc_len > 300:
@@ -289,6 +297,9 @@ def check_marketplace_parity(report: Report, plugin_path: Path, manifest: dict) 
         report.emit("BLOCK", "C4.version",
                     f"marketplace self-version {entry.get('version')!r} != "
                     f"plugin.json version {manifest.get('version')!r}")
+    elif "version" not in manifest:
+        report.emit("PASS", "C4.version",
+                    "marketplace self-entry and plugin.json both omit version")
     else:
         report.emit("PASS", "C4.version",
                     f"marketplace self-version matches plugin.json "

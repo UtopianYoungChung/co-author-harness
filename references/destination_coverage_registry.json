@@ -23,12 +23,12 @@
     "scripts/analysis/fixture_infrastructure_check.py": {
       "class": "test_only",
       "justification": "hermetic self-probes: writes only inside tempfile.TemporaryDirectory sandboxes and disposable clones it creates and removes",
-      "sha256": "d41e2197c2b5ac81976cc8f55edf120ee669186abcbb8117d08a04509c44f7d7"
+      "sha256": "bc38b4758f8aae11441bf94f04c4c1be585174ca5b61e41f5ffe4580eb2bf64d"
     },
     "scripts/analysis/fixture_process_supervisor.py": {
       "class": "test_only",
       "justification": "internal fixture-suite supervisor writes only anonymous OS temporary capture files and inherited pipe descriptors; it exposes no persistent destination argument",
-      "sha256": "4fb7c90cb43eb77d2303b2ff65cfa52d514dc37badfa2aa140bef8216618e1f1"
+      "sha256": "0e1d7f7ec7054ab6ea0d5af770e2dc4ecdd9adc2647048c69adec888da716388"
     },
     "scripts/analysis/fixture_runner.py": {
       "class": "guarded",
@@ -166,7 +166,7 @@
     "scripts/c2_evidence_fixture_support.py": {
       "class": "test_only",
       "justification": "C2 fixture support writes only beneath caller-supplied hermetic temporary test roots",
-      "sha256": "78ca205002a401feb1e9a02ac2b18c86b29dc89af8619ed9d875ef15ad86f432"
+      "sha256": "30a0cdf35a740bfde5c2d318edf9e1ad1eb5a38305d4fd2add2ecf5458a9fe3c"
     },
     "scripts/c5_lifecycle_fixture_support.py": {
       "class": "test_only",
@@ -176,7 +176,7 @@
     "scripts/scholarly_assurance_fixture_support.py": {
       "class": "test_only",
       "justification": "C2-C6 scholarly-assurance fixture support writes only beneath caller-supplied hermetic synthetic project roots",
-      "sha256": "7b34f7e381fba900fa1c3e6711a131371d13cf5d7c654e4be3d3ec2b7e733507"
+      "sha256": "9f2e426907e71dae21ebd3aca0521a07422718767efb8b369588836364ce4a4e"
     },
     "scripts/check8_g_prefilter.py": {
       "class": "guarded",
@@ -206,7 +206,7 @@
     "scripts/hooks/full_run_pretooluse_gate.py": {
       "class": "excluded",
       "reason": "only write is a NamedTemporaryFile in the OS temp directory, unlinked in a finally block; no destination input exists",
-      "sha256": "924271f5a6d98b844f0c3c09c13afc725195d547599bc01fe695a7eda4e34cc2"
+      "sha256": "927be6e7df0a2a49d44e81cc6d2242cdde25ddb55d2d15ad1305327613d9fe04"
     },
     "scripts/install_preflight_assets.py": {
       "class": "guarded",
@@ -310,6 +310,31 @@
     "scripts/install_hermes.py": {
       "class": "guarded",
       "regression": "scripts/hermes_host_smoketest.py"
+    },
+    "scripts/citation_gate/reconcile_citations_test.py": {
+      "class": "test_only",
+      "justification": "vendored citation-gate test; writes only case files beneath its own tempfile.TemporaryDirectory",
+      "sha256": "ae4cd16e8962b7ea5e5bfea282c291fc0b194f61c6eb1807fe6d90aa7aec7c13"
+    },
+    "scripts/citation_gate/verify_locators_test.py": {
+      "class": "test_only",
+      "justification": "vendored citation-gate test; writes beneath its own TemporaryDirectory sandboxes (LOCATOR_CACHE pointed into one) plus one transient _parity_probe.pdf beside itself, unlinked in a finally block",
+      "sha256": "f38db3a5f49385939f9b206c782100484227adf6bf6103067e53e5bd47bc289f"
+    },
+    "scripts/citation_gate/validate_sources.py": {
+      "class": "excluded",
+      "reason": "only writes are a per-DOI metadata cache file under ~/.claude/cache/crossref, named from the sanitised DOI; no project, manuscript or governed destination is ever an input",
+      "sha256": "c29d45cb65c7f503d86f7bf5333566b82cf276f0deba9bfb7f8fc13fe4d770c6"
+    },
+    "scripts/citation_gate/verify_locators.py": {
+      "class": "excluded",
+      "reason": "only write is a page-text cache file named by the PDF's sha256 under LOCATOR_CACHE or ~/.claude/cache/locator-text; no project, manuscript or governed destination is ever an input",
+      "sha256": "6fcc2aebd127f81403a69313d25745e7cf7d42976842ab537daa8b01070c5da1"
+    },
+    "scripts/init_governed_workspace.py": {
+      "class": "excluded",
+      "reason": "user-invoked setup tool: creates only a routing manifest (exclusive create, never overwritten) and the outputs/co-author-harness/staging lane at an explicitly named directory; refuses the harness package, a directory enclosing it, and any directory already inside a governed workspace",
+      "sha256": "22f006a06158b8ef30b9fb34805a743c4796659af6b02bd2533e21912c066291"
     }
   }
 }

@@ -833,7 +833,7 @@
       "id": "fixture-process-supervisor",
       "path": "scripts/analysis/fixture_process_supervisor.py",
       "revision_kind": "sha256",
-      "sha256": "4fb7c90cb43eb77d2303b2ff65cfa52d514dc37badfa2aa140bef8216618e1f1",
+      "sha256": "0e1d7f7ec7054ab6ea0d5af770e2dc4ecdd9adc2647048c69adec888da716388",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -843,7 +843,7 @@
       "id": "fixture-runner",
       "path": "scripts/analysis/fixture_runner.py",
       "revision_kind": "sha256",
-      "sha256": "1258469c6b09698acd7e221eddf16aac04ad557460f956dc30d0b6a9cd0a5bab",
+      "sha256": "306ac73569ac0c94f6e29c25b90a990bf2be7d21826c31a6626141d714182fe9",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -871,7 +871,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "6d77beae4376ea09d60db1380cb57ecef26d11bde6a93700e3d0ef62f94d0554",
+      "sha256": "ae63a708b1cc3e9b48a4f2a794f220537d088fbc42f3d08ecaf6dbbc8bddfc75",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1024,7 +1024,7 @@
       "id": "skill-quick-deterministic",
       "path": "skills/quick-deterministic/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "72dca8cf3f47f82d2f36e03fc1ae0b0051fc051e4a044562f2bbc8d234bbf985",
+      "sha256": "3658b38753323e70cd59a67a88a60a10e1df0f4f87d94b79a9417adee44eaa16",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

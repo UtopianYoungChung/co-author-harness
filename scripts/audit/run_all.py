@@ -213,7 +213,11 @@ def main(argv: List[str] | None = None) -> int:
                 if args.project_root else args.out.with_name("product_assurance.json")
             )
             destinations.append(product_output)
-        if args.project_root and project_kind != "protected":
+        if args.project_root and project_kind != "protected" and any(
+            dest is not None for dest in destinations
+        ):
+            # A run that writes nothing (--stdout with both project reports
+            # skipped) reads the project root but needs no write capability.
             guard_project_root(args.project_root)
         for dest in destinations:
             if dest is not None:

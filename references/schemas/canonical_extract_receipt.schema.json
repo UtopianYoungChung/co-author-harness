@@ -27,7 +27,18 @@
             "name": {"type": "string", "minLength": 1},
             "version": {"type": "string", "minLength": 1},
             "sha256": {"$ref": "#/$defs/sha256"},
-            "size": {"type": "integer", "minimum": 1}
+            "size": {"type": "integer", "minimum": 1},
+            "qualification": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["method", "fixture_id", "fixture_sha256", "normalized_sha256"],
+              "properties": {
+                "method": {"const": "fixture-conformance-v1"},
+                "fixture_id": {"const": "assurance-provenance-c2"},
+                "fixture_sha256": {"$ref": "#/$defs/sha256"},
+                "normalized_sha256": {"$ref": "#/$defs/sha256"}
+              }
+            }
           }
         },
         "argv": {"type": "array", "items": {"type": "string"}},

@@ -66,3 +66,35 @@ qualification requires a real session's own logs.
 `hooks/hooks.json` registers the PreToolUse and Stop gate for Claude Code
 sessions where the host sets `CLAUDE_PLUGIN_ROOT`. It enforces
 `FULL_RUN_CONTRACT.md` scope declarations; it is not part of the trace boundary.
+
+Plugin hooks run in every session once the plugin is enabled, so the gate is
+scoped by territory, not by folder name:
+
+- **No scope declared (the default).** Writes proceed, each with one
+  `[FRC-SCOPE-PASSTHROUGH]` stderr notice. The gate denies only
+  argument-bearing paths (`manuscript/`, `milestones/`, `submission_bundle/`,
+  `research/`, `60_Workbench/`) that lie inside harness territory: a native
+  project (an ancestor holding `reviews/phase_state.json` or
+  `reviews/assignment_contract.json`) or a governed workspace root. A folder
+  called `research` elsewhere on disk is ordinary. Agent/Task briefs naming
+  `run-generator-session` are refused, and briefs naming a manuscript are
+  refused when the session's working directory is inside harness territory.
+- **A declared scope.** Writes to lifecycle artefacts (`manuscript/`,
+  `milestones/`, `submission_bundle/`) route through
+  `full_run_contract_check.py authorize`; `adhoc_review` is read-only and
+  always refuses. Argument-bearing paths inside a governed root but outside
+  the staging and private-shipment lanes are `DEST-PROTECTED` under every
+  scope.
+
+The hook reads the scope from its own process environment, which it inherits
+from the host at launch; a model cannot declare it mid-session. Ordinary
+`/run-draft` and `/run-iterate` work needs no scope. To drive a governed run
+from a dedicated session, set it before starting Claude Code, either in the
+launching shell or in the project's `.claude/settings.json`:
+
+```json
+{"env": {"FRC_PARENT_SCOPE": "full_lifecycle"}}
+```
+
+`FRC_REQUIRE_SCOPE=1` refuses every event without a valid scope, and
+`FRC_GATE_HOOK_DISABLE=1` turns the gate off.
