@@ -23,7 +23,7 @@ Coupling C/D canonical Wiki mutation is **unavailable**
 
 **Purpose.** This file is the **runbook** for reviewing an academic piece with the full guidelines package. It tells you: what classification to assign, which files apply, what to read at each step, what to emit, and how to synthesize the findings into one prioritized action list.
 
-**Precedence.** Read `CLAUDE.md` (this folder) first if you are not sure when to invoke the package; this file assumes the decision to invoke has been made.
+**Precedence.** Read `AGENTS.md` (this folder) first if you are not sure when to invoke the package; this file assumes the decision to invoke has been made.
 
 **Relationship to MASTER.** `MASTER_research_and_paper_guidelines.md` is the **reference map** (principles, traceability, Parts A–J). This file is the **runbook** (procedure, gating, emission format). Both are needed; they do different jobs.
 

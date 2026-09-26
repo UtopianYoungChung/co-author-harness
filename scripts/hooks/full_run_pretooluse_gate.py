@@ -58,6 +58,10 @@ structured state alone does not block again: the model cannot repair
 lifecycle state inside the same turn, and a repeated block would only loop.
 A fresh terminal claim in the new message still blocks.
 
+A single explicit run_scope: adhoc_review declaration permits read/review
+dispatch without a parent scope. run-generator-session still requires a
+parent scope; this exemption does not authorize argument-bearing writes.
+
 BLOCK CONTRACT
 --------------
 On a refusal it prints, per the Claude Code hooks spec:
@@ -69,7 +73,8 @@ FAIL MODE
 ---------
 Missing or unknown FRC_PARENT_SCOPE fails closed for argument-bearing
 Write/Edit paths in harness territory and for the Agent/Task briefs named
-above. Internal errors, a payload that is not a JSON object, and a missing
+above, except for the explicit read/review-only adhoc_review dispatch.
+Internal errors, a payload that is not a JSON object, and a missing
 gate fail closed when a valid scope is active or FRC_REQUIRE_SCOPE=1.
 Default-unset errors may pass only with a loud stderr diagnostic.
 FRC_GATE_HOOK_DISABLE remains an explicit off switch.
@@ -330,6 +335,28 @@ def _handle_write(tool_input: dict, *, cwd: str | None = None,
     return _deny(_first_finding(out)) if rc != 0 else _allow()
 
 
+def _read_review_only_brief(brief: str) -> bool:
+    """Conservative dispatch screen; actual write authority remains separate."""
+    declaration = invocation.parse_scope_declaration(brief)
+    if (declaration["declared_scope"] != invocation.ADHOC_REVIEW
+            or declaration["result"] != "DECLARED"):
+        return False
+    if "run-generator-session" in brief.casefold():
+        return False
+    # Match affirmative action clauses, not nouns ("read the draft") or
+    # prohibitions ("do not write/edit"). Ambiguous requests retain the guard.
+    mutation = re.compile(
+        r"(?im)(?:^|[.;!?:]\s*|\b(?:and|then)\s+)"
+        r"(?:please\s+)?"
+        r"(?:(?:use|ask|have|tell|instruct|dispatch)\s+(?:the\s+)?"
+        r"(?:generator|agent)\s+(?:to\s+)?|"
+        r"(?:the\s+)?(?:generator|agent)\s+(?:must|shall|should|will)\s+)?"
+        r"(?:write|draft|generate|rewrite|revise|edit|modify|update|replace|"
+        r"apply|commit|publish|delete|remove|save|create|make\s+changes)\b"
+    )
+    return mutation.search(brief) is None
+
+
 def _handle_agent(tool_input: dict, *, cwd: str | None = None) -> int:
     parent_scope = _active_parent_scope()
     brief = tool_input.get("prompt") or tool_input.get("description") or ""
@@ -338,6 +365,17 @@ def _handle_agent(tool_input: dict, *, cwd: str | None = None) -> int:
             if _raw_scope():
                 return _deny(_scope_unknown_reason("Agent/Task"))
             return _deny(_scope_required_reason("Agent/Task"))
+        # Reading/review is not a manuscript-write grant. Reuse the canonical
+        # declaration parser instead of treating a resource name as an action.
+        declared = invocation.parse_scope_declaration(brief)
+        if (not _raw_scope() and declared["declared_scope"] == invocation.ADHOC_REVIEW
+                and declared["result"] == "DECLARED"):
+            if not _read_review_only_brief(brief):
+                return _deny("[FRC-PROSE-FORBIDDEN] adhoc_review dispatch contains "
+                             "an affirmative mutation or generator request; use "
+                             "the authorized parent scope for that action")
+            _passthrough_notice("PreToolUse", "Agent/Task adhoc_review")
+            return _allow()
         low = brief.casefold()
         if "run-generator-session" in low:
             return _deny(
@@ -348,7 +386,10 @@ def _handle_agent(tool_input: dict, *, cwd: str | None = None) -> int:
                 _in_harness_territory(Path(cwd or os.getcwd()), is_dir=True):
             return _deny(
                 "[FRC-SCOPE-REQUIRED] Agent/Task that names manuscript from inside a "
-                "harness project or governed workspace refused without FRC_PARENT_SCOPE"
+                "harness project or governed workspace refused without FRC_PARENT_SCOPE. "
+                "For read/review-only manuscript work without mutation requests, declare exactly one "
+                "run_scope: adhoc_review in the child brief; generation and "
+                "argument-bearing writes require their authorized parent scope."
             )
         _passthrough_notice("PreToolUse", "Agent")
         return _allow()
