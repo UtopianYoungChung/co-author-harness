@@ -434,7 +434,7 @@ def check_d4_valid_adapter_grants_nothing(sandbox: Path) -> None:
 # --------------------------------------------------------------------------
 
 # --------------------------------------------------------------------------
-# TH N1-N3 — hermetic post-envelope tree, then injected drift
+# TH N1-N4 — hermetic post-envelope tree, then injected drift
 # --------------------------------------------------------------------------
 
 _N_PROJECTED_ID = "shipment-manifest-v2-schema"
@@ -576,6 +576,25 @@ def check_n3_kernel_row_drift_without_file(sandbox: Path) -> None:
     assert any(f"{_N_PROJECTED_ID}: content hash drift" in error for error in errors), errors
 
 
+def check_n4_profile_kernel_pin_drift(sandbox: Path) -> None:
+    """After rebind, leave only the profile's contract_kernel pin stale.
+
+    Regression for d220129, which re-pinned the kernel and its projection but
+    left compatibility_profile.json naming the previous kernel digest. The
+    profile is outside the kit aggregate, so no other comparison notices.
+    """
+    tree = _materialize_rebound_tree(sandbox / "n4-rebound")
+    kit_root = tree / "references" / "compatibility" / "shipment-v2"
+    profile = json.loads((kit_root / "compatibility_profile.json").read_text(encoding="utf-8"))
+    profile["contract_kernel"]["sha256"] = "0" * 64
+    _write_json(kit_root / "compatibility_profile.json", profile)
+    status, payload = _run_schema_runtime(tree)
+    detail = str(payload.get("detail", ""))
+    print(f"N4 schema_runtime status={status} detail={detail!r}")
+    assert status == 2, payload
+    assert detail == "compatibility profile contract-kernel pin drift", payload
+
+
 def check_d5_fixtures_are_synthetic(sandbox: Path) -> None:
     resolved = sandbox.resolve()
     assert resolved.is_dir()
@@ -674,6 +693,7 @@ def main() -> int:
         check_n1_projected_component_file_drift(sandbox)
         check_n2_projection_row_only_drift(sandbox)
         check_n3_kernel_row_drift_without_file(sandbox)
+        check_n4_profile_kernel_pin_drift(sandbox)
         check_d1_no_workspace_paths_in_core()
         check_d1_template_is_unbound()
         check_d3_contract_language_is_schema_scoped()

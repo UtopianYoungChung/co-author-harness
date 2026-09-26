@@ -124,6 +124,10 @@ def main() -> int:
         kernel_sha256 = hashlib.sha256(kernel_path.read_bytes()).hexdigest()
         if projection["kernel"]["sha256"] != kernel_sha256:
             raise RuntimeError("compatibility-kit kernel projection hash drift")
+        # The profile publishes the same kernel digest to consumers; it sits
+        # outside the kit aggregate, so it needs its own comparison.
+        if profile["contract_kernel"]["sha256"] != kernel_sha256:
+            raise RuntimeError("compatibility profile contract-kernel pin drift")
         kernel_components = {row["id"]: row["sha256"] for row in kernel["components"]}
         for row in projection["components"]:
             if kernel_components.get(row["id"]) != row["sha256"]:

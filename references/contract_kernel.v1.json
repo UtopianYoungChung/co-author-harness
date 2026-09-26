@@ -204,7 +204,7 @@
       "id": "schema-runtime-check",
       "path": "scripts/schema_runtime_check.py",
       "revision_kind": "sha256",
-      "sha256": "8627c69e42d601a683aa555dc466f864fc9253140838c01f8e3b67091cf8bf6e",
+      "sha256": "bcc94eb3a3774ca0486465ebbddc5af5c6ef99b7b0a77ef6ac81f3739ea98a56",
       "migration_ids": [
         "role-output-contract-v3",
         "shipment-manifest-v2",

@@ -35,8 +35,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FAILURES: list[str] = []
 CHECK_COUNT = 0
-# 34 existing checks plus 20 R-6/R-7 checks. No platform split.
-EXPECTED_CHECKS = 72
+# 34 existing checks plus 20 R-6/R-7 checks, plus 12 adhoc_review dispatch
+# checks. No platform split.
+EXPECTED_CHECKS = 84
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
@@ -867,6 +868,93 @@ def case_territory_scoping_and_artifact_protection() -> None:
                   f"out={out!r}")
 
 
+def case_adhoc_review_dispatch_without_parent_scope() -> None:
+    """A declared read-only adhoc_review brief dispatches without a parent scope.
+
+    Pins 008013f: exactly one ``run_scope: adhoc_review`` declaration lets
+    read/review work dispatch from harness territory while FRC_PARENT_SCOPE is
+    unset. Affirmative mutation or generator requests, conflicting
+    declarations, a malformed or required parent scope, and the child's own
+    argument-bearing writes stay refused.
+    """
+    hook = load_module(
+        "full_run_pretooluse_gate_adhoc_dispatch",
+        ROOT / "scripts" / "hooks" / "full_run_pretooluse_gate.py",
+    )
+    with tempfile.TemporaryDirectory() as td:
+        base = Path(td)
+        project = base / "native-project"
+        (project / "reviews").mkdir(parents=True)
+        (project / "reviews" / "phase_state.json").write_text("{}", encoding="utf-8")
+        workspace = base / "ws"
+        manifest = workspace / "governance" / "output-routing" / "output_routing.yaml"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text("schema_version: 1\n", encoding="utf-8")
+        governed = workspace / "research" / "60_Workbench" / "w1"
+        governed.mkdir(parents=True)
+
+        def agent(prompt: str, cwd: Path) -> dict:
+            return {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "Task",
+                "cwd": str(cwd),
+                "tool_input": {"prompt": prompt},
+            }
+
+        declared = "run_scope: adhoc_review\n"
+        review = declared + "Read and review manuscript/essay.md; return findings only."
+
+        def allowed(rc: int, out: str, err: str) -> bool:
+            return rc == 0 and not out.strip() and "Agent/Task adhoc_review" in err
+
+        with isolated_scope_env():
+            rc, out, err = run_hook_main(hook, agent(review, project))
+            check("declared read-only review dispatches from a native project",
+                  allowed(rc, out, err), f"out={out!r}")
+            rc, out, err = run_hook_main(hook, agent(review, governed))
+            check("declared read-only review dispatches from a governed research tree",
+                  allowed(rc, out, err), f"out={out!r}")
+            rc, out, err = run_hook_main(hook, agent(
+                declared + "Do not write or edit anything; read manuscript/essay.md.", project))
+            check("prohibition wording is not read as a mutation request",
+                  allowed(rc, out, err), f"out={out!r}")
+            for label, text in (
+                ("a review-then-rewrite request", "Review the draft, then rewrite section 2."),
+                ("an imperative revise request", "Please revise the abstract in manuscript/essay.md."),
+                ("a generator drafting request", "Use the generator to draft section 3."),
+                ("a run-generator-session request", "Run run-generator-session on the manuscript."),
+            ):
+                rc, out, _ = run_hook_main(hook, agent(declared + text, project))
+                check(f"declared adhoc_review brief with {label} is denied",
+                      _denied(out, "FRC-PROSE-FORBIDDEN"), out.strip())
+            rc, out, _ = run_hook_main(hook, agent(
+                declared + "run_scope: full_lifecycle\nReview manuscript/essay.md.", project))
+            check("conflicting scope declarations do not unlock dispatch",
+                  _denied(out, "FRC-SCOPE-REQUIRED"), out.strip())
+            rc, out, _ = run_hook_main(
+                hook, agent("Review manuscript/essay.md and return findings.", project))
+            check("undeclared manuscript brief is denied with the declaration hint",
+                  _denied(out, "FRC-SCOPE-REQUIRED")
+                  and "run_scope: adhoc_review" in out, out.strip())
+            rc, out, _ = run_hook_main(hook, {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "Write",
+                "cwd": str(project),
+                "tool_input": {"file_path": str(project / "manuscript" / "essay.md"),
+                               "content": "x\n"},
+            })
+            check("the dispatch exemption grants no manuscript write",
+                  _denied(out, "FRC-SCOPE-REQUIRED"), out.strip())
+        with isolated_scope_env(FRC_PARENT_SCOPE="bogus"):
+            rc, out, _ = run_hook_main(hook, agent(review, project))
+            check("a malformed parent scope does not unlock the exemption",
+                  _denied(out, "FRC-SCOPE-REQUIRED"), out.strip())
+        with isolated_scope_env(FRC_REQUIRE_SCOPE="1"):
+            rc, out, _ = run_hook_main(hook, agent(review, project))
+            check("FRC_REQUIRE_SCOPE=1 still requires a parent scope",
+                  _denied(out), out.strip())
+
+
 def main() -> int:
     print("full_run_enforcement_surfaces_smoketest")
     for case in (
@@ -880,6 +968,7 @@ def main() -> int:
         case_r6_require_scope_and_passthrough,
         case_r7_structured_terminal_detection,
         case_territory_scoping_and_artifact_protection,
+        case_adhoc_review_dispatch_without_parent_scope,
     ):
         print(f"\n{case.__name__}:")
         try:
