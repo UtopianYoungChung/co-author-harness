@@ -311,7 +311,6 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/piw_trace_io_smoketest.py": [_default_case()],
     "scripts/piw_archive_smoketest.py": [_default_case()],
     "scripts/research_artifact_eval_smoketest.py": [_default_case()],
-    "scripts/hermes_host_smoketest.py": [_default_case()],
     "scripts/claude_host_smoketest.py": [_default_case()],
     "scripts/draft_governance_smoketest.py": [_default_case()],
     "scripts/draft_evidence_verifier_smoketest.py": [_default_case()],

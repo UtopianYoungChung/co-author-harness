@@ -843,7 +843,7 @@
       "id": "fixture-runner",
       "path": "scripts/analysis/fixture_runner.py",
       "revision_kind": "sha256",
-      "sha256": "306ac73569ac0c94f6e29c25b90a990bf2be7d21826c31a6626141d714182fe9",
+      "sha256": "cb4f95ad4babacd44ddaa437a80ec5c356c021f76f686582c567e911c3c205a1",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -871,7 +871,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "2a1a4f3b3d8405225fa485c1382d129d4ef31adf531ff14a3914993b01486ed2",
+      "sha256": "01b05af2002716724949dbb10b40c6a2df49f54e565fa827a81b2315ba3abb20",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -943,7 +943,7 @@
       "id": "planner-agent",
       "path": "agents/planner.md",
       "revision_kind": "sha256",
-      "sha256": "c5e0418ee9076bbd8e459ee29b50cb70d0be507bd11eb6f20acab5f74ea3f5ad",
+      "sha256": "6fc98e458e95308377d97c619e2bad96401bb7bc85bf1c307bec29cfc248378a",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -961,7 +961,7 @@
       "id": "generator-agent",
       "path": "agents/generator.md",
       "revision_kind": "sha256",
-      "sha256": "d868d274b86bade905ba30074eb73953a0a55dd99e7f48ee5489a23c6ce1b7b2",
+      "sha256": "b7c8fbcc8a6bbc0009834c8f8a71a7c40213cf4fad44abb3d048537778da80a6",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1121,7 +1121,7 @@
       "id": "project-independent-workflow",
       "path": "references/PROJECT_INDEPENDENT_WORKFLOW.md",
       "revision_kind": "sha256",
-      "sha256": "df8deb68b6aafcfb2761026244fda41e3993dc94b92bd33d1eb1c0cef082387a",
+      "sha256": "8d0ce2385da18ae4628f8e4e71f88b8b64f9221343ee310f6395cd6895a24ce9",
       "migration_ids": []
     },
     {
@@ -1170,14 +1170,7 @@
       "id": "piw-native-host",
       "path": "scripts/piw_native_host.py",
       "revision_kind": "sha256",
-      "sha256": "ccd7a8258e24e0915d6873bebab690329cd51079ce499f04983605f1a201afc6",
-      "migration_ids": []
-    },
-    {
-      "id": "piw-hermes-host",
-      "path": "scripts/piw_hermes_host.py",
-      "revision_kind": "sha256",
-      "sha256": "73028c37c47775e4ce41435e254e10b17ce79da8542cb47b20e43b7a82ed0337",
+      "sha256": "c238e835f59391c97c9309cbbe2ab6e53610df9ac598bc2b8be05661541ea53a",
       "migration_ids": []
     },
     {

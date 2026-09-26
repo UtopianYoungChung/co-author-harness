@@ -36,9 +36,9 @@ role JSON or a coordinator echoing fixed prose is not a child agent.
 
 Every host binds through one registered trace adapter in
 `scripts/piw_native_host.py` (`ADAPTERS`): `codex-jsonl` (Codex native spawn,
-followup/message, wait/status and returned final outputs), `hermes-hooks-jsonl`
-(Hermes lifecycle hooks, `HERMES_DESKTOP.md`), and `claude-code-jsonl` (Claude
-Code, Claude Desktop, Cowork and Agent SDK session logs, `CLAUDE_CODE_HOST.md`).
+followup/message, wait/status and returned final outputs) and `claude-code-jsonl`
+(Claude Code, Claude Desktop, Cowork and Agent SDK session logs,
+`CLAUDE_CODE_HOST.md`).
 Pass the bound role request to a real child and wait for completion before ingest.
 Never pass model/provider overrides where dispatch inherits a pin. A host lacking
 real children, an inspectable original trace, or a registered adapter returns
@@ -219,7 +219,7 @@ revision sequence and produces separately reviewed unchanged candidate bytes.
 
 The host object names the registered `adapter`, `subagents_available: true`,
 `logs_root` and `parent_log` from the actual running host (Codex: `codex-jsonl`;
-Hermes: `hermes-hooks-jsonl`; Claude Code and Claude Desktop: `claude-code-jsonl`).
+Claude Code and Claude Desktop: `claude-code-jsonl`).
 These declarations do not prove execution. `ingest` requires the child's original
 `child_log`, actual `agent_execution_id` and `turn_id` (on Claude Code the
 `agentId` and the dispatching `tool_use` id); the verifier inspects that

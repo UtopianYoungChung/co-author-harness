@@ -104,8 +104,7 @@ workspace roots) and lets every other write through; a declared
 [`references/CLAUDE_CODE_HOST.md`](references/CLAUDE_CODE_HOST.md).
 
 Ordinary drafting and revision need a host that can spawn real child agents and
-keep an inspectable original trace. Registered adapters: Codex (`codex-jsonl`),
-Hermes (`hermes-hooks-jsonl`, [`references/HERMES_DESKTOP.md`](references/HERMES_DESKTOP.md)),
+keep an inspectable original trace. Registered adapters: Codex (`codex-jsonl`)
 and Claude Code / Claude Desktop / Cowork (`claude-code-jsonl`,
 [`references/CLAUDE_CODE_HOST.md`](references/CLAUDE_CODE_HOST.md)). Read-only
 passes and the mechanical adapters run on any host without one.
@@ -199,9 +198,6 @@ To see the installed commit, run `git log --oneline -1` in
 `~/.codex/plugins/cache/joseph-chung-co-author-harness/co-author-harness/<version>/`
 (under `$CODEX_HOME` instead of `~/.codex` if you set it).
 
-**Hermes Agent.** `hermes plugins install UtopianYoungChung/co-author-harness`, then
-`hermes plugins enable co-author-harness`.
-
 ## Quick start
 
 1. **Open this repository** so package-root path resolution matches your actual layout (see [`references/AGENTS.md`](references/AGENTS.md) for embedded vs plugin-root deployment).
@@ -215,7 +211,7 @@ Draft a short research memo from these supplied excerpts. Declare project_indepe
 follow the native drafting/review/reflection workflow, and deliver the reviewed memo.
 ```
 
-Plugin identity and version are authoritative in [`version.json`](version.json). Root [`plugin.json`](plugin.json) is the portable Agent Plugins v1.0.0 manifest Hermes Agent loads. The Claude host pack is [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json): they mirror the name and license of `version.json` and deliberately omit its version, so marketplace installs track commits. None of these files is a second authority. That is loadability, not installed-cache or startup qualification.
+Plugin identity and version are authoritative in [`version.json`](version.json). Root [`plugin.json`](plugin.json) is the portable Agent Plugins v1.0.0 manifest. The Claude host pack is [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json): they mirror the name and license of `version.json` and deliberately omit its version, so marketplace installs track commits. None of these files is a second authority. That is loadability, not installed-cache or startup qualification.
 
 ---
 

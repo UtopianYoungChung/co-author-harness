@@ -265,14 +265,14 @@ def case_agent_plugins_v1_schema_is_required() -> None:
         )
 
 
-def case_native_hermes_yaml_is_refused() -> None:
+def case_native_yaml_is_refused() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = fixture(Path(td))
         _w(root / "plugin.yaml", "name: co-author-harness\n")
         rc, out = run(root)
         check(
-            "native Hermes plugin.yaml is REFUSED",
-            rc == 1 and blocked_for(out, "plugin.yaml", "native Hermes"),
+            "native plugin.yaml is REFUSED",
+            rc == 1 and blocked_for(out, "plugin.yaml", "native plugin manifest"),
             blockers(out),
         )
 
@@ -574,7 +574,7 @@ def main() -> int:
                case_claude_host_identity_mirrors_authority,
                case_claude_marketplace_entry_does_not_pin_version,
                case_agent_plugins_v1_schema_is_required,
-               case_native_hermes_yaml_is_refused,
+               case_native_yaml_is_refused,
                case_closed_agent_plugin_manifest_is_required,
                case_retired_cursor_manifest_is_refused,
                case_readme_badge_is_refused,

@@ -139,7 +139,7 @@ report is rendered from the final index. `update_version_manifests.py` is the
 command-driven path for advancing authoritative `version.json` and the
 published root `plugin.json` identity mirror together. That root `plugin.json`
 must remain a closed Agent Plugins v1.0.0 manifest (`$schema` plus permitted
-fields only) so Hermes Agent can load it as a portable package.
+fields only).
 
 ## 0d. Synthetic protocol conformance
 

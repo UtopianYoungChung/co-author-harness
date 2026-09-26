@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 """Local Agent Plugins v1.0.0 checks for the published root plugin.json.
 
-Hermes Agent loads portable packages from root plugin.json. It keys on the
-canonical v1.0.0 schema identifier and does not fetch the schema at load time.
-A missing or unknown $schema is a refused package, not a warning.
+Root plugin.json is the package's portable identity. It must carry the
+canonical v1.0.0 schema identifier; a missing or unknown $schema is a refused
+package, not a warning.
 
-This module is a local producer gate. It does not import Hermes, does not
-claim installed-cache or startup qualification, and does not treat a Codex
-source-path run as Hermes evidence.
+This module is a local producer gate. It does not claim installed-cache or
+startup qualification on any host.
 
-Native plugin.yaml / plugin.yml take precedence in Hermes and would hide the
-portable loader. This package is the portable shape, so those files are refused
-at the package root.
+Native plugin.yaml / plugin.yml manifests are refused at the package root so
+root plugin.json stays the only portable identity.
 """
 
 from __future__ import annotations
@@ -39,7 +37,7 @@ AUTHOR_FIELDS = {"name", "email", "url"}
 PLUGIN_NAME_RE = re.compile(
     r"^(?:[a-z0-9]|[a-z0-9](?!.*--)(?!.*\.\.)[a-z0-9.-]{0,62}[a-z0-9])$"
 )
-NATIVE_HERMES_MANIFESTS = ("plugin.yaml", "plugin.yml")
+NATIVE_MANIFESTS = ("plugin.yaml", "plugin.yml")
 
 
 def _load_object(path: Path, label: str) -> Tuple[dict, List[str]]:
@@ -115,15 +113,15 @@ def validate_manifest(manifest: dict, *, label: str = "plugin.json") -> List[str
 
 
 def check_plugin_root(plugin_root: Path) -> List[str]:
-    """Refuse native Hermes YAML and require a portable v1 plugin.json when present."""
+    """Refuse native plugin YAML and require a portable v1 plugin.json when present."""
     blockers: List[str] = []
-    for relative in NATIVE_HERMES_MANIFESTS:
+    for relative in NATIVE_MANIFESTS:
         native = plugin_root / relative
         if native.exists():
             blockers.append(
-                f"{relative} is a native Hermes plugin manifest; this package is "
-                "a portable Agent Plugins v1 package loaded from plugin.json, "
-                "and a native YAML file would take precedence and hide that loader"
+                f"{relative} is a native plugin manifest; this package is "
+                "a portable Agent Plugins v1 package whose only identity is "
+                "plugin.json"
             )
 
     manifest_path = plugin_root / "plugin.json"

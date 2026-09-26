@@ -303,14 +303,6 @@
       "class": "guarded",
       "regression": "scripts/piw_archive_smoketest.py::protected destination refusal and intact portable archive"
     },
-    "scripts/hermes_plugin.py": {
-      "class": "guarded",
-      "regression": "scripts/hermes_host_smoketest.py"
-    },
-    "scripts/install_hermes.py": {
-      "class": "guarded",
-      "regression": "scripts/hermes_host_smoketest.py"
-    },
     "scripts/citation_gate/reconcile_citations_test.py": {
       "class": "test_only",
       "justification": "vendored citation-gate test; writes only case files beneath its own tempfile.TemporaryDirectory",

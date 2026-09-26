@@ -49,9 +49,9 @@ the manifest mechanically (and is gated) or must not state it at all.
               because treating it as a blocker makes it a competing authority.
 
   HARD GATE   root plugin.json is the portable Agent Plugins v1.0.0 host
-              identity. Hermes Agent loads that file and refuses a missing or
-              unknown $schema. Native plugin.yaml / plugin.yml is refused
-              because it would take precedence and hide the portable loader.
+              identity. A missing or unknown $schema is refused, and so is a
+              native plugin.yaml / plugin.yml, so plugin.json stays the only
+              portable identity.
 """
 
 from __future__ import annotations

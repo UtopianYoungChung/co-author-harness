@@ -24,7 +24,6 @@ import piw_session as piw
 # None means the Codex implementation below.
 ADAPTERS: dict[str, str | None] = {
     'codex-jsonl': None,
-    'hermes-hooks-jsonl': 'piw_hermes_host',
     'claude-code-jsonl': 'piw_claude_host',
 }
 
