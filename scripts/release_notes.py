@@ -27,6 +27,13 @@ INSTALL = """\
 /plugin install co-author-harness@joseph-chung-co-author-harness
 ```
 
+**Codex** — add the same repository as a Codex plugin marketplace (skills only):
+
+```
+codex plugin marketplace add UtopianYoungChung/co-author-harness
+codex plugin add co-author-harness@joseph-chung-co-author-harness
+```
+
 **Claude Desktop / Cowork (file upload)** — download `co-author-harness.plugin`
 (or the identical `co-author-harness.zip`) below and load it in the plugin
 loader. `SHA256SUMS` lists both files' digests.

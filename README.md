@@ -167,6 +167,29 @@ the newest is always at
 [`releases/latest/download/co-author-harness.plugin`](https://github.com/UtopianYoungChung/co-author-harness/releases/latest/download/co-author-harness.plugin).
 An uploaded file does not update itself: load the newer file after a release.
 
+**Codex.** Add the same repository as a Codex plugin marketplace, then install from it:
+
+```text
+codex plugin marketplace add UtopianYoungChung/co-author-harness
+codex plugin add co-author-harness@joseph-chung-co-author-harness
+```
+
+Codex loads the harness skills. It does not load the Claude agents or hooks: the
+Codex manifest ([`.codex-plugin/plugin.json`](.codex-plugin/plugin.json)) declares
+skills only, so full-lifecycle hook enforcement runs in Claude Code alone. Codex
+labels the install with that manifest's version, which changes only at releases, so
+the label does not show which commit you have. To take the latest `main`, refresh the
+marketplace and re-run the install:
+
+```text
+codex plugin marketplace upgrade
+codex plugin add co-author-harness@joseph-chung-co-author-harness
+```
+
+To see the installed commit, run `git log --oneline -1` in
+`~/.codex/plugins/cache/joseph-chung-co-author-harness/co-author-harness/<version>/`
+(under `$CODEX_HOME` instead of `~/.codex` if you set it).
+
 **Hermes Agent.** `hermes plugins install UtopianYoungChung/co-author-harness`, then
 `hermes plugins enable co-author-harness`.
 
