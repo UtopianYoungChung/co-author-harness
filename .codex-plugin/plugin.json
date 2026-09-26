@@ -17,6 +17,7 @@
     "governance"
   ],
   "skills": "./skills/",
+  "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "Co-Author Harness",
     "shortDescription": "Governed academic writing and review workflows.",

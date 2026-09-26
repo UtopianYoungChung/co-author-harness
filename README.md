@@ -110,6 +110,12 @@ and Claude Code / Claude Desktop / Cowork (`claude-code-jsonl`,
 [`references/CLAUDE_CODE_HOST.md`](references/CLAUDE_CODE_HOST.md)). Read-only
 passes and the mechanical adapters run on any host without one.
 
+For Codex skill discovery, the six native role bindings, and the scoped
+`PreToolUse`/`Stop` adapters, see
+[`docs/agent-instructions/codex-host.md`](docs/agent-instructions/codex-host.md).
+Plugin installation and hook trust are separate; source tests do not establish
+live host enforcement.
+
 On hosts where the corpus is not mounted at the profile's recorded Windows
 paths, set `AGENT_WIKI_ROOT`, `AGENT_WORKSPACE_ROOT`, and (when the package is
 relocated) `AGENT_HARNESS_ROOT`. Explicit `--wiki-root`, `--workspace-root`, and
@@ -174,10 +180,13 @@ codex plugin marketplace add UtopianYoungChung/co-author-harness
 codex plugin add co-author-harness@joseph-chung-co-author-harness
 ```
 
-Codex loads the harness skills. It does not load the Claude agents or hooks: the
-Codex manifest ([`.codex-plugin/plugin.json`](.codex-plugin/plugin.json)) declares
-skills only, so full-lifecycle hook enforcement runs in Claude Code alone. Codex
-labels the install with that manifest's version, which changes only at releases, so
+Codex loads the harness skills, and its manifest
+([`.codex-plugin/plugin.json`](.codex-plugin/plugin.json)) selects the Codex
+`PreToolUse` and `Stop` adapters. Named native agents require the generated role
+configuration; hooks require host discovery and trust. See the
+[Codex host setup](docs/agent-instructions/codex-host.md) for the six role bindings,
+the explicit configuration fallback, and enforcement limits. Codex labels the
+install with the manifest's version, which changes only at releases, so
 the label does not show which commit you have. To take the latest `main`, refresh the
 marketplace and re-run the install:
 

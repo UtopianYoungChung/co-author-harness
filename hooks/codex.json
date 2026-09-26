@@ -1,0 +1,30 @@
+{
+  "description": "Codex adapters for the harness scope/write and terminal-claim gates. Review and trust in Codex before use.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(apply_patch|spawn_agent|Write|Edit|MultiEdit|NotebookEdit|Task|Agent)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${PLUGIN_ROOT}/scripts/hooks/run_codex_hook.sh\"",
+            "commandWindows": "cmd.exe /d /c \"\"%PLUGIN_ROOT%\\scripts\\hooks\\run_codex_hook.cmd\"\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${PLUGIN_ROOT}/scripts/hooks/run_codex_hook.sh\"",
+            "commandWindows": "cmd.exe /d /c \"\"%PLUGIN_ROOT%\\scripts\\hooks\\run_codex_hook.cmd\"\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
