@@ -186,6 +186,9 @@ def _identity_manifest(harness_root: Path) -> Path:
     general = harness_root / "version.json"
     if general.is_file():
         return general
+    host = harness_root / "plugin.json"
+    if host.is_file():
+        return host
     return harness_root / ".claude-plugin" / "plugin.json"
 
 
