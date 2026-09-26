@@ -2,7 +2,7 @@
      re-run to regenerate. Adjudicate the TBD columns via the tracked overlay.
      script_sha256=28ec555b5d51
      production_sites=575
-     suite_universe=106  (code-literal-independent; authority for fixture coverage)
+     suite_universe=109  (code-literal-independent; authority for fixture coverage)
      execution_evidence=fixture_manifest.json (validated separately by --parity)
      fixture_literal_sites=80 in 27 suites - NOT cases, diagnostic only
 
@@ -604,10 +604,11 @@ by the authoritative full runner after a successful stable run. Run
 `code_census.py --parity` to validate those receipts against current
 source and suite identities. This static map makes no execution claim.
 
-Discovered suite files (106):
+Discovered suite files (109):
 
 - `scripts/alias_parity_smoketest.py`
 - `scripts/archive_runtime_probe_smoketest.py`
+- `scripts/argument_coherence_smoketest.py`
 - `scripts/artefact_frontmatter_smoketest.py`
 - `scripts/assignment_dispatch_claim_smoketest.py`
 - `scripts/assignment_dispatch_preflight_smoketest.py`
@@ -623,6 +624,9 @@ Discovered suite files (106):
 - `scripts/capability_contract_smoketest.py`
 - `scripts/centroid_sentence_logic_smoketest.py`
 - `scripts/centroid_service_smoketest.py`
+- `scripts/citation_gate/reconcile_citations_test.py`
+- `scripts/citation_gate/verify_locators_test.py`
+- `scripts/claude_host_smoketest.py`
 - `scripts/command_surface_smoketest.py`
 - `scripts/concept_introduction_contract_smoketest.py`
 - `scripts/contract_kernel_coherence_smoketest.py`
@@ -642,7 +646,6 @@ Discovered suite files (106):
 - `scripts/full_run_semantic_bypass_smoketest.py`
 - `scripts/golden_eval_smoketest.py`
 - `scripts/graph_authority_gate_smoketest.py`
-- `scripts/hermes_host_smoketest.py`
 - `scripts/host_qualification_transaction_smoketest.py`
 - `scripts/laboratory_mode_smoketest.py`
 - `scripts/lifecycle_contract_smoketest.py`
