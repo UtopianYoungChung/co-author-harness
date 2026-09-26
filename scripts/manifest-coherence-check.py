@@ -5,8 +5,8 @@ co-author-harness — manifest-coherence-check.py
 Manifest coherence checks (introduced at v0.11.0 c8 per the
 definitive-architectural-plan §3.3):
 
-1) Root plugin.json description ≤ 300 characters (forensic §4 Gap 1).
-2) Root plugin.json keywords ≤ 12 entries; every keyword is a non-empty string.
+1) `.claude-plugin/plugin.json` description ≤ 300 characters (forensic §4 Gap 1).
+2) `.claude-plugin/plugin.json` keywords ≤ 12 entries; every keyword is a non-empty string.
 3) Every keyword resolves to a substrate token visible somewhere under the
    plugin root — discovered native SKILL names, the package's own
    name tokens, or one of an allow-list of governance/topic terms. The
@@ -85,10 +85,7 @@ def load_json(path: Path) -> dict:
 
 
 def host_manifest_path(plugin_root: Path) -> Path:
-    """Resolve the live generic host manifest, with legacy fixture fallback."""
-    current = plugin_root / "plugin.json"
-    if current.exists():
-        return current
+    """Resolve the live host manifest."""
     return plugin_root / ".claude-plugin" / "plugin.json"
 
 

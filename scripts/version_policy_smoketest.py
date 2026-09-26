@@ -5,8 +5,7 @@ WRITTEN BEFORE THE IMPLEMENTATION, AND PROVEN TO FAIL AGAINST c945245.
 
 THE CONTRACT (AGENTS.md, version.json authority)
 ----------------------------------------------
-`version.json` is the SOLE authority for the CURRENT version. Root
-`plugin.json` must mechanically mirror name, version, and license.
+`version.json` is the SOLE authority for the CURRENT version.
 `.claude-plugin/plugin.json` is the Claude Desktop / Cowork host identity
 mirror: when present it must match name and license, must NOT declare a
 version (Claude Code would pin marketplace installs to it), and is not an
@@ -24,10 +23,9 @@ authority.
     the current version is. Deleting release headings would destroy history to
     satisfy a rule about authority. They are already exempt from the
     trailer-strip invariant (version-check.py `_VERSION_TRAILER_EXEMPT_PATHS`).
-  * Root `plugin.json` must mechanically mirror `version.json` name, version,
-    and license. `.claude-plugin/plugin.json` and marketplace self-entries,
-    when present, mirror name and license and omit version, so marketplace
-    installs track the source commit.
+  * `.claude-plugin/plugin.json` and marketplace self-entries, when present,
+    mirror name and license and omit version, so marketplace installs track
+    the source commit.
 
 So: the changelog is validated for STRUCTURE and RELEASE CONSISTENCY, but is
 never treated as the authority for the current version.
@@ -43,8 +41,6 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-
-import agent_plugin_v1
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -95,16 +91,6 @@ def fixture(base: Path, *, manifest="0.29.1",
         indent=2,
     ) + "\n"
     _w(root / "version.json", identity)
-    _w(root / "plugin.json", json.dumps(
-        {
-            "$schema": agent_plugin_v1.PLUGIN_SCHEMA_V1,
-            "name": "co-author-harness",
-            "version": manifest,
-            "license": manifest_license,
-            "description": "d",
-        },
-        indent=2,
-    ) + "\n")
     _w(root / "README.md", readme if readme is not None else
        "# co-author-harness\n\nSee `version.json` for the current "
        "version.\n\n## Version\n\nThe authoritative version is recorded in "
@@ -235,58 +221,6 @@ def case_claude_marketplace_entry_does_not_pin_version() -> None:
         check(
             "marketplace self-entry license mismatch is REFUSED",
             rc == 1 and blocked_for(out, "marketplace.json", "license"),
-            blockers(out),
-        )
-
-
-def case_agent_plugins_v1_schema_is_required() -> None:
-    with tempfile.TemporaryDirectory() as td:
-        root = fixture(Path(td))
-        rc, out = run(root)
-        check("portable Agent Plugins v1 fixture PASSES", rc == 0, blockers(out))
-
-        manifest = json.loads((root / "plugin.json").read_text(encoding="utf-8"))
-        manifest.pop("$schema")
-        _w(root / "plugin.json", json.dumps(manifest, indent=2) + "\n")
-        rc, out = run(root)
-        check(
-            "missing Agent Plugins schema is REFUSED",
-            rc == 1 and blocked_for(out, "plugin.json", "Agent Plugins schema"),
-            blockers(out),
-        )
-
-        manifest["$schema"] = "https://example.invalid/plugin.schema.json"
-        _w(root / "plugin.json", json.dumps(manifest, indent=2) + "\n")
-        rc, out = run(root)
-        check(
-            "unsupported Agent Plugins schema is REFUSED",
-            rc == 1 and blocked_for(out, "plugin.json", "Agent Plugins schema"),
-            blockers(out),
-        )
-
-
-def case_native_yaml_is_refused() -> None:
-    with tempfile.TemporaryDirectory() as td:
-        root = fixture(Path(td))
-        _w(root / "plugin.yaml", "name: co-author-harness\n")
-        rc, out = run(root)
-        check(
-            "native plugin.yaml is REFUSED",
-            rc == 1 and blocked_for(out, "plugin.yaml", "native plugin manifest"),
-            blockers(out),
-        )
-
-
-def case_closed_agent_plugin_manifest_is_required() -> None:
-    with tempfile.TemporaryDirectory() as td:
-        root = fixture(Path(td))
-        manifest = json.loads((root / "plugin.json").read_text(encoding="utf-8"))
-        manifest["interface"] = {"displayName": "not portable"}
-        _w(root / "plugin.json", json.dumps(manifest, indent=2) + "\n")
-        rc, out = run(root)
-        check(
-            "Codex-only root fields are REFUSED",
-            rc == 1 and blocked_for(out, "plugin.json", "closed Agent Plugins"),
             blockers(out),
         )
 
@@ -535,23 +469,13 @@ def case_malformed_release_heading_is_refused() -> None:
 
 
 def case_ssot_registry_agrees_with_the_ruling() -> None:
-    """The live version authority and generic host identity must agree."""
+    """The live version authority and the Codex host identity must agree."""
     authority = json.loads((ROOT / "version.json").read_text(encoding="utf-8"))
-    host = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
+    host = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
     check(
-        "version.json agrees with root plugin.json on identity fields",
+        "version.json agrees with .codex-plugin/plugin.json on identity fields",
         all(authority.get(key) == host.get(key) for key in ("name", "version", "license")),
-        "root plugin identity drifted from version.json",
-    )
-    check(
-        "root plugin.json declares Agent Plugins v1 schema",
-        host.get("$schema") == agent_plugin_v1.PLUGIN_SCHEMA_V1,
-        "root plugin.json is not a portable Agent Plugins v1 manifest",
-    )
-    check(
-        "live plugin.json is a closed Agent Plugins v1 manifest",
-        not agent_plugin_v1.validate_manifest(host),
-        agent_plugin_v1.validate_manifest(host),
+        "Codex host identity drifted from version.json",
     )
 
     # timeout matches `run()`. Without it a hang in ssot-check.py hangs this
@@ -573,9 +497,6 @@ def main() -> int:
                case_codex_host_identity_mirrors_authority,
                case_claude_host_identity_mirrors_authority,
                case_claude_marketplace_entry_does_not_pin_version,
-               case_agent_plugins_v1_schema_is_required,
-               case_native_yaml_is_refused,
-               case_closed_agent_plugin_manifest_is_required,
                case_retired_cursor_manifest_is_refused,
                case_readme_badge_is_refused,
                case_readme_badge_refused_even_when_matching,

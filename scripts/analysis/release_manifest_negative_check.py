@@ -229,7 +229,7 @@ def main() -> int:
 
         for label, mutate, target in (("same-length name", same_length, MANIFEST_REL),
                                      ("license-only", license_only, MANIFEST_REL),
-                                     ("host-description-only", host_description_only, "plugin.json"),
+                                     ("host-description-only", host_description_only, ".claude-plugin/plugin.json"),
                                      ("missing manifest member", None, MANIFEST_REL)):
             tampered = base / f"tampered-{label.split()[0]}.zip"
             _tamper(zip_path, tampered, mutate, target)
@@ -278,7 +278,7 @@ def main() -> int:
             print("gate-dirty-manifest: SKIPPED (--skip-gate)")
         else:
             print("gate-dirty-manifest (multi-minute):")
-            host_manifest = repo / "plugin.json"
+            host_manifest = repo / ".claude-plugin" / "plugin.json"
             host_original = host_manifest.read_text(encoding="utf-8")
             d = json.loads(host_original)
             d["description"] = "X" + d["description"][1:]

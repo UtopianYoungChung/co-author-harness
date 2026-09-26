@@ -4,7 +4,7 @@
   "kernel": {
     "id": "co-author-harness-contract-kernel-v1",
     "version": "1.0.0",
-    "sha256": "cd1df621d7b009bec36bbe0828636f97108fc47e015a1ea1fb0efed16b3afe20"
+    "sha256": "342ce6ab789db2a3cdcde4c65d2c58dfac6086fc068d9d5c681771b4e6ca5b09"
   },
   "components": [
     {

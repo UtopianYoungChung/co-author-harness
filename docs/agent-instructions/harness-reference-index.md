@@ -22,7 +22,6 @@ Entries below use paths **under this harness** unless noted. Rows that point to 
 | AI harness concept (workspace) | `docs/concepts/ai-harness.md` | Prompt vs harness engineering explainer; not part of the shipped plugin bundle |
 | Release notes (per version) | `docs/release-notes/RELEASE_NOTES_v*.md` | Point-in-time ship notes; lean release zips exclude historical files (see `scripts/build-release-zip.sh`) |
 | Package identity | `version.json` | Authoritative current name, version, and license |
-| Host metadata | `plugin.json` | Published metadata; identity fields mirror `version.json` |
 | Claude host pack | `.claude-plugin/plugin.json` | Claude Desktop / Cowork loader identity; name and license mirror `version.json`, no version (installs track commits) |
 | Claude marketplace | `.claude-plugin/marketplace.json` | Marketplace-add entry; self-referencing name and license mirror `version.json`, no version |
 | Output economy protocol | `references/OUTPUT_ECONOMY_PROTOCOL.md` | F7/F8 artefacts, events log, final report assembly, compatibility pointers (v0.14.0+) |

@@ -24,7 +24,7 @@
 #   ./scripts/build-release-zip.sh <plugin-root> <version>
 #
 #   <plugin-root>  absolute path to the plugin source tree
-#                  (the directory containing version.json and plugin.json)
+#                  (the directory containing version.json and .claude-plugin/plugin.json)
 #   <version>      semver string, e.g. 0.7.4 (no leading 'v')
 #
 # Output:
@@ -34,8 +34,8 @@
 #   0  success; zip built, validated, and staged
 #   1  usage error
 #   2  plugin-root missing or not a plugin source tree
-#   3  plugin.json version field does not match <version> argument
-#   4  plugin.json description exceeds 400-character ceiling
+#   3  version.json version field does not match <version> argument
+#   4  .claude-plugin/plugin.json description exceeds 400-character ceiling
 #   5  the committed builder failed (its own exit code is reported;
 #      see scripts/build-plugin.py's contract: 5 provenance readback,
 #      6 no child bundle, 7 worktree cleanup VOID, ...)
@@ -60,9 +60,9 @@ if [[ ! -d "$PLUGIN_ROOT" ]]; then
 fi
 
 VERSION_MANIFEST="$PLUGIN_ROOT/version.json"
-HOST_MANIFEST="$PLUGIN_ROOT/plugin.json"
+HOST_MANIFEST="$PLUGIN_ROOT/.claude-plugin/plugin.json"
 if [[ ! -f "$VERSION_MANIFEST" || ! -f "$HOST_MANIFEST" ]]; then
-  printf 'error: version.json and root plugin.json are required under %s\n' "$PLUGIN_ROOT" >&2
+  printf 'error: version.json and .claude-plugin/plugin.json are required under %s\n' "$PLUGIN_ROOT" >&2
   exit 2
 fi
 
@@ -100,8 +100,8 @@ if [[ "$HEAD_VERSION" != "$VERSION" ]]; then
 fi
 
 # Description ceiling, measured on HEAD's manifest (the one that ships).
-HEAD_HOST_JSON="$(git -C "$PLUGIN_ROOT" show HEAD:plugin.json)" || {
-  printf 'error: cannot read HEAD:plugin.json\n' >&2
+HEAD_HOST_JSON="$(git -C "$PLUGIN_ROOT" show HEAD:.claude-plugin/plugin.json)" || {
+  printf 'error: cannot read HEAD:.claude-plugin/plugin.json\n' >&2
   exit 2
 }
 DESCRIPTION_LEN="$(printf '%s' "$HEAD_HOST_JSON" | python3 -c '
@@ -110,7 +110,7 @@ print(len(json.load(sys.stdin).get("description", "")))
 ')"
 
 if [[ "$DESCRIPTION_LEN" -gt 400 ]]; then
-  printf 'error: HEAD plugin.json description length %d exceeds 400-char ceiling\n' \
+  printf 'error: HEAD .claude-plugin/plugin.json description length %d exceeds 400-char ceiling\n' \
     "$DESCRIPTION_LEN" >&2
   exit 4
 fi
@@ -189,9 +189,9 @@ if [[ "$BAD_CLAUDE_STATE" -gt 0 ]]; then
 fi
 
 HAS_MANIFEST="$(unzip -Z1 "$ZIP_PATH" | grep -c '^version\.json$' || true)"
-HAS_HOST_MANIFEST="$(unzip -Z1 "$ZIP_PATH" | grep -c '^plugin\.json$' || true)"
+HAS_HOST_MANIFEST="$(unzip -Z1 "$ZIP_PATH" | grep -c '^\.claude-plugin/plugin\.json$' || true)"
 if [[ "$HAS_MANIFEST" -ne 1 || "$HAS_HOST_MANIFEST" -ne 1 ]]; then
-  printf 'error: zip must contain exactly one version.json and root plugin.json\n' >&2
+  printf 'error: zip must contain exactly one version.json and .claude-plugin/plugin.json\n' >&2
   exit 6
 fi
 

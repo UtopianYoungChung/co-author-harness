@@ -45,8 +45,7 @@ def main() -> int:
     # D) package delegation
     manifest = PLUGIN_ROOT / "version.json"
     if not manifest.is_file():
-        fallback = PLUGIN_ROOT / "plugin.json"
-        manifest = fallback if fallback.is_file() else PLUGIN_ROOT / ".claude-plugin" / "plugin.json"
+        manifest = PLUGIN_ROOT / ".claude-plugin" / "plugin.json"
     try:
         version = json.loads(manifest.read_text(encoding="utf-8")).get("version")
         if not version:

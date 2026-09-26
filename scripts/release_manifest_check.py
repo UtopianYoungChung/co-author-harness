@@ -10,7 +10,7 @@ old drift check compared version string + description LENGTH, so a same-length
 description mutation (or any keyword change) passed.
 
 The check here is exact: sha256 of each archive identity member (`version.json`
-and root `plugin.json`) must equal the corresponding `HEAD` blob. No field
+and the Claude host manifest `.claude-plugin/plugin.json`) must equal the corresponding `HEAD` blob. No field
 allowlist -- a field-by-field comparison is the same under-narrow population
 as every other in this workstream.
 
@@ -38,7 +38,7 @@ from pathlib import Path
 
 from package_enumeration import GIT  # same directory when run as a script
 
-MANIFEST_RELS = ("version.json", "plugin.json")
+MANIFEST_RELS = ("version.json", ".claude-plugin/plugin.json")
 
 
 def main() -> int:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Atomically update authoritative package identity and its host mirror."""
+"""Atomically update authoritative package identity and its Codex host mirror."""
 
 from __future__ import annotations
 
@@ -38,30 +38,21 @@ def update(root: Path, version: str) -> None:
     if not SEMVER.fullmatch(version):
         raise VersionUpdateRefusal(f"version is not release semver: {version!r}")
     destinations.assert_writable(root / "version.json", purpose="package version update")
-    destinations.assert_writable(root / "plugin.json", purpose="host manifest parity update")
     root = root.resolve(strict=True)
     version_path = root / "version.json"
-    plugin_path = root / "plugin.json"
     claude_path = root / ".claude-plugin" / "plugin.json"
     codex_path = root / ".codex-plugin" / "plugin.json"
     marketplace_path = root / ".claude-plugin" / "marketplace.json"
     if codex_path.exists():
         destinations.assert_writable(codex_path, purpose="Codex host identity parity update")
     authoritative = _load(version_path)
-    plugin = _load(plugin_path)
     name = authoritative.get("name")
     if not isinstance(name, str) or not name:
         raise VersionUpdateRefusal("authoritative manifest has no plugin name")
-    if plugin.get("name") != name:
-        raise VersionUpdateRefusal("plugin.json name does not mirror version.json")
     license_name = authoritative.get("license")
-    if plugin.get("license") != license_name:
-        raise VersionUpdateRefusal("plugin.json license does not mirror version.json")
     authoritative["version"] = version
-    plugin["version"] = version
     planned: list[tuple[Path, bytes]] = [
         (version_path, _bytes(authoritative)),
-        (plugin_path, _bytes(plugin)),
     ]
     if codex_path.exists():
         codex = _load(codex_path)
@@ -121,9 +112,6 @@ def update(root: Path, version: str) -> None:
             codex = _load(codex_path)
             if (codex.get('name'), codex.get('version'), codex.get('license')) != (name, version, license_name):
                 raise VersionUpdateRefusal('Codex host identity readback failed')
-        parity = _load(plugin_path)
-        if parity.get("version") != version:
-            raise VersionUpdateRefusal("plugin.json parity readback failed")
     except Exception:
         for path in reversed(replaced):
             recovery = path.with_name(path.name + f".recover.{os.getpid()}")

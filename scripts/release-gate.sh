@@ -5,11 +5,11 @@
 # Implements SK-22 Phase 0 (manifest self-probe) as a shell helper.
 #
 # What it does:
-#   1. Resolves the package root (the directory containing version.json and plugin.json).
+#   1. Resolves the package root (the directory containing version.json and .claude-plugin/plugin.json).
 #   2. Computes the empirical distribution of host-manifest description length
 #      across every installed peer plugin under the current Cowork session's
 #      /mnt/.remote-plugins/ (or the caller-supplied --peer-root).
-#   3. Measures the current package's plugin.json description against that distribution
+#   3. Measures the current package's .claude-plugin/plugin.json description against that distribution
 #      and reports OK / WARN / BLOCKER.
 #   4. Measures every skills/*/SKILL.md frontmatter description against a 500-char
 #      safety margin and reports any overflow.
@@ -78,7 +78,7 @@ set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PLUGIN_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 VERSION_MANIFEST="$PLUGIN_ROOT/version.json"
-HOST_MANIFEST="$PLUGIN_ROOT/plugin.json"
+HOST_MANIFEST="$PLUGIN_ROOT/.claude-plugin/plugin.json"
 CONTROLLED_CHILD=0
 if [[ "${1:-}" == "--coauthor-controller-child" ]]; then
     if [[ -z "${COAUTHOR_RELEASE_CONTROLLER_ATTESTATION_RUN_DIR:-}" \
@@ -247,7 +247,7 @@ done
 if command -v cygpath >/dev/null 2>&1; then
     PLUGIN_ROOT="$(cygpath -am "$PLUGIN_ROOT")"
     VERSION_MANIFEST="$PLUGIN_ROOT/version.json"
-    HOST_MANIFEST="$PLUGIN_ROOT/plugin.json"
+    HOST_MANIFEST="$PLUGIN_ROOT/.claude-plugin/plugin.json"
     PRODUCT_OUTPUT_DIR="$(cygpath -am "$PRODUCT_OUTPUT_DIR")"
     if [[ -n "$PEER_ROOT" ]]; then
         PEER_ROOT="$(cygpath -am "$PEER_ROOT")"
@@ -265,7 +265,7 @@ if [[ ! -f "$VERSION_MANIFEST" ]]; then
     exit 2
 fi
 if [[ ! -f "$HOST_MANIFEST" ]]; then
-    echo "ERROR: root plugin.json not found at $HOST_MANIFEST" >&2
+    echo "ERROR: .claude-plugin/plugin.json not found at $HOST_MANIFEST" >&2
     exit 2
 fi
 
@@ -1017,7 +1017,7 @@ if (( BUILD == 1 )); then
         fi
         # Git is the authority on "modified" (raw byte hashes false-block
         # under CRLF normalization); porcelain output empty == committed.
-        MANIFEST_DIRTY=$( git -C "$PLUGIN_ROOT" status --porcelain -- version.json plugin.json 2>/dev/null || echo "STATUS-FAILED" )
+        MANIFEST_DIRTY=$( git -C "$PLUGIN_ROOT" status --porcelain -- version.json .claude-plugin/plugin.json 2>/dev/null || echo "STATUS-FAILED" )
         if [[ -z "$MANIFEST_DIRTY" ]]; then
             echo "  [OK]      worktree manifest is committed (no dirty manifest)"
         else

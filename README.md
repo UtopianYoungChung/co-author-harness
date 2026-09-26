@@ -211,7 +211,7 @@ Draft a short research memo from these supplied excerpts. Declare project_indepe
 follow the native drafting/review/reflection workflow, and deliver the reviewed memo.
 ```
 
-Plugin identity and version are authoritative in [`version.json`](version.json). Root [`plugin.json`](plugin.json) is the portable Agent Plugins v1.0.0 manifest. The Claude host pack is [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json): they mirror the name and license of `version.json` and deliberately omit its version, so marketplace installs track commits. None of these files is a second authority. That is loadability, not installed-cache or startup qualification.
+Plugin identity and version are authoritative in [`version.json`](version.json). The Claude host pack is [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json): they mirror the name and license of `version.json` and deliberately omit its version, so marketplace installs track commits. None of these files is a second authority. That is loadability, not installed-cache or startup qualification.
 
 ---
 
@@ -228,7 +228,6 @@ Plugin identity and version are authoritative in [`version.json`](version.json).
 | [`docs/historical/`](docs/historical/) | Archived audit reports and integration summaries (read-only history) |
 | [`docs/release-notes/`](docs/release-notes/) | Release notes and packaging records for `.plugin` and legacy `.zip` builds |
 | [`version.json`](version.json) | Published plugin `name` / `version` / `license` |
-| [`plugin.json`](plugin.json) | Portable Agent Plugins v1 host identity; identity fields mirror `version.json` |
 | [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) | Claude Code / Desktop / Cowork host identity; name and license mirror `version.json`, no version (installs track `main`) |
 | [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) | Claude marketplace entry (HTTPS source, also read by Codex); name and license mirror `version.json`, no version |
 

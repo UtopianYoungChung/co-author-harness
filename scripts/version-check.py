@@ -47,11 +47,6 @@ the manifest mechanically (and is gated) or must not state it at all.
               authoritative for the current version: a changelog that lags the
               manifest is a documentation gap (WARN), not a release blocker,
               because treating it as a blocker makes it a competing authority.
-
-  HARD GATE   root plugin.json is the portable Agent Plugins v1.0.0 host
-              identity. A missing or unknown $schema is refused, and so is a
-              native plugin.yaml / plugin.yml, so plugin.json stays the only
-              portable identity.
 """
 
 from __future__ import annotations
@@ -63,7 +58,6 @@ import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from agent_plugin_v1 import PLUGIN_SCHEMA_V1, check_plugin_root
 from marketplace_contract import (
     manifest_entries,
     manifest_entry_cardinality_error,
@@ -386,7 +380,6 @@ def extract_marketplace_self_referencing_metadata(
 # so that documentation does not silently drift relative to the manifest.
 _VERSION_TRAILER_EXEMPT_PATHS = (
     "version.json",
-    "plugin.json",
     ".claude-plugin/plugin.json",
     ".claude-plugin/marketplace.json",
     "CHANGELOG.md",
@@ -465,7 +458,6 @@ def main() -> int:
     # README must not assert a current version (AGENTS.md authority rule).
     blockers.extend(find_readme_version_assertions(plugin_root))
     blockers.extend(find_retired_host_manifests(plugin_root))
-    blockers.extend(check_plugin_root(plugin_root))
 
     # CHANGELOG: structure + release consistency; never the current-version authority.
     blockers.extend(find_malformed_release_headings(plugin_root))
@@ -485,7 +477,6 @@ def main() -> int:
     # version would pin Claude Code's plugin cache (see the module docstring).
     claude_host = ".claude-plugin/plugin.json"
     for host_relative in (
-        "plugin.json",
         ".codex-plugin/plugin.json",
         claude_host,
     ):
@@ -570,7 +561,6 @@ def main() -> int:
           f"(must be 0)")
     print(f"- Retired host manifests present: {len(find_retired_host_manifests(plugin_root))} "
           f"(must be 0)")
-    print(f"- Agent Plugins schema: {PLUGIN_SCHEMA_V1}")
     print(f"- CHANGELOG newest release (history, not authority): "
           f"{('v' + changelog_version) if changelog_version else '<none>'}")
     print(f"- CHANGELOG releases recorded: {len(releases)}")

@@ -37,7 +37,7 @@
     "scripts/analysis/release_manifest_negative_check.py": {
       "class": "test_only",
       "justification": "hermetic negative probes: mutates manifests only inside disposable clone sandboxes it creates and removes",
-      "sha256": "e14d8b5761a51f95c8f8c45d6bef7b532e0299a15779e6b8674b01e3f6bf9280"
+      "sha256": "ecf6da087741b3fce107806c63b9cbdb05cc2f8133589cda192edd6134a8e4e2"
     },
     "scripts/assignment_fixture_support.py": {
       "class": "test_only",

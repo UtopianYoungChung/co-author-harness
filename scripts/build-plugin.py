@@ -2,8 +2,8 @@
 """Build the co-author-harness commit-bound package bundle.
 
 A `.plugin` file is a ZIP archive carrying the general `version.json`
-authority, the root `plugin.json` host identity, the Claude host pack when
-those files are tracked, and the package tree. The Claude pack is not
+authority, the Claude host pack when those files are tracked, and the
+package tree. The Claude pack is not
 synthesized from `version.json` during packaging.
 
 **Bundle definition.** `git ls-tree -r HEAD --name-only` on the harness root.
@@ -115,7 +115,6 @@ GIT = find_git()
 # Sanity-check files: every bundle must include these or it's not a usable plugin
 REQUIRED_FILES = (
     "version.json",
-    "plugin.json",
     ".codex-plugin/plugin.json",
     ".claude-plugin/plugin.json",
     ".claude-plugin/marketplace.json",
@@ -411,7 +410,7 @@ def _build(head_sha: str, source_root: Path, files: list[str], out_dir: Path) ->
 
     # THE VERSION AUTHORITY COMES FROM THE SNAPSHOT, NOT THE WORKTREE.
     # It was parsed from HARNESS before materialization, so a dirty
-    # plugin.json could rename the output file, misreport the version, or make
+    # manifest could rename the output file, misreport the version, or make
     # a perfectly valid HEAD unbuildable -- worktree state leaking into an
     # artifact that claims commit provenance, through the one file that names it.
     manifest_path = source_root / "version.json"

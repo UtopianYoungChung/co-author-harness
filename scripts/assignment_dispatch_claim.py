@@ -195,9 +195,6 @@ def _identity_manifest() -> Path:
     general = ROOT / "version.json"
     if general.is_file():
         return general
-    host = ROOT / "plugin.json"
-    if host.is_file():
-        return host
     return ROOT / ".claude-plugin" / "plugin.json"
 
 

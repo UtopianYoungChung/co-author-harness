@@ -328,8 +328,8 @@ def _overlay(repo: Path) -> None:
     Without this the sandbox parent is HEAD's builder. Overlay alone is
     uncommitted: the child is `git worktree add` of HEAD, and source HEAD's
     builder still treats `.claude-plugin/plugin.json` as identity (exit 3).
-    A HEAD clone of this repo has version.json, root plugin.json, and the
-    Claude host pack as a version.json identity mirror.
+    A HEAD clone of this repo has version.json and the Claude host pack as
+    a version.json identity mirror.
 
     Deliberately narrow and listed, not globbed. Everything else stays at
     the sandbox commit, so package bytes are commit content.
@@ -347,7 +347,7 @@ def _commit_builder_under_test(repo: Path) -> None:
     """Commit the overlay so re-exec runs the builder under test.
 
     Source HEAD still fail-closes on the missing pack. Peer/HEAD-clone
-    fixtures use version.json (authority) + root plugin.json (host
+    fixtures use version.json (authority) + the Claude host pack (host
     metadata) by making the retargeted builder the sandbox HEAD.
     """
     _overlay(repo)
@@ -785,7 +785,7 @@ def case_committed_mutant_contracts() -> None:
     that is case_child_is_committed_builder's point).
 
     Mutants, each committed from the sandbox HEAD builder (retargeted
-    identity: version.json + root plugin.json), not source HEAD's pack path:
+    identity: version.json + the Claude host pack), not source HEAD's pack path:
       missing-key   drop `enumerator` from the record        -> exit 5
       runtime-tamper poison rec.runtime.python only          -> exit 5
       compress-claim claim ZIP_STORED, write ZIP_DEFLATED    -> exit 5

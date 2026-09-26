@@ -117,8 +117,6 @@ def validate(root: Path) -> tuple[list[str], dict[str, object]]:
     try:
         identity = root / "version.json"
         if not identity.is_file():
-            identity = root / "plugin.json"
-        if not identity.is_file():
             identity = root / ".claude-plugin" / "plugin.json"
         manifest = read_json(identity)
         manifest_license = str(manifest.get("license", "")).strip()

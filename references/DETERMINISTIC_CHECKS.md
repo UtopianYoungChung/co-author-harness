@@ -137,9 +137,7 @@ SHA-256, two spaces, the final ZIP basename, and LF, then re-reads both files.
 bytes and writes immutable package and release indices; the human shipment
 report is rendered from the final index. `update_version_manifests.py` is the
 command-driven path for advancing authoritative `version.json` and the
-published root `plugin.json` identity mirror together. That root `plugin.json`
-must remain a closed Agent Plugins v1.0.0 manifest (`$schema` plus permitted
-fields only).
+Codex host identity mirror (`.codex-plugin/plugin.json`) together.
 
 ## 0d. Synthetic protocol conformance
 

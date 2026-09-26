@@ -112,8 +112,6 @@ def is_self_referencing_marketplace_entry(
     del marketplace_path  # identity must survive local -> remote source changes
     identity = plugin_root / "version.json"
     if not identity.exists():
-        identity = plugin_root / "plugin.json"
-    if not identity.exists():
         raise FileNotFoundError(
             "version.json is the sole identity authority; "
             ".claude-plugin is not an identity fallback"
@@ -312,8 +310,8 @@ def main() -> int:
                     "field": key,
                 },
                 "consumers": [
-                    {"path": "plugin.json", "method": "json_field", "field": key},
-                ],
+                    {"path": ".codex-plugin/plugin.json", "method": "json_field", "field": key},
+                ] if (plugin_root / ".codex-plugin" / "plugin.json").exists() else [],
             }
             for key in ("name", "version", "license")
             if str(identity.get(key, "")).strip()

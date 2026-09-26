@@ -152,7 +152,7 @@ def validate(root: Path, data: dict[str, Any]) -> list[str]:
     if identity_source is not None and identity_path is None:
         errors.append("plugin_identity_source is missing or unsafe")
     if identity_path is None:
-        identity_path = _safe_file(root, "version.json") or _safe_file(root, "plugin.json")
+        identity_path = _safe_file(root, "version.json")
     if identity_path is None:
         errors.append("plugin identity source missing (version.json)")
         return errors

@@ -682,7 +682,7 @@
       "id": "build-plugin",
       "path": "scripts/build-plugin.py",
       "revision_kind": "sha256",
-      "sha256": "2da793b79001a943d0084c133d25e8e33c0fd86bcf9757b1d952fc3046c2472c",
+      "sha256": "cf91ba7d12220ff1eb50871b797b01a7ea0f7b7844bb88be5c4d96a9fe6a4156",
       "migration_ids": [
         "qualification-architecture-v1"
       ]
@@ -691,7 +691,7 @@
       "id": "release-gate",
       "path": "scripts/release-gate.sh",
       "revision_kind": "sha256",
-      "sha256": "5b12a0c4b0ebf9e66aa2fdcd1610d86a53f3bab13a3fab71c68651c88946862b",
+      "sha256": "c7bc3dd08caa95846a365a43f2e283127d2e11855fdd9e3cd5c9ff1baefb155b",
       "migration_ids": [
         "qualification-architecture-v1"
       ]
@@ -871,7 +871,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "01b05af2002716724949dbb10b40c6a2df49f54e565fa827a81b2315ba3abb20",
+      "sha256": "33f0965236fcf8542620139eaa83375f2dd2ce6c1b5c6c68e5a63cecac73c94b",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

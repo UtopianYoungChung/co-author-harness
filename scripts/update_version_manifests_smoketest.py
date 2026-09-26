@@ -20,7 +20,6 @@ def claude_version_fixture(parent: Path) -> None:
     """Claude manifests stay version-free across an update; a declared one refuses."""
     root = parent / "claude"
     dump(root / "version.json", {"name": "fixture", "version": "0.1.0", "license": "MIT"})
-    dump(root / "plugin.json", {"name": "fixture", "version": "0.1.0", "license": "MIT"})
     claude = root / ".claude-plugin/plugin.json"
     market = root / ".claude-plugin/marketplace.json"
     entry = {"name": "fixture", "license": "MIT", "source": "./"}
@@ -51,28 +50,25 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="version-manifests-") as raw:
         root = Path(raw)
         version = root / "version.json"
-        plugin = root / "plugin.json"
         dump(version, {"name": "fixture", "version": "0.1.0", "license": "MIT"})
-        dump(plugin, {"name": "fixture", "version": "0.1.0", "license": "MIT", "description": "fixture"})
         codex = root / '.codex-plugin/plugin.json'
         dump(codex, {'name': 'fixture', 'version': '0.1.0', 'license': 'MIT', 'skills': './skills/'})
         updater.update(root, "0.2.0")
         assert json.loads(version.read_text())["version"] == "0.2.0"
-        assert json.loads(plugin.read_text())["version"] == "0.2.0"
         assert json.loads(codex.read_text())['version'] == '0.2.0'
         assert json.loads(codex.read_text())['skills'] == './skills/'
-        before = (version.read_bytes(), plugin.read_bytes())
+        before = (version.read_bytes(), codex.read_bytes())
         updater.update(root, "0.2.0")
-        assert before == (version.read_bytes(), plugin.read_bytes())
+        assert before == (version.read_bytes(), codex.read_bytes())
         try:
             updater.update(root, "v0.2.0")
         except updater.VersionUpdateRefusal:
             pass
         else:
             raise AssertionError("non-release semver accepted")
-        mismatched = json.loads(plugin.read_text())
+        mismatched = json.loads(codex.read_text())
         mismatched["name"] = "other"
-        dump(plugin, mismatched)
+        dump(codex, mismatched)
         try:
             updater.update(root, "0.3.0")
         except updater.VersionUpdateRefusal:
