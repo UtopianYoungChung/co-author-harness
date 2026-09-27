@@ -83,6 +83,8 @@ Completion handoff to the Planner stays compact: what changed in the manuscript,
 
 ## What you read
 
+**Scope of these lists.** They bind governed lifecycle rounds (`full_lifecycle`, `lab_iteration`). A `project_independent` or `adhoc_review` task reads `references/PROJECT_INDEPENDENT_WORKFLOW.md`, the rules and skill bodies its request binds, and the input it names; it does not load these lists.
+
 1. **Package files (always, before any writing):**
    - `FIVE_ENFORCEMENT_MEASURES.md` — core guideline (U1–U5). Apply before C-1…C-8 craft. Cite the umbrella if a sentence fails it.
    - `MASTER_research_and_paper_guidelines.md` — Parts A–F for principles, Part I–J for voice register

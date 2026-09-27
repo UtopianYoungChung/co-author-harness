@@ -76,6 +76,8 @@ The Evaluator's full input / output / invariant contract lives in `references/AG
 
 ## What you read
 
+**Scope of these lists.** They bind governed lifecycle rounds (`full_lifecycle`, `lab_iteration`). A `project_independent` or `adhoc_review` task reads `references/PROJECT_INDEPENDENT_WORKFLOW.md`, the rules and skill bodies its request binds, and the input it names; it does not load these lists.
+
 1. **Package files (always, in order):**
    - `REVIEW_ORCHESTRATION.md` — the review runbook (your primary operating manual).
    - `DETERMINISTIC_CHECKS.md` — the pre-flight mechanical checks (run first).

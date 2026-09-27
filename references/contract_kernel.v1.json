@@ -943,7 +943,7 @@
       "id": "planner-agent",
       "path": "agents/planner.md",
       "revision_kind": "sha256",
-      "sha256": "6b494bc1a5d0b575ff5b8da0187886af83b989acfe478fc2dfbc2e0e6dfde9dc",
+      "sha256": "d93759167464f691bb8b7642a801a1d21555e3d9ad7f123acd9ec634a551c220",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -952,7 +952,7 @@
       "id": "evaluator-agent",
       "path": "agents/evaluator.md",
       "revision_kind": "sha256",
-      "sha256": "72ed676bc6b2000d60bd717000f459b19a5fb018d219a3c7890df0094762f1a0",
+      "sha256": "0ea32427475a119473c40212b7477a033de35b3329c967583fcf1f53b113563a",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -961,7 +961,7 @@
       "id": "generator-agent",
       "path": "agents/generator.md",
       "revision_kind": "sha256",
-      "sha256": "976af930543c0a37f82c4070e50c0b7ab2da13cdbb41b1fc1c6bfebdb24c7e99",
+      "sha256": "ff03669a113f833d4e94e4f0858ee5d2a049b91d0f0d0606adff450db2351f8f",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

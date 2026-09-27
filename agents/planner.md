@@ -103,6 +103,8 @@ The Planner is the only milestone-state writer because `milestone_framework` is 
 
 ## What you read
 
+**Scope of these lists.** They bind governed lifecycle rounds (`full_lifecycle`, `lab_iteration`). A `project_independent` or `adhoc_review` task reads `references/PROJECT_INDEPENDENT_WORKFLOW.md`, the rules and skill bodies its request binds, and the input it names; it does not load these lists.
+
 1. **Package files (always):**
    - `PHASE_PROTOCOL.md` — the normative phase specification (v0.7.4)
    - `phase_state_schema.md` — the 18-field `SectionStateObject` contract (including `pre_mcr_deep_pass_completed`), the 31-trigger enum, the 7-field log row (with absent-means-null `model_used`), and the §3a structured row shapes
