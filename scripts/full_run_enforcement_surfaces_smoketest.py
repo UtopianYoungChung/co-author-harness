@@ -1012,11 +1012,14 @@ def case_session_context_hook_injects_grounding_floor() -> None:
     check("SessionStart carries no execution identity", "agentId" not in text)
     check("SessionStart without a transcript path offers no host object", "claude-code-jsonl" not in text)
 
-    transcript = "/logs/projects/-work-dir/0e5c1d2a-1111-4222-8333-444455556666.jsonl"
+    # A native path, as the host reports it: on Windows the parent is spelled with
+    # backslashes, so a POSIX literal would not survive the round trip.
+    logs_root = Path(tempfile.gettempdir()) / "projects" / "-work-dir"
+    transcript = str(logs_root / "0e5c1d2a-1111-4222-8333-444455556666.jsonl")
     rc, parsed, _ = run({"hook_event_name": "SessionStart", "source": "startup", "transcript_path": transcript})
     text = context(parsed)
     host = {"adapter": "claude-code-jsonl", "subagents_available": True,
-            "logs_root": "/logs/projects/-work-dir", "parent_log": transcript}
+            "logs_root": str(logs_root), "parent_log": transcript}
     check("SessionStart hands the main session its coordinator host object",
           rc == 0 and json.dumps(host) in text)
 
