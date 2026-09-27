@@ -41,11 +41,14 @@ for internal routing, compatibility, and truthful failure behavior.
 | Inspect evidence integrity | `/grounding-audit` |
 | Learn from a round | `/run-reflection lightweight|full` |
 
-`/quick-deterministic` and `/centroid-pass` are active mechanical adapters
-(`scripts/audit/run_all.py`, `scripts/d_style_profile_check.py`,
-`scripts/draft_governance.py`, `scripts/centroid_service.py`) and stay
-invoke-only / fail-closed. `/run-draft`, `/run-iterate`, `/run-finalize`,
-and `/run-reflection` are active staging coordinators: they bind Planner,
+`/quick-deterministic` is an active mechanical adapter
+(`scripts/audit/run_all.py`, `scripts/d_style_profile_check.py`). `/centroid-pass`
+(`scripts/draft_governance.py`, `scripts/centroid_service.py`) and
+`/centroid-sentence-logic` are external-dependent: they need the reader
+policy's corpus, except for the general packet of a dormant reader profile.
+All stay invoke-only / fail-closed. `/run-draft`, `/run-iterate` and
+`/run-finalize` are active staging coordinators; `/run-reflection` is degraded
+until its behaviour has more than static evidence. They bind Planner,
 Generator, Evaluator, and Reflector on staging. Generator publishes only
 via `assignment_writer_commit.py`. Writer (outside the plugin) is the apply
 step. Parked `run-phase-*` names are not public.
@@ -67,15 +70,15 @@ receipt for that governed evidence.
 | `/run-draft` | active | Coordinate Planner/Generator/Evaluator/Reflector on staging for draft. | Start or continue drafting on staging. |
 | `/run-iterate` | active | Coordinate the four hands on staging for refine/structural/deep/stability. | Improve an existing draft on staging. |
 | `/run-finalize` | active | Coordinate the four hands on staging; Evaluator certifies shipment bytes. | After a certified draft, before Writer apply. |
-| `/run-reflection` | active | Coordinate reflection on a certified staging shipment (lightweight or full). | After a certified shipment. |
+| `/run-reflection` | degraded | Coordinate reflection on a certified staging shipment (lightweight or full). | After a certified shipment. |
 | `/quick-deterministic` | active | Run the canonical mechanical pre-flight. | Before deep review. |
 | `/grounding-audit` | degraded | Audit citation, metric, path, and rule-citation integrity. | Evidence and hallucination checks. |
 | `/check-abstract-body` | degraded | Verify abstract and title promises are delivered in the body. | Before submission. |
 | `/check-contradictions` | degraded | Audit theoretical and terminological contradictions across sources. | Multi-theory manuscripts. |
 | `/p-stage-checker` | degraded | Check manuscript claims and vocabulary against the declared P-stage. | Stage-drift diagnosis. |
 | `/accessibility-overlay` | degraded | Run the governed reader-accessibility checks. | Review and sign-off passes. |
-| `/centroid-pass` | active | centroid-bind: bind live centroid-source (yu-et-al-2011-social-modeling) plus graph eligibility plus named bytes. GRAPH-SEMANTIC-INELIGIBLE is eligibility, not a pair verdict. Empty semantic_findings is not a pass. | Explicit bind audits; does not redefine centroid-source; reader-profile v2 with `semantic_usage: not_invoked` does not dispatch it. |
-| `/centroid-sentence-logic` | active | centroid-check: join consecutive sentences to admitted Yu 2011 / Dennett passages against centroid-source yu-et-al-2011-social-modeling. A check of named bytes is a check, not a redefinition of the source. | After `/centroid-pass` (centroid-bind) on the same manuscript bytes. |
+| `/centroid-pass` | external-dependent | centroid-bind: bind live centroid-source (yu-et-al-2011-social-modeling) plus graph eligibility plus named bytes. GRAPH-SEMANTIC-INELIGIBLE is eligibility, not a pair verdict. Empty semantic_findings is not a pass. | Explicit bind audits; does not redefine centroid-source; reader-profile v2 with `semantic_usage: not_invoked` does not dispatch it. |
+| `/centroid-sentence-logic` | external-dependent | centroid-check: join consecutive sentences to admitted Yu 2011 / Dennett passages against centroid-source yu-et-al-2011-social-modeling. A check of named bytes is a check, not a redefinition of the source. | After `/centroid-pass` (centroid-bind) on the same manuscript bytes. |
 | `/analytic-move-audit` | degraded | Audit Abbott-style analytic construction across seven moves. | Theory-building arguments. |
 | `/definition-derivation-check` | degraded | Check whether load-bearing terms are derived, imported, or stipulated. | Definitions and construct formation. |
 | `/dissolution-move-check` | degraded | Check charitable reconstruction, buried assumptions, and dissolution moves. | Rival-view engagement. |

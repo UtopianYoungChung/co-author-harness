@@ -22,7 +22,7 @@ This skill is **centroid-check**. It is not centroid-source and not a centroid-b
 | **centroid-check** | This skill. Consecutive sentences must join to admitted Yu/Dennett passages. Requires named manuscript bytes at start. | Not a redefinition of centroid-source. A check of live M4 is a check. |
 | **centroid-bind** | The `/centroid-pass` packet. `GRAPH-SEMANTIC-INELIGIBLE` is eligibility, not a pair verdict. | Not a pair CLEAN. Empty `semantic_findings` is not a pass. |
 
-Joseph is the only R-plane actor. SK-32 stays CLOSED. DEST-PROTECTED stays.
+The author (a person, never the plugin) is the only R-plane actor. SK-32 stays CLOSED. DEST-PROTECTED stays.
 
 ## When to run
 
@@ -36,16 +36,16 @@ After `centroid-pass` (centroid-bind) emits `status: binding_resolved`. While `r
 
 ## Invoke
 
-From the harness root:
+From the project directory:
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/centroid_sentence_logic.py" --mode review --packet <binder.json> --manuscript <named.md> --passages <joseph-passages.json>
+python "${CLAUDE_PLUGIN_ROOT}/scripts/centroid_sentence_logic.py" --mode review --packet <binder.json> --manuscript <named.md> --passages <admitted-passages.json> --admitted-by <name>
 python "${CLAUDE_PLUGIN_ROOT}/scripts/centroid_sentence_logic.py" --mode write --packet <binder.json> --manuscript <named.md> --admit-pdf <yu-2011.pdf> --pages 3,7,12 --project-root <package> --shipment-id <id>
 ```
 
 `--pages 3,7,12` means printed book pages 3, 7, and 12 (running footer or non-identity labels). Identity 1…N labels are ignored. Title/foreword/contents are not admitted Yu body. The same numbers used as a legacy PDF-index are refused.
 
-`--passages` is Joseph-admitted verbatim excerpts. `--admit-pdf` reads hash-bound printed book pages in the 2011 window (pp. 3-10 and 11-52). Either satisfies the held 2026-08-19 default. Graph retrieval does not.
+`--passages` is verbatim excerpts admitted by a named person: each row carries `admitted_by`, or `--admitted-by <name>` supplies it; a passage with neither, or from a source other than Yu 2011 or Dennett 1987, is refused. `--admit-pdf` reads hash-bound printed book pages in the 2011 window (pp. 3-10 and 11-52). Either satisfies the held 2026-08-19 default. Graph retrieval does not.
 
 Receipts are JSON (machine) plus a markdown sibling. Default is stdout. Package writes go only to `reviews/harness/shipments/<id>/` via `--shipment-id`, under stems `centroid-check_<mode>`.
 

@@ -45,7 +45,7 @@ plugin-root identity is `references/_snippets/reflection-grounding.md`.
 
 **Full-mode addenda to the shared "What you read" list:** when proposing improvements, also read the package files — `FIVE_ENFORCEMENT_MEASURES.md`, `MASTER_research_and_paper_guidelines.md`, `DETERMINISTIC_CHECKS.md`, `SAFEGUARD_LAYER.md`, `REVIEW_ORCHESTRATION.md`, `references/PHASE_PROTOCOL.md` (§4 gate set, §5 phase scope, §11 retirement ledger), `references/phase_state_schema.md` (§2 18-field section, §5.1 7-field row with `model_used`, §6 trigger enum, §6.1 failure codes), `references/ARTEFACT_FRONTMATTER_SCHEMA.md` (F1 register/routing, F4 demoted, F6 checks_scheduled/check_profile), and the four `agents/*.md` prompt files.
 
-- `FIVE_ENFORCEMENT_MEASURES.md` — core guideline (U1–U5). Treat as the umbrella check set for integrity and recurrence accounting; cite the umbrella number in findings. Do not mint scholarly CLEAN; no G.4; no preview→M4. A C-n suspension is not an umbrella suspension unless Joseph names the umbrella.
+- `FIVE_ENFORCEMENT_MEASURES.md` — core guideline (U1–U5). Treat as the umbrella check set for integrity and recurrence accounting; cite the umbrella number in findings. Do not mint scholarly CLEAN; no G.4; no preview→M4. A C-n suspension is not an umbrella suspension unless the author names the umbrella.
 
 ---
 
@@ -149,7 +149,7 @@ Run the audit per `GROUNDING_PROTOCOL.md §Grounding Audit (Reflector responsibi
 | 5. Gap-fill audit | **must run** · every new paragraph | BLOCKER on unsourced factual claim |
 | 6. Marker audit | **must run** | BLOCKER on silently dropped marker |
 | 7. Category 7 — legacy advisor-sourced artifacts | **must run** if present | BLOCKER on missing re-classification |
-| 8. Category 8 — graph overlay | **must run** (mandatory at Ph4) | BLOCKER on fabricated node / severity-echo |
+| 8. Category 8 — graph overlay | **must run** (mandatory at Ph4; while `graph-grounding-overlay` is unavailable, check instead that `GRAPH_GOVERNED_GENERATION_UNAVAILABLE` is recorded in the Ph4 findings and G.4 sign-off) | BLOCKER on fabricated node / severity-echo |
 | 8b. Synthesis reconciliation | **must run** when brief exists | BLOCKER on forced consensus in core claims |
 | 9. Rule 7a — external verifier | **must run** (BLOCKER floor) | BLOCKER on unmarked unverified citation |
 | 9a. Scholar Gateway render contract | **must run** if invoked | BLOCKER on missing session footer |

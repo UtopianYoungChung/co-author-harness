@@ -78,6 +78,26 @@ closure_profiles:
       consumer: {profile: independently-governed-consumer, status: pending}
       runtime: {members: ["skills/{capability}/SKILL.md"], probe_ids_from_evidence: true}
       evidence: {status: partial, fixture_paths_from_row: true}
+  orchestration-external:
+    behavior_status: external-dependent
+    missing_planes: [consumer]
+    planes:
+      policy: {entrypoint: "skills/{capability}/SKILL.md"}
+      contract: {kernel_component: agent-contracts}
+      producer: {kind: orchestration, implementation_from_row: true}
+      consumer: {profile: external-provider-from-row}
+      runtime: {members_from_policy_and_implementation: true, probe_ids_from_evidence: true}
+      evidence: {status: provider-dependent, fixture_paths_from_row: true}
+  orchestration-coordinator-degraded:
+    behavior_status: degraded
+    missing_planes: [evidence]
+    planes:
+      policy: {entrypoint: "skills/{capability}/SKILL.md"}
+      contract: {kernel_component: agent-contracts}
+      producer: {kind: orchestration, entrypoint_from_policy: true}
+      consumer: {profile: four-hands-staging}
+      runtime: {members: ["skills/{capability}/SKILL.md"], probe_ids_from_evidence: true}
+      evidence: {status: partial, fixture_paths_from_row: true}
   orchestration-coordinator:
     behavior_status: active
     missing_planes: []
@@ -105,8 +125,8 @@ capabilities:
   accessibility-overlay: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/reader_accessibility_contract_smoketest.py]}
   analytic-move-audit: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
   backfill-source-stubs-from-references: {availability: unavailable, execution_mode: deferred, exposure: internal, closure_profile: deferred-unavailable, reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE, evidence: [scripts/skill-check.py]}
-  centroid-pass: {availability: active, execution_mode: orchestration, exposure: public, closure_profile: orchestration-active, implementation: scripts/centroid_service.py, evidence: [scripts/centroid_service_smoketest.py, scripts/draft_governance_smoketest.py]}
-  centroid-sentence-logic: {availability: active, execution_mode: orchestration, exposure: public, closure_profile: orchestration-active, implementation: scripts/centroid_sentence_logic.py, evidence: [scripts/centroid_sentence_logic_smoketest.py]}
+  centroid-pass: {availability: external-dependent, execution_mode: orchestration, exposure: public, closure_profile: orchestration-external, provider: reader-policy-corpus, implementation: scripts/centroid_service.py, evidence: [scripts/centroid_service_smoketest.py, scripts/draft_governance_smoketest.py]}
+  centroid-sentence-logic: {availability: external-dependent, execution_mode: orchestration, exposure: public, closure_profile: orchestration-external, provider: reader-policy-corpus, implementation: scripts/centroid_sentence_logic.py, evidence: [scripts/centroid_sentence_logic_smoketest.py]}
   check-abstract-body: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
   check-contradictions: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
   chung-academic-voice-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}
@@ -140,7 +160,7 @@ capabilities:
   run-phase-3: {availability: degraded, execution_mode: orchestration, exposure: compatibility, closure_profile: orchestration-degraded, evidence: [scripts/alias_parity_smoketest.py]}
   run-phase-3-stability: {availability: degraded, execution_mode: orchestration, exposure: compatibility, closure_profile: orchestration-degraded, evidence: [scripts/alias_parity_smoketest.py]}
   run-phase-4: {availability: degraded, execution_mode: orchestration, exposure: compatibility, closure_profile: orchestration-degraded, evidence: [scripts/alias_parity_smoketest.py, scripts/assignment_receipt_transaction_smoketest.py, scripts/assignment_terminal_close_smoketest.py]}
-  run-reflection: {availability: active, execution_mode: orchestration, exposure: public, closure_profile: orchestration-coordinator, evidence: [scripts/reflector_split_parity_smoketest.py]}
+  run-reflection: {availability: degraded, execution_mode: orchestration, exposure: public, closure_profile: orchestration-coordinator-degraded, evidence: [scripts/reflector_split_parity_smoketest.py]}
   seed-snowball-discovery: {availability: external-dependent, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-external, provider: source-verifiers, evidence: [scripts/skill-check.py]}
   sentence-level-pass: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/audit/test_audit.py]}
   suchman-register-audit: {availability: degraded, execution_mode: prompt-mediated, exposure: public, closure_profile: prompt-degraded, evidence: [scripts/skill-check.py]}

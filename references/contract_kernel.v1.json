@@ -186,7 +186,7 @@
       "id": "capability-registry",
       "path": "references/capabilities.yaml",
       "revision_kind": "sha256",
-      "sha256": "7bc7fe0c18bd083c308c409406c14e9552beded345ef4412ad112b0fb8d03c3f",
+      "sha256": "cf96d6b61d4158d7320d49f4a9423fdf3eeecc49db0fd78b70adac7e74604ab2",
       "migration_ids": [
         "capability-closure-six-plane-v1"
       ]
@@ -943,7 +943,7 @@
       "id": "planner-agent",
       "path": "agents/planner.md",
       "revision_kind": "sha256",
-      "sha256": "04f9ff95153995915610d260f92262b83bd6d82e7e66e22b4c3cd53660d48921",
+      "sha256": "32fdad577da9075cd18cda2dac1ebbe529b3a91c7d05a11b38fafed4f040c7f2",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -952,7 +952,7 @@
       "id": "evaluator-agent",
       "path": "agents/evaluator.md",
       "revision_kind": "sha256",
-      "sha256": "f7ce340829ef4cadedc99983769e8f46140d0e82795280bb8bda6c3bf761276d",
+      "sha256": "72ed676bc6b2000d60bd717000f459b19a5fb018d219a3c7890df0094762f1a0",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -961,7 +961,7 @@
       "id": "generator-agent",
       "path": "agents/generator.md",
       "revision_kind": "sha256",
-      "sha256": "4f6c6bb645e3b3a472d7591b2e3ca563303f210504540e0af28cfda4405e068a",
+      "sha256": "976af930543c0a37f82c4070e50c0b7ab2da13cdbb41b1fc1c6bfebdb24c7e99",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -979,7 +979,7 @@
       "id": "skill-run-draft",
       "path": "skills/run-draft/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "8263c5ae72a735fd4baff26fbaf2148b3cf8f506da6001ce88fb043d29fd1cf3",
+      "sha256": "72d5171a1a0da31938d0ff00c5c57b7e02d41bf284a1c8c77b870666b5d2d8fd",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -988,7 +988,7 @@
       "id": "skill-run-iterate",
       "path": "skills/run-iterate/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "bbcca205475a399c92f1f70ff5c0812e7a9fe7e60c4af1423b3b31f49e86b864",
+      "sha256": "81caa7c7cbbefb8a5a78bfe57b5a494b9b81d26e9ad58c84e920f4ef71379efb",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1015,7 +1015,7 @@
       "id": "skill-run-phase-4",
       "path": "skills/run-phase-4/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "5afbe233ab18464d06916b9723f2f8151bf4e9e8fd852a2b852f860ed9a83165",
+      "sha256": "97dcbe9250a782a5678261d165e49e952558aeb7c7397177a2cfec522839df07",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1033,7 +1033,7 @@
       "id": "skill-plugin-commands",
       "path": "skills/plugin-commands/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "8bcc2cd8a543b6a784fa7f635c19bf85f3833ca22a7b35c53340d0411bf64678",
+      "sha256": "c039c5632d01e2f54c3992520c0cfb4c2160b78151342f0153de859bba894b64",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

@@ -52,11 +52,14 @@
     "plugin-commands",
     "public-interest-accountability-pass",
     "response-letter-review",
+    "run-reflection",
     "sentence-level-pass",
     "suchman-register-audit",
     "turabian-format-pass"
   ],
   "external_dependent": [
+    "centroid-pass",
+    "centroid-sentence-logic",
     "extend-snowball-incremental",
     "seed-snowball-discovery"
   ],

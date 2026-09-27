@@ -220,6 +220,19 @@ def main() -> int:
         assert dormant_packet["semantic_findings"] == []
         assert any("not_invoked" in item for item in dormant_packet["limitations"])
         graph_path.write_bytes(graph_bytes)
+        # ...and still runs when the policy corpus does not resolve on this host,
+        # because a dormant binding never uses it (audit M1).
+        absent_wiki = base / "absent-wiki"
+        absent_wiki.mkdir()
+        dormant_offhost = invoke(*common_args(project, manuscript, absent_wiki, workspace))
+        assert dormant_offhost.returncode == 0, dormant_offhost.stdout
+        offhost_packet = json.loads(dormant_offhost.stdout)
+        validate_packet(offhost_packet, schema)
+        assert offhost_packet["status"] == "binding_resolved"
+        assert offhost_packet["reason_code"] == "SEMANTIC_USAGE_NOT_INVOKED"
+        assert offhost_packet["binding_provenance"] == "general"
+        assert offhost_packet["semantic_findings"] == []
+        assert any("not_invoked" in item for item in offhost_packet["limitations"])
 
         (project / "reviews" / "phase_state.json").write_text(
             json.dumps({

@@ -38,7 +38,7 @@ See [`skills/plugin-commands/SKILL.md`](skills/plugin-commands/SKILL.md) for the
 
 ### Centroid
 
-Current instrument (leftover centroid-names, accepted 2026-08-30). Catalog ids stay `/centroid-pass` and `/centroid-sentence-logic`; both are `active` in [`references/capabilities.yaml`](references/capabilities.yaml). Policy member `yu-et-al-2011-social-modeling` in [`references/policies/reader_accessibility.v1.json`](references/policies/reader_accessibility.v1.json).
+Current instrument (leftover centroid-names, accepted 2026-08-30). Catalog ids stay `/centroid-pass` and `/centroid-sentence-logic`; both are `external-dependent` in [`references/capabilities.yaml`](references/capabilities.yaml): they need the reader policy's corpus, apart from the general packet a dormant reader profile always receives. Policy member `yu-et-al-2011-social-modeling` in [`references/policies/reader_accessibility.v1.json`](references/policies/reader_accessibility.v1.json).
 
 * **centroid-source.** Policy member `yu-et-al-2011-social-modeling`, role centroid, Yu-authored window book pp. 3-10 and 11-52. Does not move when a check binds new manuscript bytes. Dennett is warrant, not a second centroid.
 * **centroid-check.** `/centroid-sentence-logic` (`scripts/centroid_sentence_logic.py`). Named manuscript bytes against that source. Pairs verdict `not_run` until roles fill CLEAN/ADVISORY/BLOCKER. A check of live M4 is a check, not a redefinition of the source. `--pages` is printed book pages; legacy PDF-index 3,7,12 refused.

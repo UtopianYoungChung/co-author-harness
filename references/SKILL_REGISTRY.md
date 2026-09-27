@@ -130,7 +130,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Created:** 2026-04-11; mode-split rewritten 2026-04-20 for v0.7.0
 - **Source:** Early package skill build — the Reflector had no standalone entry point; lessons were consistently lost between sessions because reflection was never triggered. The mode-split was added at v0.7.0 to support the Lifecycle-Phase Ladder's unbounded Ph3 iteration: lightweight passes catch ledger-integrity drift mid-iteration without forcing a full close-out cycle.
 - **Tier:** Package
-- **Status:** Active public staging coordinator
+- **Status:** Degraded public staging coordinator. Its only evidence (`reflector_split_parity_smoketest.py`) is static; it becomes active once a behavioural suite exercises a reflection round.
 - **Depends on:** `skills/run-reflection/SKILL.md` (public mode router), `agents/reflector-probe.md` (lightweight procedure), `agents/reflector-closeout.md` (full procedure), `references/PHASE_PROTOCOL.md §11`, and `agents/planner.md` (proposal gatekeeper)
 
 ### SK-07. `sentence-level-pass`
@@ -508,13 +508,13 @@ Instrument name: **centroid-bind**. Catalog id stays `centroid-pass`. Binds live
 
 ### SK-48. `centroid-sentence-logic`
 
-Instrument name: **centroid-check**. Own sentence-logic pass on top of a `binding_resolved` centroid-bind packet. A check of named manuscript bytes against centroid-source `yu-et-al-2011-social-modeling` is a check, not a redefinition of the source. Invoke-only while `GRAPH-SEMANTIC-INELIGIBLE`. Admitted passages are Joseph pastes or hash-bound Yu 2011 printed book pp. 3-10 / 11-52. Identity 1…N PDF labels and title/foreword/contents are not admitted. Does not mint scholarly CLEAN. SK-32 stays CLOSED.
+Instrument name: **centroid-check**. Own sentence-logic pass on top of a `binding_resolved` centroid-bind packet. A check of named manuscript bytes against centroid-source `yu-et-al-2011-social-modeling` is a check, not a redefinition of the source. Invoke-only while `GRAPH-SEMANTIC-INELIGIBLE`. Admitted passages are pastes that name the person who admitted them (`admitted_by` or `--admitted-by`) or hash-bound Yu 2011 printed book pp. 3-10 / 11-52; only Yu 2011 and Dennett 1987 passages are admitted. External-dependent: it needs a binding packet and the policy's sources. Identity 1…N PDF labels and title/foreword/contents are not admitted. Does not mint scholarly CLEAN. SK-32 stays CLOSED.
 
 - **File:** `skills/centroid-pass/SKILL.md` (new 2026-07-19)
 - **Pattern:** Public, read-only orchestration. A deterministic centroid-bind packet binds the live policy, pins, members, warrant views, exact text scope, hashes, and derivation; the Generator or Evaluator then performs the grounded semantic generation, review, or revision pass. Sentence-logic lives on SK-48.
 - **Created:** 2026-07-19; promoted after the deterministic packet, all-drafts governance contract, and behavioral integration evidence were installed.
 - **Tier:** Package
-- **Status:** Active. The script always emits a binding packet; graph-governed scholarly use is claimed only when the reader binding enables it.
+- **Status:** External-dependent (provider `reader-policy-corpus`). The script always emits a binding packet for a dormant reader profile; otherwise it needs the reader policy's corpus. Graph-governed scholarly use is claimed only when the reader binding enables it.
 - **Depends on:** `references/policies/reader_accessibility.v1.json`, `references/policies/draft_governance.v1.json`, `scripts/centroid_service.py`, `scripts/draft_governance.py`, and `references/GROUNDING_PROTOCOL.md`.
 - **Trigger:** Every M1-M4/FINAL draft or revision whose authoritative reader binding enables governed semantic use, or explicit `/centroid-pass`; reader-profile v2 with `semantic_usage: not_invoked` does not auto-dispatch it.
 - **Sibling:** SK-46 `repin-register` (the only pin-motion path); `accessibility-overlay` Sub-check H (the existing governed review surface); SK-48 `centroid-sentence-logic` (centroid-check).

@@ -41,6 +41,7 @@ from destination_capability import DestinationRefused, assert_writable
 
 YU_2011 = "yu-et-al-2011-social-modeling"
 DENNETT = "dennett-1987-intentional-stance"
+POLICY_SOURCES = frozenset({YU_2011, DENNETT})
 YU_PAGES = set(range(3, 11)) | set(range(11, 53))
 SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"“])")
 FRONT_HEADING_RE = re.compile(
@@ -115,12 +116,17 @@ def _page_from_locator(locator: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def _validate_passage(row: dict[str, Any], *, admitted_by: str) -> dict[str, Any]:
+def _validate_passage(row: dict[str, Any], *, admitted_by: str | None) -> dict[str, Any]:
     source_key = str(row.get("source_key", "")).strip()
     locator = str(row.get("locator", "")).strip()
     quote = str(row.get("quote", "")).strip()
     if not source_key or not locator or not quote:
         raise Refusal("SENTENCE-LOGIC-PASSAGE", "each admitted passage needs source_key, locator, and quote")
+    if source_key not in POLICY_SOURCES:
+        raise Refusal(
+            "SENTENCE-LOGIC-SOURCE",
+            f"passage source {source_key!r} is not a centroid-check member ({', '.join(sorted(POLICY_SOURCES))})",
+        )
     quote_sha = str(row.get("quote_sha256") or _sha_text(quote))
     if quote_sha != _sha_text(quote):
         raise Refusal("SENTENCE-LOGIC-PASSAGE", f"quote_sha256 does not match quote bytes: {source_key}")
@@ -136,22 +142,29 @@ def _validate_passage(row: dict[str, Any], *, admitted_by: str) -> dict[str, Any
             raise Refusal("SENTENCE-LOGIC-ROLE", "Yu 2011 warrant_layer must be surface")
     if source_key == DENNETT and layer != "argument":
         raise Refusal("SENTENCE-LOGIC-ROLE", "Dennett warrant_layer must be argument")
+    # The admitting party is a fact about the passage; the code never supplies one.
+    admitter = str(row.get("admitted_by") or admitted_by or "").strip()
+    if not admitter:
+        raise Refusal(
+            "SENTENCE-LOGIC-PASSAGE",
+            f"passage {source_key} {locator} names no admitting party; set admitted_by on the row or pass --admitted-by",
+        )
     return {
         "source_key": source_key,
         "locator": locator,
         "quote": quote,
         "quote_sha256": quote_sha,
         "warrant_layer": layer,
-        "admitted_by": admitted_by,
+        "admitted_by": admitter,
     }
 
 
-def _passages_from_json(path: Path) -> list[dict[str, Any]]:
+def _passages_from_json(path: Path, admitted_by: str | None) -> list[dict[str, Any]]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     rows = raw if isinstance(raw, list) else raw.get("passages")
     if not isinstance(rows, list):
         raise Refusal("SENTENCE-LOGIC-PASSAGE", "passages file must be a list or {passages: []}")
-    return [_validate_passage(row, admitted_by="joseph") for row in rows if isinstance(row, dict)]
+    return [_validate_passage(row, admitted_by=admitted_by) for row in rows if isinstance(row, dict)]
 
 
 def _is_front_matter(text: str) -> bool:
@@ -375,7 +388,7 @@ def _markdown_receipt(receipt: dict[str, Any]) -> str:
         f"- one BLOCKER pair fails the bound scope for qualification",
         "",
         "This is not a scholarly CLEAN. Empty binder semantic_findings is not a pass.",
-        "SK-32 stays CLOSED. Joseph is the only R-plane actor.",
+        "SK-32 stays CLOSED. The author is the only R-plane actor.",
         "",
     ]
     return "\n".join(lines) + "\n"
@@ -415,7 +428,7 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
 
     admitted: list[dict[str, Any]] = []
     if args.passages:
-        admitted.extend(_passages_from_json(Path(args.passages).resolve(strict=True)))
+        admitted.extend(_passages_from_json(Path(args.passages).resolve(strict=True), args.admitted_by))
     if args.admit_pdf:
         pages = [int(item) for item in args.pages.split(",") if item.strip()]
         if not pages:
@@ -428,7 +441,7 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
     if ineligible and not admitted:
         raise Refusal(
             "SENTENCE-LOGIC-NO-PASSAGE",
-            "GRAPH-SEMANTIC-INELIGIBLE and no admitted passages; pass --passages (Joseph) or --admit-pdf pages",
+            "GRAPH-SEMANTIC-INELIGIBLE and no admitted passages; pass --passages with their admitting party, or --admit-pdf pages",
         )
 
     text = manuscript_bytes.decode("utf-8", errors="strict")
@@ -468,7 +481,7 @@ def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
         },
         "c7": [],
         "actor": "Generator" if args.mode in {"write", "revise"} else "Evaluator",
-        "r_plane": "Joseph only",
+        "r_plane": "author only",
         "sk32": "CLOSED",
         "created_at": created,
         "limitations": [
@@ -511,7 +524,8 @@ def main(argv: list[str] | None = None) -> int:
         default=YU_2011,
         help="centroid-source key. Locked to yu-et-al-2011-social-modeling. Does not move the policy centroid.",
     )
-    parser.add_argument("--passages", help="Joseph-admitted passages JSON")
+    parser.add_argument("--passages", help="Admitted passages JSON; each row names its admitting party (admitted_by) unless --admitted-by does")
+    parser.add_argument("--admitted-by", help="The person who admitted the --passages rows that do not name one")
     parser.add_argument("--admit-pdf", help="Hash-bound PDF to read as admitted printed book pages")
     parser.add_argument(
         "--pages",

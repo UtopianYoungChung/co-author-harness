@@ -62,7 +62,7 @@ Ph4 is the primary **final round report** assembly locus: the Planner synthesize
 
 Ph4 is the **Finalize & Close** stage of the Lifecycle-Phase Ladder — the terminal stage and the submission gate. It governs the final paper represented by the backward-compatible M5 framework slot; it does not assert that the controlling assignment names a fifth milestone. Ph4 is a **strict superset of Ph3** with four additions:
 
-1. **External verifiers move from optional to REQUIRED.** Zotero MCP citation probe, Scholar Gateway render-contract audit, Coupling E.2 overlay, and register-specific passes are gating at Ph4 (advisory at Ph3).
+1. **External verifiers move from optional to REQUIRED.** Zotero MCP citation probe, Scholar Gateway render-contract audit, Coupling E.2 overlay, and register-specific passes are gating at Ph4 (advisory at Ph3). The overlay's gate is suspended while it is unavailable; see the Coupling E.2 item below.
 2. **G.4 sign-off artefact is mandatory.** Row 8.5 (SAFEGUARD layer outcome) must be CLEAN; a partial G.4 blocks ship.
 3. **Reflector-full runs at close-out.** The full Reflector pipeline runs — Phase 2b aggregated confirmation-failed history audit (NEW-H-4), Phase 3 lessons synthesis, Phase 4 skill-development proposals (formalised by the Planner via the `plugin_update_proposed_by_planner` trigger), Phase 5 memory updates (`lessons_learned.md`, `DO_NOT_DISTURB.md`).
 4. **Coupling D M5 wiki ingest (explicit-invocation only).** Ph4 close does **not** auto-attempt SK-17 `ingest-m5-to-wiki` (producer boundary, 2026-07-22). If the user explicitly invokes it, it returns `status: deferred` / `reason_code: WIKI_WRITE_TRANSACTION_UNAVAILABLE` / `wiki_page_key: null`, and a canonical Wiki change proceeds only as a separately adjudicated shipment to Wiki governance. Do **not** write an `m5_wiki_ingest` success trigger. Phase 4 completion does not depend on Wiki write availability.
@@ -170,7 +170,7 @@ The three external-verifier classes move from optional at Ph3 to required at Ph4
 
 - **Zotero MCP citation verification.** Every citation must be resolvable via Zotero search/fetch or explicitly marked `[UNVERIFIED]`. Rule 7a BLOCKER floor at Ph4.
 - **Scholar Gateway render-contract compliance.** If Scholar Gateway output was consumed in any prior cycle, the render-contract audit (Reflector §Phase 2.5.1 item 9a) must pass. Missing session footer is a BLOCKER at Ph4.
-- **Coupling E.2 graph-grounding overlay.** Always required (same as Ph3). The echo-detector rate threshold at Ph4 is stricter: ≥15% ECHO+SHALLOW fires `[COUPLING-E.2 DEGRADED]` (vs 30% at Ph3).
+- **Coupling E.2 graph-grounding overlay.** Always required (same as Ph3). While `graph-grounding-overlay` is unavailable (`GRAPH_GOVERNED_GENERATION_UNAVAILABLE` in `references/capabilities.yaml`), the Ph4 requirement is suspended: record that reason code in the Ph4 findings and the G.4 sign-off, and do not block the gate on the overlay's absence. The requirement resumes when the capability becomes available. The echo-detector rate threshold at Ph4 is stricter: ≥15% ECHO+SHALLOW fires `[COUPLING-E.2 DEGRADED]` (vs 30% at Ph3).
 
 Register-specific passes are required conditionally: a Suchman-register project runs the Suchman register audit; an IS-theory project runs the IS-theory pass; a policy-critical project runs the public-interest-accountability pass.
 

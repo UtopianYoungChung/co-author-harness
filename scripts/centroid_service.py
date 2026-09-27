@@ -370,6 +370,24 @@ def build_packet(args: argparse.Namespace) -> dict[str, Any]:
         )
     except (policy.PolicyError, OSError, UnicodeError, json.JSONDecodeError) as exc:
         reason = _policy_reason(exc)
+        if general_only:
+            # A dormant v2 binding never uses the semantic corpus, so a corpus
+            # that does not resolve on this host is no reason to withhold the
+            # general packet the skill promises.
+            packet = _general_packet(
+                manuscript_path=manuscript_path,
+                manuscript_bytes=manuscript_bytes,
+                scoped_text=scoped_text,
+                scope=scope,
+                prose=prose,
+                mode=args.mode,
+                reason_code="SEMANTIC_USAGE_NOT_INVOKED",
+                detail=f"reader-profile v2 semantic_usage is not_invoked; policy did not resolve ({reason}): {exc}",
+            )
+            packet["limitations"].append(
+                "reader-profile v2 semantic_usage is not_invoked; this is a general binding packet, not a graph-governed scholarly pass."
+            )
+            return packet
         if reason == "GRAPH-SEMANTIC-INELIGIBLE":
             return _general_packet(
                 manuscript_path=manuscript_path,

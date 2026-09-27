@@ -105,7 +105,7 @@ For each verifier, call `mcp__mcp-registry__search_mcp_registry` with the verifi
 
 ### Phase 3 — Runtime namespace pinning
 
-For each advertised tool, confirm the runtime namespace by consulting the session's tool list. A namespace that appears in `EXTERNAL_VERIFIERS.md` as `mcp__*__<tool>` (literal asterisk) or as a registry UUID not matching the runtime UUID is a **placeholder defect** (MAJOR if still in a released version; BLOCKER if introduced in a version bump that has not yet shipped). This is the exact defect class SK-22 was built to catch.
+For each advertised tool, confirm the runtime namespace by consulting the session's tool list. `EXTERNAL_VERIFIERS.md` names each verifier by server and tool name and resolves the runtime prefix from the session's tool list. A runtime UUID cited there as an invocable name, or a registry UUID presented as a tool prefix, is a **placeholder defect** (MAJOR if still in a released version; BLOCKER if introduced in a version bump that has not yet shipped). This is the exact defect class SK-22 was built to catch.
 
 Record runtime namespaces in the probe report. **UUID namespaces are host-installation-specific runtime IDs, not stable contract names** — always re-resolve them via tool search at probe time; the UUIDs below are *observed examples from one host* (2026-07 session) and citing them as invocable literals elsewhere in the package is exactly the stale-UUID defect this skill exists to detect:
 

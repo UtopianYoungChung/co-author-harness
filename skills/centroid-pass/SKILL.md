@@ -24,9 +24,13 @@ Three objects share the word centroid. Keep them separate:
 | **centroid-bind** | This skill. `scripts/centroid_service.py` binds policy + graph eligibility + named bytes. | Not a scholarly CLEAN. Empty `semantic_findings` means no role judgment ran, not a pass. |
 
 The script always runs. When reader-profile v2 sets `semantic_usage: not_invoked`,
-it still emits a general binding packet (scope, hashes, metrics) and marks
-`reason_code: SEMANTIC_USAGE_NOT_INVOKED`. That is not a graph-governed scholarly
-pass and not a fabricated finding set.
+it still emits a general binding packet (scope, hashes, metrics) with a
+`not_invoked` limitation. Where the policy corpus does not resolve on this host,
+the packet is marked `reason_code: SEMANTIC_USAGE_NOT_INVOKED` and names the
+resolution failure in `detail`. That is not a graph-governed scholarly pass and
+not a fabricated finding set. Outside a dormant v2 binding the bind needs the
+policy's corpus (`references/policies/reader_accessibility.v1.json`); without it
+the bind is refused, which is why the capability is external-dependent.
 
 ## Contract
 

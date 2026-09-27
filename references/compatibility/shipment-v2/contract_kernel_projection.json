@@ -4,7 +4,7 @@
   "kernel": {
     "id": "co-author-harness-contract-kernel-v1",
     "version": "1.0.0",
-    "sha256": "c922d7c3b19acba4051654cb7ed9422260a6e7f8a8a7a2caa21822cd0d685e4d"
+    "sha256": "dc2e1dc806f69cb35a863aa54cdcf8e9ccf36e2f50b0a109daabd1a711158830"
   },
   "components": [
     {
@@ -108,7 +108,7 @@
     {
       "id": "capability-registry",
       "version": "2.0.0",
-      "sha256": "7bc7fe0c18bd083c308c409406c14e9552beded345ef4412ad112b0fb8d03c3f",
+      "sha256": "cf96d6b61d4158d7320d49f4a9423fdf3eeecc49db0fd78b70adac7e74604ab2",
       "migration_ids": [
         "capability-closure-six-plane-v1"
       ]

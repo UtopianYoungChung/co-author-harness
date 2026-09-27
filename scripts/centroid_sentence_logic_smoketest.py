@@ -58,6 +58,7 @@ def main() -> int:
             "locator": "book p. 7",
             "quote": "Strategic actors depend on each other for goals to be achieved.",
             "warrant_layer": "surface",
+            "admitted_by": "the project author",
         }
     ]
     with tempfile.TemporaryDirectory() as raw:
@@ -82,6 +83,28 @@ def _run_cases(tmp, man, pkt, pas, out, manuscript, packet, passages) -> None:
 
         blocked = run(tmp, "--packet", str(pkt), "--manuscript", str(man), "--mode", "review")
         require(blocked.returncode == 4 and "SENTENCE-LOGIC-NO-PASSAGE" in blocked.stdout, "ineligible without passages must fail closed")
+
+        # Admission provenance is supplied by a person, never by the code.
+        unnamed = [{k: v for k, v in passages[0].items() if k != "admitted_by"}]
+        unnamed_path = tmp / "unnamed.json"
+        unnamed_path.write_text(json.dumps(unnamed), encoding="utf-8")
+        anon = run(tmp, "--packet", str(pkt), "--manuscript", str(man), "--mode", "review", "--passages", str(unnamed_path))
+        require(anon.returncode == 4 and "SENTENCE-LOGIC-PASSAGE" in anon.stdout and "admitting party" in anon.stdout,
+                "a passage with no admitting party must be refused, not stamped by the code")
+        named = run(tmp, "--packet", str(pkt), "--manuscript", str(man), "--mode", "review",
+                    "--passages", str(unnamed_path), "--admitted-by", "A. Reviewer")
+        require(named.returncode == 0 and json.loads(named.stdout)["admitted_passages"][0]["admitted_by"] == "A. Reviewer",
+                "--admitted-by must record the named person")
+        own = run(tmp, "--packet", str(pkt), "--manuscript", str(man), "--mode", "review",
+                  "--passages", str(pas), "--admitted-by", "A. Reviewer")
+        require(own.returncode == 0 and json.loads(own.stdout)["admitted_passages"][0]["admitted_by"] == "the project author",
+                "a row's own admitted_by must not be overwritten")
+        foreign = [dict(passages[0], source_key="smith-2020-unrelated")]
+        foreign_path = tmp / "foreign.json"
+        foreign_path.write_text(json.dumps(foreign), encoding="utf-8")
+        outside = run(tmp, "--packet", str(pkt), "--manuscript", str(man), "--mode", "review", "--passages", str(foreign_path))
+        require(outside.returncode == 4 and "SENTENCE-LOGIC-SOURCE" in outside.stdout,
+                "a passage from outside the centroid-check members must be refused")
 
         stale = json.loads(json.dumps(packet))
         stale["manuscript"]["sha256"] = "0" * 64
