@@ -180,10 +180,12 @@ def assert_publication_failure_restores(
     after_durable_write: bool,
 ) -> None:
     before = ledger_snapshot(project)
-    canonical = project / "reviews" / "phase_state.json"
+    # The migration writes to resolved paths; compare resolved spellings so a
+    # symlinked or 8.3 short-name temp root still triggers the injection.
+    canonical = (project / "reviews" / "phase_state.json").resolve()
 
     def interrupted_writer(path: Path, payload: bytes) -> None:
-        if path == canonical:
+        if path.resolve() == canonical:
             if after_durable_write:
                 migration._atomic_write(path, payload)
             raise OSError(

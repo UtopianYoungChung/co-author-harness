@@ -210,11 +210,11 @@ def main() -> int:
         unexpected_project = Path(directory) / "unexpected-concurrent"
         shutil.copytree(project, unexpected_project)
         unexpected_adjudication = unexpected_project / "adjudication.json"
-        unexpected_canonical = unexpected_project / "reviews" / "phase_state.json"
+        unexpected_canonical = (unexpected_project / "reviews" / "phase_state.json").resolve()
         concurrent_payload = b'{"concurrent":"changed"}\n'
 
         def unexpected_writer(path: Path, payload: bytes) -> None:
-            if path == unexpected_canonical:
+            if path.resolve() == unexpected_canonical:
                 migration._atomic_write(path, concurrent_payload)
                 raise OSError("simulated unexpected concurrent bytes")
             migration._atomic_write(path, payload)
@@ -238,7 +238,7 @@ def main() -> int:
         assert (unexpected_project / "reviews" / "tier_state.json").is_file()
 
         def fail_at_authority(path: Path, payload: bytes) -> None:
-            if path == project / "reviews" / "phase_state.json":
+            if path.resolve() == (project / "reviews" / "phase_state.json").resolve():
                 raise OSError("simulated publication interruption")
             migration._atomic_write(path, payload)
 

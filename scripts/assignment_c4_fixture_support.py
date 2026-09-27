@@ -175,7 +175,7 @@ def issue_legacy_anchor(
         "project": project_root,
         "ledger": {
             "root": project_root,
-            "path": ledger_path.relative_to(project).as_posix(),
+            "path": ledger_path.resolve().relative_to(project).as_posix(),
             "sha256": sha256(ledger_path),
             "evidence_type": "assignment_mutation_ledger",
         },
@@ -189,7 +189,7 @@ def issue_legacy_anchor(
             "authority": "user",
             "evidence": {
                 "root": project_root,
-                "path": authorization_path.relative_to(project).as_posix(),
+                "path": authorization_path.resolve().relative_to(project).as_posix(),
                 "sha256": sha256(authorization_path),
                 "evidence_type": "synthetic_user_authorization",
             },

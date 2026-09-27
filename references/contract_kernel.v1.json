@@ -385,7 +385,7 @@
       "id": "assignment-process-gate",
       "path": "scripts/assignment_process_gate.py",
       "revision_kind": "sha256",
-      "sha256": "333c6fc75c3a9eb219f24742bf000b4079d32a5b54f3762613b4d6787487b225",
+      "sha256": "21c23290012bd521735aff8614eaa6cb35b764f00fa53d9d4f8466e51ed9c578",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
@@ -410,7 +410,7 @@
       "id": "assignment-milestone-transaction",
       "path": "scripts/assignment_milestone_transaction.py",
       "revision_kind": "sha256",
-      "sha256": "0337f816a31badccfbbf8fd4d6fd875dfb67501a1f0e0117c6ad798be8da1b18",
+      "sha256": "0d6e84c886b76079028fc6a8c44f4f007f5a3f15d8f5272cdd3f5286e45f3be9",
       "migration_ids": [
         "milestone-path-contract-v2",
         "reader-profile-v2-decoupling",
@@ -742,7 +742,7 @@
       "id": "obligation-result-kernel",
       "path": "scripts/obligation_result.py",
       "revision_kind": "sha256",
-      "sha256": "7db30abb4badcdf9c34498fe3d4eca99f9d224e83412574e1bf4b811814754f7",
+      "sha256": "e547c7e9452aac30e2ee7b5191f3c644c9c9ceff51e4eee2b7785388aa262fff",
       "migration_ids": []
     },
     {
@@ -871,7 +871,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "33f0965236fcf8542620139eaa83375f2dd2ce6c1b5c6c68e5a63cecac73c94b",
+      "sha256": "eb0376ea440e42982ac2a8d0300201d18d63be272fb5accd6a4f15047046cb08",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

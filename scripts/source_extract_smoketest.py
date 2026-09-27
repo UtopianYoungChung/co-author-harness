@@ -146,7 +146,7 @@ def lf(data: bytes) -> bytes:
 def main() -> int:
     failures: list[str] = []
     with tempfile.TemporaryDirectory(prefix="coauthor-source-extract-c2-") as td:
-        root = Path(td)
+        root = Path(td).resolve()
         retry_target = root / "transient-replace" / "journal.json"
         real_replace = evidence_publication.os.replace
         replace_attempts = 0

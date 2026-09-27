@@ -1131,11 +1131,14 @@ def resolve_domain_native_register(
         candidate = _contained(wiki_root, relative_file)
         if candidate.is_file():
             live_inventory_paths.append(candidate)
-    live_inventory_paths = sorted(set(live_inventory_paths), key=lambda path: path.relative_to(wiki_root).as_posix().encode("utf-8"))
+    # _contained() yields resolved paths; compare against the resolved root so a
+    # symlinked or 8.3 short-name spelling of wiki_root cannot break containment.
+    wiki_base = wiki_root.resolve()
+    live_inventory_paths = sorted(set(live_inventory_paths), key=lambda path: path.relative_to(wiki_base).as_posix().encode("utf-8"))
     live_inventory_rows = []
     for inventory_path in live_inventory_paths:
         inventory_snapshot = snapshots.capture(inventory_path, "semantic_inventory_page")
-        live_inventory_rows.append({"source_file":inventory_path.relative_to(wiki_root).as_posix(), "sha256":inventory_snapshot.sha256})
+        live_inventory_rows.append({"source_file":inventory_path.relative_to(wiki_base).as_posix(), "sha256":inventory_snapshot.sha256})
     manifest_hash_by_source = {row["source_file"]: row["sha256"] for row in manifest_hash_rows}
     live_hash_by_source = {row["source_file"]: row["sha256"] for row in live_inventory_rows}
     missing_pinned_pages = sorted(set(manifest_hash_by_source) - set(live_hash_by_source), key=_utf8_key)
@@ -1401,9 +1404,10 @@ def resolve_domain_native_register(
         candidate = _contained(wiki_root, relative_file)
         if candidate.is_file():
             final_inventory_paths.append(candidate)
-    final_inventory_paths = sorted(set(final_inventory_paths), key=lambda path:path.relative_to(wiki_root).as_posix().encode("utf-8"))
+    wiki_base = wiki_root.resolve()  # match _contained()'s resolved paths
+    final_inventory_paths = sorted(set(final_inventory_paths), key=lambda path:path.relative_to(wiki_base).as_posix().encode("utf-8"))
     final_inventory_rows = [
-        {"source_file":path.relative_to(wiki_root).as_posix(), "sha256":_hash(path)}
+        {"source_file":path.relative_to(wiki_base).as_posix(), "sha256":_hash(path)}
         for path in final_inventory_paths
     ]
     if final_inventory_rows != live_inventory_rows:

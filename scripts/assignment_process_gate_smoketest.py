@@ -259,6 +259,52 @@ def main() -> int:
             assert not (junction_target / junction_name).exists()
             ready_dir.rmdir()
             ready_dir.mkdir()
+
+        # The project root may be spelled through an alias (a symlinked TMPDIR,
+        # macOS /var, or a Windows 8.3 short name): the receipt check matches
+        # the project by identity and keeps the control tree lexical. A link
+        # from outside the project into the control tree is still refused.
+        alias = root.parent / f"{root.name}-alias"
+        try:
+            os.symlink(root, alias, target_is_directory=True)
+        except OSError:
+            alias = None
+        if alias is not None:
+            import importlib.util
+
+            spec = importlib.util.spec_from_file_location("apg_alias_probe", GATE)
+            gate = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(gate)
+            aliased_ready = alias / receipt_argument.parent / "gate_receipt_M1_20260715T000003Z.json"
+            assert gate._receipt_path_finding(root, aliased_ready, "M1") is None
+            assert gate._receipt_path_finding(alias, receipt.parent / aliased_ready.name, "M1") is None
+            aliased_consumed = run_gate(root, verify_receipt=alias / consumed_path.relative_to(root))
+            assert (
+                aliased_consumed.returncode == 4
+                and "APG-RECEIPT-CONSUMED" in aliased_consumed.stdout
+            ), aliased_consumed.stdout + aliased_consumed.stderr
+            inner = root / "inner-alias"
+            os.symlink(root, inner, target_is_directory=True)
+            try:
+                nested = inner / receipt_argument.parent / "gate_receipt_M1_20260715T000005Z.json"
+                finding = gate._receipt_path_finding(root, nested, "M1")
+                assert finding is not None and finding[0] == "APG-RECEIPT-INVALID", finding
+            finally:
+                inner.unlink()
+            outside = root.parent / f"{root.name}-assignment-link"
+            os.symlink(receipt.parent.parent, outside, target_is_directory=True)
+            try:
+                bypass = outside / "ready" / "gate_receipt_M1_20260715T000004Z.json"
+                finding = gate._receipt_path_finding(root, bypass, "M1")
+                assert finding is not None and finding[0] == "APG-RECEIPT-INVALID", finding
+                refused = run_gate(root, "draft", "M1", emit_receipt=bypass)
+                assert (
+                    refused.returncode == 4 and "APG-RECEIPT-INVALID" in refused.stdout
+                ), refused.stdout + refused.stderr
+                assert not (receipt.parent / bypass.name).exists()
+            finally:
+                outside.unlink()
+                alias.unlink()
         assert (reviews / "phase_state.json").read_bytes() == before_gate, "gate must not write acceptance"
         premature_m2 = run_gate(root, "draft", "M2")
         assert (

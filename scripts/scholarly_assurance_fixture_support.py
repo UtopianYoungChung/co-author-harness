@@ -429,7 +429,7 @@ def _adjudicate_dstyle_result(
         }
         subject_path = result_path.with_name(f"{token}-subject.json")
         write_json(subject_path, subject)
-        subject_relative = subject_path.relative_to(project).as_posix()
+        subject_relative = subject_path.resolve().relative_to(project.resolve()).as_posix()
         _append_mutation(
             project,
             receipt_id=prepared["receipt_id"],
@@ -700,7 +700,7 @@ def build_qualified_scholarly_fixture(
     evaluation_value['coherence_review'] = coherence_fixture_support.build(
         Path(artifact).read_bytes().decode('utf-8-sig'))
     write_json(evaluation_path, evaluation_value)
-    evaluation_relative = evaluation_path.relative_to(project).as_posix()
+    evaluation_relative = evaluation_path.resolve().relative_to(project.resolve()).as_posix()
     _append_mutation(
         project,
         receipt_id=prepared["receipt_id"],

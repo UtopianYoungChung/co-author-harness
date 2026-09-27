@@ -51,7 +51,7 @@
     "scripts/assignment_c4_fixture_support.py": {
       "class": "test_only",
       "justification": "C4 fixture support writes only beneath caller-supplied hermetic temporary project roots",
-      "sha256": "6018cc8987bc6ec25b52b1f6d701fa3e6d9066ebc20b83da154dee50e3f06028"
+      "sha256": "51d599998c65ddcf0d533767868a2c05801f8b9daff26ade1860b5061f399b30"
     },
     "scripts/assignment_milestone_transaction.py": {
       "class": "guarded",
@@ -176,7 +176,7 @@
     "scripts/scholarly_assurance_fixture_support.py": {
       "class": "test_only",
       "justification": "C2-C6 scholarly-assurance fixture support writes only beneath caller-supplied hermetic synthetic project roots",
-      "sha256": "9f2e426907e71dae21ebd3aca0521a07422718767efb8b369588836364ce4a4e"
+      "sha256": "ec8fcb0b7a68fb96e54bdb40aacbaa4c988b22ecb54532407c06286c61501976"
     },
     "scripts/check8_g_prefilter.py": {
       "class": "guarded",

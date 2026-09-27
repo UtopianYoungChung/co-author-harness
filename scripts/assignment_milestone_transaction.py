@@ -537,7 +537,7 @@ def _activate_unavailable_reader_accessibility(
         raise MilestoneTransactionError("AMC-REPIN-POLICY", "existing resolved policy path is invalid")
     resolved_path = (project / Path(*PurePosixPath(resolved_relative).parts)).resolve()
     try:
-        resolved_path.relative_to(project)
+        resolved_path.relative_to(project.resolve())
     except ValueError as exc:
         raise MilestoneTransactionError("AMC-REPIN-POLICY", "resolved policy path escapes project root") from exc
     if not resolved_path.is_file() or _is_link(resolved_path) or _is_link(resolved_path.parent):
@@ -684,7 +684,7 @@ def _refresh_reader_profile_v2(
         raise MilestoneTransactionError("AMC-REPIN-POLICY", "existing resolved policy path is invalid")
     resolved_path = (project / Path(*PurePosixPath(resolved_relative).parts)).resolve()
     try:
-        resolved_path.relative_to(project)
+        resolved_path.relative_to(project.resolve())
     except ValueError as exc:
         raise MilestoneTransactionError("AMC-REPIN-POLICY", "resolved policy path escapes project root") from exc
     if not resolved_path.is_file() or _is_link(resolved_path) or _is_link(resolved_path.parent):
@@ -1000,7 +1000,7 @@ def _activate_reader_profile_semantic(
         )
     resolved_path = (project / Path(*PurePosixPath(old_binding["resolved_path"]).parts)).resolve()
     try:
-        resolved_path.relative_to(project)
+        resolved_path.relative_to(project.resolve())
     except ValueError as exc:
         raise MilestoneTransactionError(
             "AMC-SEMANTIC-ACTIVATION-POLICY", "resolved reader policy path escapes project root",
@@ -1102,7 +1102,7 @@ def _activate_reader_profile_semantic(
         )
     qualification_receipt = (wiki_root / Path(*PurePosixPath(request["qualification_receipt_path"]).parts)).resolve()
     try:
-        qualification_receipt.relative_to(wiki_root)
+        qualification_receipt.relative_to(wiki_root.resolve())
     except ValueError as exc:
         raise MilestoneTransactionError(
             "AMC-SEMANTIC-ACTIVATION-PROVENANCE", "qualification receipt escapes the bound wiki root",
@@ -1368,7 +1368,7 @@ def rebind_reader_accessibility(project: Path, at: str | None = None) -> Path:
             raise MilestoneTransactionError("AMC-REPIN-POLICY", "existing resolved policy path is invalid")
         resolved_path = (project / Path(*PurePosixPath(resolved_relative).parts)).resolve()
         try:
-            resolved_path.relative_to(project)
+            resolved_path.relative_to(project.resolve())
         except ValueError as exc:
             raise MilestoneTransactionError("AMC-REPIN-POLICY", "resolved policy path escapes project root") from exc
         if _is_link(resolved_path) or _is_link(resolved_path.parent):

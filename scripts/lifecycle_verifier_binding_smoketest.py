@@ -23,7 +23,7 @@ def sha(path: Path) -> str:
 
 def binding(project: Path, path: Path, root: str = "project") -> dict[str, str]:
     base = project if root == "project" else ROOT
-    return {"root": root, "path": path.resolve().relative_to(base).as_posix(), "sha256": sha(path)}
+    return {"root": root, "path": path.resolve().relative_to(base.resolve()).as_posix(), "sha256": sha(path)}
 
 
 def write_locator(project: Path, facts: dict, phase: str) -> Path:

@@ -573,6 +573,39 @@ def _dstyle_report_from_snapshots(
     }
 
 
+def _dstyle_resolved_paths(report: Any) -> Any:
+    """A D-STYLE report with its absolute path strings resolved, for comparison.
+
+    Producers pass the project root in whatever spelling they were given, and
+    the report records absolute paths (project_root, directives_path,
+    manuscript_path, and path locators) in that spelling. A root reached
+    through a symlink or a Windows 8.3 short name names the same files as its
+    resolved form, so those strings are compared resolved; every other field
+    must match exactly.
+    """
+    if not isinstance(report, dict):
+        return report
+    value = copy.deepcopy(report)
+
+    def resolved(text: Any) -> Any:
+        if isinstance(text, str) and text and os.path.isabs(text):
+            try:
+                return str(Path(text).resolve())
+            except (OSError, RuntimeError):
+                return text
+        return text
+
+    for key in ("project_root", "directives_path", "manuscript_path"):
+        if key in value:
+            value[key] = resolved(value[key])
+    findings = value.get("findings")
+    if isinstance(findings, list):
+        for finding in findings:
+            if isinstance(finding, dict) and "locator" in finding:
+                finding["locator"] = resolved(finding["locator"])
+    return value
+
+
 def _dstyle_report_adapter(
     result: dict[str, Any],
     adapter: dict[str, Any],
@@ -625,7 +658,7 @@ def _dstyle_report_adapter(
             _refuse(STALE, f"cannot replay D-STYLE directives bytes: {exc}")
         if directives_after != directives_payload:
             _refuse(STALE, "D-STYLE directives bytes changed during recomputation")
-    if observed != recomputed:
+    if _dstyle_resolved_paths(observed) != _dstyle_resolved_paths(recomputed):
         _refuse(STALE, "bound D-STYLE report differs from current-byte recomputation")
     expected_findings: list[dict[str, Any]] = []
     for finding in recomputed.get("findings", []):

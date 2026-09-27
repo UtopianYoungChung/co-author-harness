@@ -835,7 +835,7 @@ def case_rebind_transaction_rollback() -> None:
         original_atomic = policy._atomic_bytes
 
         def inject_external_ledger(path: Path, payload: bytes) -> None:
-            if path == markdown_path:
+            if path.resolve() == markdown_path.resolve():
                 ledger_path.write_bytes(foreign)
                 raise policy.PolicyError("injected post-ledger failure")
             original_atomic(path, payload)
@@ -875,7 +875,7 @@ def case_rebind_transaction_rollback() -> None:
 
         def mutate_inventory_after_publication(path: Path, payload: bytes) -> None:
             original_atomic_create(path, payload)
-            if path == request_path:
+            if path.resolve() == request_path.resolve():
                 page = wiki / "wiki/sources/yu-1995-istar.md"
                 page.write_bytes(page.read_bytes() + b"publication-time mutation\n")
 
@@ -961,7 +961,7 @@ def case_rebind_transaction_rollback() -> None:
         original_atomic_create = policy._atomic_create_bytes
 
         def foreign_request_wins_create(path: Path, payload: bytes) -> None:
-            if path == request_path:
+            if path.resolve() == request_path.resolve():
                 request_path.write_bytes(foreign_request)
                 raise policy.PolicyError("destination appeared concurrently; refusing overwrite")
             original_atomic_create(path, payload)

@@ -314,9 +314,32 @@ def _ready_lines(
     return lines
 
 
+def _lexical_project_root(project: Path, lexical: Path) -> Path | None:
+    """The ancestor of *lexical* that is the project directory itself.
+
+    Matched by file identity, so the project may be spelled differently in the
+    receipt path than in *project* (a symlinked ancestor such as a symlinked
+    TMPDIR or macOS /var, or a Windows 8.3 short name against its long form).
+    Everything below that ancestor stays lexical, so a link or junction inside
+    the control tree is still seen by the checks below. Ancestors are tried
+    outermost first, so an alias of the project that lives inside the project
+    matches at the real root and its path is refused.
+    """
+    for ancestor in reversed(lexical.parents):
+        try:
+            if os.path.samefile(ancestor, project):
+                return ancestor
+        except OSError:
+            continue
+    return None
+
+
 def _receipt_path_finding(project: Path, path: Path, target: str) -> tuple[str, str] | None:
-    assignment_dir = Path(os.path.abspath(project / "reviews" / ".harness" / "assignment"))
     lexical = Path(os.path.abspath(path))
+    lexical_root = _lexical_project_root(project, lexical)
+    if lexical_root is None:
+        lexical_root = Path(os.path.abspath(project))
+    assignment_dir = lexical_root / "reviews" / ".harness" / "assignment"
     expected_prefix = f"gate_receipt_{target}_"
     if (
         lexical.parent.parent != assignment_dir
@@ -330,8 +353,8 @@ def _receipt_path_finding(project: Path, path: Path, target: str) -> tuple[str, 
             f"<ready|reserved|consumed|invalidated>/gate_receipt_{target}_<utc>.json",
         )
     control_paths = [
-        project / "reviews",
-        project / "reviews" / ".harness",
+        lexical_root / "reviews",
+        lexical_root / "reviews" / ".harness",
         assignment_dir,
         lexical.parent,
     ]

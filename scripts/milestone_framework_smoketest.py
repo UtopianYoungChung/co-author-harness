@@ -2478,6 +2478,8 @@ def _run_sk20_gate_cases(directory: Path, failures: list[str]) -> None:
         spec.loader.exec_module(module)
         transaction_project = directory / "sk20-backup-cleanup-injection"
         transaction_project.mkdir()
+        # _commit_outputs expects the resolved root _validate_project_root returns.
+        transaction_project = transaction_project.resolve()
         transaction_reviews = transaction_project / "reviews"
         transaction_reviews.mkdir()
         readiness_target = transaction_reviews / "coupling_readiness_2026-07-13.json"

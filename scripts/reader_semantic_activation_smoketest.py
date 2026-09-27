@@ -40,7 +40,7 @@ class FakePolicy:
         return {
             "profile_path": resolved["profile_path"],
             "profile_sha256": resolved["profile_sha256"],
-            "resolved_path": resolved_path.relative_to(project).as_posix(),
+            "resolved_path": resolved_path.resolve().relative_to(project.resolve()).as_posix(),
             "resolved_sha256": hashlib.sha256(resolved_path.read_bytes()).hexdigest(),
             "source_bindings": copy.deepcopy(resolved["source_bindings"]),
             "project_identity": resolved.get("project_identity"),
