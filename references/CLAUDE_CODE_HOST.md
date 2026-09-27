@@ -132,7 +132,12 @@ hook (startup, resume, clear and compact) and a SubagentStart hook run
 - the quick reference card of `GROUNDING_PROTOCOL.md`, read from the file on
   every run;
 - for a `co-author-harness:` subagent only, the `agentId` the host assigned,
-  which step 4 above requires as the result's `agent_execution_id`.
+  which step 4 above requires as the result's `agent_execution_id`;
+- for the main session, the host object above filled in from the
+  `transcript_path` the host reports at session start (`logs_root` is its
+  directory, `parent_log` the file). Use it as `request.host` rather than
+  searching for the session log; set `subagents_available` to false if the
+  session has no Agent tool.
 
 Other plugins' subagents and the host's own receive nothing. The hook never
 blocks a session; if the protocol is unreadable it injects a pointer to the

@@ -18,7 +18,11 @@ It prints hook JSON whose ``additionalContext`` carries:
     run so the injected text cannot drift from it;
   * for a harness subagent only, the ``agent_id`` the host assigned. A child
     cannot otherwise see it, and a project-independent result must report it
-    as ``agent_execution_id`` (``references/CLAUDE_CODE_HOST.md``).
+    as ``agent_execution_id`` (``references/CLAUDE_CODE_HOST.md``);
+  * for the main session, the drafting coordinator's host object, built from
+    the ``transcript_path`` the host reports. A model cannot otherwise know
+    where its own session log is, and a live run that guessed wrong gave up
+    on certification altogether.
 
 Subagents of other plugins, and the host's own, receive nothing.
 ``COAUTHOR_SESSION_CONTEXT_DISABLE=1`` turns the hook off.
@@ -96,6 +100,16 @@ def context_for(event: str, payload: dict, root: Path) -> str | None:
         parts.append(
             f"Host execution identity: your agentId is {agent_id}. When a request asks for "
             "your own agent_execution_id, report exactly this value."
+        )
+    transcript = payload.get("transcript_path")
+    if event == "SessionStart" and isinstance(transcript, str) and transcript.endswith(".jsonl"):
+        host = {"adapter": "claude-code-jsonl", "subagents_available": True,
+                "logs_root": str(Path(transcript).parent), "parent_log": transcript}
+        parts.append(
+            "Drafting coordinator host object for this session (`piw_coordinator.py start` "
+            "`request.host`; references/CLAUDE_CODE_HOST.md): "
+            + json.dumps(host)
+            + ". Set subagents_available to false if this session has no Agent tool."
         )
     return "\n\n".join(parts)
 

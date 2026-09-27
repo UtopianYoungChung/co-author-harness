@@ -38,9 +38,9 @@ ROOT = Path(__file__).resolve().parents[1]
 FAILURES: list[str] = []
 CHECK_COUNT = 0
 # 34 existing checks plus 20 R-6/R-7 checks, plus 12 adhoc_review dispatch
-# checks, plus 13 session-context hook checks, plus 3 Ph4-claim checks.
+# checks, plus 15 session-context hook checks, plus 3 Ph4-claim checks.
 # No platform split.
-EXPECTED_CHECKS = 100
+EXPECTED_CHECKS = 102
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
@@ -1010,6 +1010,15 @@ def case_session_context_hook_injects_grounding_floor() -> None:
     check("SessionStart names the package root for package-relative script paths",
           f'python "{ROOT}/scripts/..."' in text)
     check("SessionStart carries no execution identity", "agentId" not in text)
+    check("SessionStart without a transcript path offers no host object", "claude-code-jsonl" not in text)
+
+    transcript = "/logs/projects/-work-dir/0e5c1d2a-1111-4222-8333-444455556666.jsonl"
+    rc, parsed, _ = run({"hook_event_name": "SessionStart", "source": "startup", "transcript_path": transcript})
+    text = context(parsed)
+    host = {"adapter": "claude-code-jsonl", "subagents_available": True,
+            "logs_root": "/logs/projects/-work-dir", "parent_log": transcript}
+    check("SessionStart hands the main session its coordinator host object",
+          rc == 0 and json.dumps(host) in text)
 
     rc, parsed, _ = run({"hook_event_name": "SubagentStart", "agent_type": "co-author-harness:generator",
                          "agent_id": "a1b2c3d4e5f6a7b8c"})

@@ -8,6 +8,8 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ## Unreleased
 
+**The session hook hands the main session its coordinator host object (27 September 2026).** A second live `/run-draft` left `request.host` out of its coordinator request and was refused with `PIW-HOST-CAPABILITY-UNAVAILABLE`. It then searched for its own session log, concluded wrongly that none existed, and ran the roles without certification, telling the user that host verification was unavailable. A model cannot know where its session log is, but the host reports it at session start as `transcript_path`. `session_context_hook.py` now adds the complete host object (`claude-code-jsonl`, `logs_root`, `parent_log`) to the main session's context, with the instruction to set `subagents_available` to false without an Agent tool. `full_run_enforcement_surfaces_smoketest` gains 2 checks.
+
 **The Claude Code adapter certifies children the host launches asynchronously (27 September 2026).** Claude Code 2.1.283 in a non-interactive session launches every subagent asynchronously, even when the dispatch asks for the foreground. The Agent `tool_result` is `async_launched`, and the child's final message arrives later in a host-written `<task-notification>` row. `piw_claude_host.py` accepted only a `completed` `tool_result`, so ordinary drafting refused every child with `PIW-HOST-NOT-FINISHED`. It now also accepts that asynchronous shape, under these conditions:
 - There is exactly one completion notice for the same `agentId` and dispatching `tool_use`.
 - The notice is marked as host-written (`origin.kind: "task-notification"`, `promptSource: "system"`); a typed prompt that imitates one does not count.
