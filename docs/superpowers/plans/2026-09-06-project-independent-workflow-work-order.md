@@ -43,7 +43,7 @@ Observed during work-order preparation; recheck before changing anything:
 - command_surface_check.py exits 1 with four blockers; skill-check.py exits 1 with two. New aliases are not consistently registered.
 - piw_session.py hardcodes B:/Agents/outputs as its default. A globally installed plugin must resolve portable task-local output without depending on this machine.
 - Existing centroid-sentence-logic already supports admitted passages when the graph is ineligible. Inspect and reuse that work; do not falsely report all graph-independent analysis absent.
-- The old 10/10 matrix measures helpers and weak assertions. ADV/IR confirm soft acceptance tests and untested Hermes. Refusal probes are not proof that a useful task can finish.
+- The old 10/10 matrix measures helpers and weak assertions. ADV/IR confirm soft acceptance tests. Refusal probes are not proof that a useful task can finish.
 
 Preflight during preparation returned exit 1: a Wiki grounding-note error, a QE containment-guard failure, and an R9 role/config check failure; one run also exposed a cp949 subprocess decoding error. Re-run in an explicit UTF-8 process and record exact results. Diagnose applicability; do not repair unrelated Wiki, governance or model configuration to make the dashboard green. An applicable unresolved gate holds the dependent operation, not all independent implementation work.
 
@@ -69,7 +69,7 @@ Fix existing public skills and natural-language routing, including sentence-leve
 
 Distinguish ordinary drafting/revision from explicit governed lifecycle/finalization intent. "Draft a short essay" alone must work without bootstrap; a named governed lifecycle operation retains its prerequisites.
 
-A run may create minimal task-local working state after invocation. It must not require users to construct a project first. Resolve rules from the installed package and output from an explicit authorized directory or the host's task-local area. No hardcoded B: drive, username, Hermes home, or live research path in portable runtime behavior.
+A run may create minimal task-local working state after invocation. It must not require users to construct a project first. Resolve rules from the installed package and output from an explicit authorized directory or the host's task-local area. No hardcoded B: drive, username, or live research path in portable runtime behavior.
 
 Keep host differences in a small documented dispatch boundary. Use the host's actual native subagent capability; do not build a general multi-provider framework or introduce API keys merely to obtain subagents.
 
@@ -173,7 +173,7 @@ Do not create cryptographic claims that a self-written receipt authenticates a h
 - [ ] Register new tests in the existing authoritative fixture mechanism. Replace weak PIW assertions; no new parallel acceptance authority.
 - [ ] Run structural census, the full fixture corpus and applicable release qualification checks. Capture real exit status and final results.
 - [ ] Exercise the candidate in a fresh Codex context with actual subagents and no project. Distinguish direct source use from isolated installed-candidate use and startup loading.
-- [ ] Test supported additional hosts where available; record Hermes accurately if unavailable. No universal-host or full-installation claim from a Codex-only run.
+- [ ] Test supported additional hosts where available. No universal-host or full-installation claim from a Codex-only run.
 - [ ] Produce the final delivery in section 7. Stop editing before writing readiness.
 
 ## 5. Acceptance matrix: fixed requirements, not a remappable rollup

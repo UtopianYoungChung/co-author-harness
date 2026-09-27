@@ -3,7 +3,7 @@
 Authorized by the user's instruction to proceed with the 14 September evaluation.
 Source baseline: `c648221ca1636124a8f28da735be810239fc0ad3`, on `main`.
 The workspace preflight validates Master Governance head 1.0.13. Its unrelated
-wiki, research-package and Hermes configuration findings remain outside this
+wiki and research-package findings remain outside this
 package repair. Model/provider selection remains a Desktop operation.
 
 ## Scope and completion evidence
