@@ -979,7 +979,7 @@
       "id": "skill-run-draft",
       "path": "skills/run-draft/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "72d5171a1a0da31938d0ff00c5c57b7e02d41bf284a1c8c77b870666b5d2d8fd",
+      "sha256": "ed92e7497f1806337e4224969cf1e94a6a96d3802c30d29cae78fa014884e513",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -988,7 +988,7 @@
       "id": "skill-run-iterate",
       "path": "skills/run-iterate/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "81caa7c7cbbefb8a5a78bfe57b5a494b9b81d26e9ad58c84e920f4ef71379efb",
+      "sha256": "76d621243fb2797c7aef51964f03741fbbc72f21239c77fe192bedccfd7b3e92",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -997,7 +997,7 @@
       "id": "skill-run-finalize",
       "path": "skills/run-finalize/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "ff857a3001274932b12784938daee4f50f5199bef75acf64afbfe34437d89cf6",
+      "sha256": "f46f4008aca88b2f138d7150eae217b64b2f0df83842abc1f35dbba38980f5fe",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1015,7 +1015,7 @@
       "id": "skill-run-phase-4",
       "path": "skills/run-phase-4/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "97dcbe9250a782a5678261d165e49e952558aeb7c7397177a2cfec522839df07",
+      "sha256": "e7e635000b2a6d3bc73ca3110bcc28066a6f6699489b17c10b477f2316dab620",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1024,7 +1024,7 @@
       "id": "skill-quick-deterministic",
       "path": "skills/quick-deterministic/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "4f0c5695bda8f52c0070b9fa664515438e88c808f3f25ec7547feb83171d40a5",
+      "sha256": "5fa63b83c31ebafce12b44eeee380c947ec50b37f28fdea09586ea4ac86d5b7c",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1033,7 +1033,7 @@
       "id": "skill-plugin-commands",
       "path": "skills/plugin-commands/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "c039c5632d01e2f54c3992520c0cfb4c2160b78151342f0153de859bba894b64",
+      "sha256": "79453941e799af8e9d17f0ba32804b3dd27381c8e577da4af16c20c49911ab2a",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

@@ -37,7 +37,7 @@ protected-destination and author-acceptance prerequisites remain in force.
 
 # run-iterate — public iterate coordinator (staging)
 
-> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. On hosts that do not (Codex, a source checkout), use the package directory that contains `version.json`.
+> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. The `references/…` and `scripts/…` paths in this skill resolve against that root, not against this skill's own directory. On hosts that do not fill it in (Codex, a source checkout), use the package directory that contains `version.json`.
 
 **Bibliography evidence.** Apply `references/CITATION_DISCIPLINE.md` §6. New references, changed claims, expanded attribution or changed source roles reopen affected coverage. Only harmless numbering with unchanged identities/attachments may reuse judgments. Explicit prose-only work reports bibliography not assessed.
 

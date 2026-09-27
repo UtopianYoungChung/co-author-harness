@@ -9,7 +9,7 @@ version: 3.1
 
 # centroid-pass (instrument: centroid-bind)
 
-> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. On hosts that do not (Codex, a source checkout), use the package directory that contains `version.json`.
+> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. The `references/…` and `scripts/…` paths in this skill resolve against that root, not against this skill's own directory. On hosts that do not fill it in (Codex, a source checkout), use the package directory that contains `version.json`.
 
 **Invoke-only / fail-closed.** Not a scholarly CLEAN mint and not an
 auto-dispatch. Graph / centroid remain invoke-only. `GRAPH-SEMANTIC-INELIGIBLE`

@@ -37,7 +37,7 @@ protected-destination and author-acceptance prerequisites remain in force.
 
 # run-draft — public draft coordinator (staging)
 
-> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. On hosts that do not (Codex, a source checkout), use the package directory that contains `version.json`.
+> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. The `references/…` and `scripts/…` paths in this skill resolve against that root, not against this skill's own directory. On hosts that do not fill it in (Codex, a source checkout), use the package directory that contains `version.json`.
 
 **Bibliography evidence.** Apply `references/CITATION_DISCIPLINE.md` §6 through discovery, generation and evaluation. Require complete reference/use assessments in existing role evidence before substantive completion; current-state claims need current evidence, and advisor guidance is not automatically a reference.
 

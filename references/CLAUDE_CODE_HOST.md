@@ -54,6 +54,16 @@ session actually has the Agent tool. Unknown or false is refused with
    `agentId` the host assigned; it is the suffix of its subagent log filename).
    A child cannot discover it by itself; the SubagentStart hook tells each
    harness child its `agentId` (see Session context below).
+   **Known gap (27 September 2026).** Claude Code 2.1.283 in a
+   non-interactive session launches every subagent asynchronously, even when
+   the dispatch passes `run_in_background: false`: the Agent `tool_result`
+   is `{"isAsync": true, "status": "async_launched", "agentId": …}`, and the
+   child's final message arrives later in a host-written `<task-notification>`
+   row (`origin.kind: "task-notification"`, `promptSource: "system"`). The
+   adapter accepts only a `completed` `tool_result`, so ingest refuses with
+   `PIW-HOST-NOT-FINISHED`. The roles still run as distinct children on their
+   allocated models, but the coordinator cannot certify their steps on such a
+   host until the adapter learns the asynchronous shape.
 5. Ingest with the original evidence:
    `{"agent_execution_id": "<agentId>", "turn_id": "<toolu_... tool_use id>", "child_log": "<logs_root>/<session-id>/subagents/agent-<agentId>.jsonl"}`.
    The verifier checks parent-child linkage, the token in the dispatching

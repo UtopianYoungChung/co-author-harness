@@ -7,7 +7,7 @@ version: 1.4
 
 # Plugin commands
 
-> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. On hosts that do not (Codex, a source checkout), use the package directory that contains `version.json`.
+> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. The `references/…` and `scripts/…` paths in this skill resolve against that root, not against this skill's own directory. On hosts that do not fill it in (Codex, a source checkout), use the package directory that contains `version.json`.
 
 The command catalog does not grant output authority. `references/role_output_contract.json` 3.0.0 governs the six fixed roles and nine triggered F1-F9 classes; readable legacy artifacts and file presence do not prove shipment-v2 application or acceptance.
 
