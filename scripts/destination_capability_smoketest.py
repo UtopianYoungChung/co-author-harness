@@ -682,6 +682,21 @@ def case_installer_workspace_and_read_only_modes() -> None:
               r.returncode == 2 and "DEST-MISROUTED" in r.stderr and not inside.exists())
 
 
+def case_run_all_default_output_stays_out_of_the_package() -> None:
+    """run_all's default --out is relative to the working directory; from the
+    package directory it would write project findings into the harness."""
+    with tempfile.TemporaryDirectory(prefix="destcap-runall-") as td:
+        target = Path(td) / "draft.md"
+        target.write_text("# Draft\n\nPlain prose for the mechanical pass.\n", encoding="utf-8")
+        before = (HARNESS / "reviews" / "findings.json").exists()
+        r = subprocess.run([sys.executable, str(HARNESS / "scripts" / "audit" / "run_all.py"), str(target)],
+                           cwd=HARNESS, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        check("default output inside the package is refused (DEST-MISROUTED)",
+              r.returncode == 4 and dc.DEST_MISROUTED in r.stderr, (r.stdout + r.stderr)[-200:])
+        check("nothing is written to the package's reviews/findings.json",
+              (HARNESS / "reviews" / "findings.json").exists() == before)
+
+
 def main() -> int:
     print("destination_capability_smoketest")
     for fn in (case_classifier, case_package_local_staging_hygiene,
@@ -690,7 +705,8 @@ def main() -> int:
                 case_ungoverned_fails_closed, case_mutator_wiring,
                 case_output_redirect_refusals, case_r0_writer_refusals,
                 case_audit_shipment_output,
-                case_installer_workspace_and_read_only_modes):
+                case_installer_workspace_and_read_only_modes,
+                case_run_all_default_output_stays_out_of_the_package):
         print(f"{fn.__name__}:")
         try:
             fn()

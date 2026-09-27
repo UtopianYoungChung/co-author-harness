@@ -206,7 +206,7 @@
     "scripts/hooks/full_run_pretooluse_gate.py": {
       "class": "excluded",
       "reason": "only write is a NamedTemporaryFile in the OS temp directory, unlinked in a finally block; no destination input exists",
-      "sha256": "4e6e3c1d3f4f9a79897f35e3235ee3abc9e64cc4edfe7d430d3434a3d7c85f82"
+      "sha256": "3780901080eededf9c45f4747918c1d942d098af0a7c07fb66af7b140c357f48"
     },
     "scripts/install_preflight_assets.py": {
       "class": "guarded",

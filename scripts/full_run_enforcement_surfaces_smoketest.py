@@ -38,8 +38,9 @@ ROOT = Path(__file__).resolve().parents[1]
 FAILURES: list[str] = []
 CHECK_COUNT = 0
 # 34 existing checks plus 20 R-6/R-7 checks, plus 12 adhoc_review dispatch
-# checks, plus 13 session-context hook checks. No platform split.
-EXPECTED_CHECKS = 97
+# checks, plus 13 session-context hook checks, plus 3 Ph4-claim checks.
+# No platform split.
+EXPECTED_CHECKS = 100
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
@@ -854,6 +855,16 @@ def case_territory_scoping_and_artifact_protection() -> None:
             check("a whole-word G.4 claim still engages the terminal gate",
                   rc == 0 and _decision(out).get("decision") == "block",
                   f"out={out!r}")
+            for claim in ("Finalized at Ph4.", "Ph4 is complete for all sections."):
+                rc, out, _ = run_hook_main(hook, stop_payload(str(plain), claim))
+                check(f"a Ph4 completion claim engages the terminal gate: {claim!r}",
+                      rc == 0 and _decision(out).get("decision") == "block",
+                      f"out={out!r}")
+            rc, out, _ = run_hook_main(
+                hook, stop_payload(str(plain), "Ph4 review starts after the next revision.")
+            )
+            check("naming Ph4 as a next step is not a terminal claim",
+                  rc == 0 and not out.strip(), f"out={out!r}")
 
             terminal = base / "terminal-project"
             write_synthetic_terminal_state(terminal)

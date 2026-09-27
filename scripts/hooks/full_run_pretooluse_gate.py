@@ -52,9 +52,10 @@ inside harness territory. Everything else without a scope is allowed so a
 user-scoped plugin does not freeze ordinary coding sessions; each such
 passthrough emits one stderr notice tagged ``[FRC-SCOPE-PASSTHROUGH]``.
 
-Terminal markers match as whole words, so "fig.4" is not "G.4". When the host
-reports ``stop_hook_active`` (it is re-invoking Stop after an earlier block),
-structured state alone does not block again: the model cannot repair
+Terminal markers match as whole words, so "fig.4" is not "G.4"; a Ph4
+completion claim ("finalized at Ph4", "Ph4 is complete") counts as one. When
+the host reports ``stop_hook_active`` (it is re-invoking Stop after an earlier
+block), structured state alone does not block again: the model cannot repair
 lifecycle state inside the same turn, and a repeated block would only loop.
 A fresh terminal claim in the new message still blocks.
 
@@ -119,6 +120,13 @@ TERMINAL_MARKERS = (
 _TERMINAL_MARKER_RES = tuple(
     re.compile(r"(?<![\w.])" + re.escape(marker) + r"(?!\w)")
     for marker in TERMINAL_MARKERS
+) + (
+    # A Ph4 completion claim in either word order ("finalized at Ph4",
+    # "Ph4 is complete"); naming Ph4 as the next step is not a claim.
+    re.compile(r"(?<![\w.])(?:finali[sz]ed|closed|completed?|signed[- ]off|shipped)"
+               r"\s+(?:at|in)\s+ph\s?4(?!\w)"),
+    re.compile(r"(?<![\w.])ph\s?4\s+(?:is\s+|was\s+|has\s+been\s+)?"
+               r"(?:completed?|closed|finali[sz]ed|signed[- ]off|done)(?!\w)"),
 )
 
 

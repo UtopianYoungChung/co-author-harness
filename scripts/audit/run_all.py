@@ -130,7 +130,8 @@ def main(argv: List[str] | None = None) -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("target", type=Path)
-    parser.add_argument("--out", type=Path, default=Path("reviews/findings.json"))
+    parser.add_argument("--out", type=Path, default=None,
+                        help="Findings JSON (default: reviews/findings.json under the working directory)")
     parser.add_argument("--stdout", action="store_true", help="Print JSON instead of writing")
     parser.add_argument(
         "--project-root",
@@ -170,6 +171,9 @@ def main(argv: List[str] | None = None) -> int:
     parser.add_argument("--product-assurance-out", type=Path, help="Exact diagnostic compatibility report path (required with --stdout when --semantic-receipt is used)")
     parser.add_argument("--fail-on", choices=["none", "any", "inviolable"], default="none", help="Exit 2 within this diagnostic mechanics command if findings match: none (default; exit 0, unchanged contract), any finding, or only inviolable severity. This result is never governed product or lifecycle qualification. C-7 caution: 'any' also checks advisory craft/voice/length candidates (idiolect vs. defect needs an author-baseline read this deterministic pass cannot do) — prefer 'inviolable' for automated diagnostics, or pair 'any' with a human C-7 review.")
     args = parser.parse_args(argv)
+    out_defaulted = args.out is None
+    if out_defaulted:
+        args.out = Path("reviews/findings.json")
 
     if args.semantic_receipt:
         print(
@@ -187,6 +191,7 @@ def main(argv: List[str] | None = None) -> int:
         return 2
 
     from destination_capability import (
+        DEST_MISROUTED,
         DEST_PROTECTED,
         DestinationRefused,
         assert_writable,
@@ -222,6 +227,14 @@ def main(argv: List[str] | None = None) -> int:
         for dest in destinations:
             if dest is not None:
                 output_kind = assert_writable(Path(dest).resolve(), purpose="audit output")
+                if dest is args.out and out_defaulted and output_kind == "package":
+                    # Run from the package directory, the default lands project
+                    # findings in the harness tree; project output must never
+                    # become package state (AGENTS.md, producer boundary).
+                    raise DestinationRefused(
+                        DEST_MISROUTED,
+                        f"default audit output {Path(dest).resolve()!s} lies inside the harness "
+                        "package; run from the project directory or pass --out")
                 if project_kind == "protected" and output_kind != "shipment":
                     raise DestinationRefused(
                         DEST_PROTECTED,
