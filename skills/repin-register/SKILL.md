@@ -9,6 +9,8 @@ version: 1.0
 ---
 # Re-pin Domain-Native Register
 
+> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. On hosts that do not (Codex, a source checkout), use the package directory that contains `version.json`.
+
 Only the loader computes hashes. Graph-independent v2 normally keeps the
 centroid dormant and skips this skill. The sole exception is an explicitly
 authorized v2-to-semantic migration that names a fresh, independently audited
@@ -69,7 +71,7 @@ wiki page, and never promote a pending exemplar, on the user's behalf.
 
 1. Invoke the single compute path:
 
-   `python scripts/reader_accessibility_policy.py --repin --trigger <trigger> [--dry-run] [--project-root "<path>"] [--semantic-graph-path "<fresh-qualified-graph-relative-path>"] [--allow-unrelated-dirty] [--force-lock]`
+   `python "${CLAUDE_PLUGIN_ROOT}/scripts/reader_accessibility_policy.py" --repin --trigger <trigger> [--dry-run] [--project-root "<path>"] [--semantic-graph-path "<fresh-qualified-graph-relative-path>"] [--allow-unrelated-dirty] [--force-lock]`
 
 2. On `delta_class: none`, report the ledger event and snapshot. Confirm that
    the profile bytes and `profile_version` did not change. Stop.
@@ -89,7 +91,7 @@ wiki page, and never promote a pending exemplar, on the user's behalf.
    applies and archives the request.
    A v2 semantic migration request remains inert until a separate Planner act:
 
-   `python scripts/assignment_milestone_checkpoint.py activate-reader-semantic --project-root <project-root>`
+   `python "${CLAUDE_PLUGIN_ROOT}/scripts/assignment_milestone_checkpoint.py" activate-reader-semantic --project-root <project-root>`
 
    Do not run that command in the same authority step as qualification,
    independent audit, re-pin, or request creation.
@@ -102,7 +104,7 @@ wiki page, and never promote a pending exemplar, on the user's behalf.
    been inspected and recovered.
 6. Only after clean `READY`, run:
 
-   `python scripts/repin_register_smoketest.py`
+   `python "${CLAUDE_PLUGIN_ROOT}/scripts/repin_register_smoketest.py"`
 
    Then run the reader-accessibility contract and milestone-framework suites.
 7. Draft the single-purpose commit message emitted by the loader and list the
@@ -111,7 +113,7 @@ wiki page, and never promote a pending exemplar, on the user's behalf.
    prepared working tree and message. After the approved commit exists, record
    its immutable object ID without recomputing either pin:
 
-   `python scripts/reader_accessibility_policy.py --backfill-repin-commit <40-or-64-character-object-id> --repin-epoch <N>`
+   `python "${CLAUDE_PLUGIN_ROOT}/scripts/reader_accessibility_policy.py" --backfill-repin-commit <40-or-64-character-object-id> --repin-epoch <N>`
 
    The loader requires that object to exist as a commit and be reachable from
    `main`. Commit or amend that ledger-only backfill according to the
@@ -140,7 +142,7 @@ wiki page, and never promote a pending exemplar, on the user's behalf.
   Planner inspect and archive it before retrying; never delete or overwrite it
   as part of re-pin recovery. Bind the recovery to the request's exact bytes:
 
-  `python scripts/assignment_milestone_checkpoint.py rebind-reader-policy --project-root <project-root> --archive-stale-request --expected-request-sha256 <sha256>`
+  `python "${CLAUDE_PLUGIN_ROOT}/scripts/assignment_milestone_checkpoint.py" rebind-reader-policy --project-root <project-root> --archive-stale-request --expected-request-sha256 <sha256>`
 
   The Planner command refuses an open round, a wrong hash, or a request that
   matches the current profile (which must be applied rather than archived).

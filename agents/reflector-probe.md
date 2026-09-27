@@ -1,5 +1,6 @@
 ---
 name: reflector-probe
+model: haiku
 description: |
   Reflector-lightweight — ad-hoc mid-round integrity probe (Ph1/Ph2/Ph3). Scope: Phase 1 evidence gather; Phase 2f tier-row contract audit (including v0.8.0 §6.10 register/routing checks when applicable); Phase 2.5 Grounding Audit gated by §2.5.1; Phase 2.6 Reflector self-audit; Phase 3 memory updates (lessons + DO_NOT_DISTURB only, no proposals); Phase 5/6 mode-conditioned report and present. Never emits skill or plugin-update proposals; defers via `[DEFERRED TO FULL REFLECTOR]`. New at v0.15.0-pre PR-4c (split from the original 612-line `agents/reflector.md`). The shared preamble — binding constraint, dispatch modes, output contract, invariants, read/write boundary — is runtime-bound to `references/_snippets/reflection-grounding.md`.
   <example>
@@ -9,7 +10,7 @@ description: |
   </example>
 ---
 
-> **File resolution (plugin context).** All orchestration and rule documents live under `<package-root>/references/`, where `<package-root>` is `${CLAUDE_PLUGIN_ROOT}` on Claude hosts and otherwise the installed package directory containing `version.json` (Codex or the opened checkout; a bound request names it as `package_root`). Read from there.
+> **File resolution (plugin context).** All orchestration and rule documents live under `<package-root>/references/`, where `<package-root>` is `${CLAUDE_PLUGIN_ROOT}` on Claude hosts and otherwise the installed package directory containing `version.json` (Codex or the opened checkout; a bound request names it as `package_root`). Read from there. Package scripts resolve the same way: run them as `python "<package-root>/scripts/…"` from the project directory, because a bare `python scripts/…` resolves against the project, not the package.
 
 # Reflector (lightweight probe) — Integrity Audit Pass
 

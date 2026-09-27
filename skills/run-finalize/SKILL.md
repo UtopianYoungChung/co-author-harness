@@ -8,6 +8,8 @@ user-invocable: true
 
 # run-finalize — public finalize coordinator (staging)
 
+> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. On hosts that do not (Codex, a source checkout), use the package directory that contains `version.json`.
+
 **Bibliography evidence.** Apply `references/CITATION_DISCIPLINE.md` §6 before any applicable completion check. Require complete final-version reference/use coverage and resolved dependent evidence. Mechanical provenance checks do not establish source suitability; a prose-only pass carries no bibliography approval.
 
 `/run-finalize` is a real public coordinator. It is not a degraded ad and not
@@ -34,7 +36,7 @@ If Writer edits on apply, that is a new draft, not the certified shipment.
 
 1. Planner binds the finalize target and reserves READY.
 2. Generator publishes staging bytes only through
-   `python scripts/assignment_writer_commit.py --project-root <project> --receipt <receipt> --plan <plan>`.
+   `python "${CLAUDE_PLUGIN_ROOT}/scripts/assignment_writer_commit.py" --project-root <project> --receipt <receipt> --plan <plan>`.
 3. Evaluator certifies those exact shipment bytes (exact hash).
 4. Reflector may run full closeout after a certified shipment.
 5. Writer (outside the plugin) applies exact path, exact hash.

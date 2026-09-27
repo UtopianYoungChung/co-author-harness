@@ -7,6 +7,8 @@ version: 1.4
 
 # Plugin commands
 
+> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. On hosts that do not (Codex, a source checkout), use the package directory that contains `version.json`.
+
 The command catalog does not grant output authority. `references/role_output_contract.json` 3.0.0 governs the six fixed roles and nine triggered F1-F9 classes; readable legacy artifacts and file presence do not prove shipment-v2 application or acceptance.
 
 List only supported, user-facing commands. Native `skills/*/SKILL.md` files are
@@ -51,7 +53,7 @@ step. Parked `run-phase-*` names are not public.
 `/quick-deterministic` is mechanics-only. Governed product qualification is an
 Evaluator lifecycle operation, exposed from a source checkout as:
 
-`python scripts/run_product_gate.py --mode governed-product --project-root "<project-root>" --artifact "<manuscript>" --out-dir "<shipment>/product-gate" --wiki-root "<wiki-root>" --semantic-receipt "<evaluation-semantic-receipt>" --verifier-transaction "<evaluation-verifier-transaction>" --verifier-publication-manifest "<evaluation-verifier-publication-manifest>" --verifier-commit-marker "<evaluation-verifier-commit-marker>"`
+`python "${CLAUDE_PLUGIN_ROOT}/scripts/run_product_gate.py" --mode governed-product --project-root "<project-root>" --artifact "<manuscript>" --out-dir "<shipment>/product-gate" --wiki-root "<wiki-root>" --semantic-receipt "<evaluation-semantic-receipt>" --verifier-transaction "<evaluation-verifier-transaction>" --verifier-publication-manifest "<evaluation-verifier-publication-manifest>" --verifier-commit-marker "<evaluation-verifier-commit-marker>"`
 
 Do not substitute `scripts/audit/run_all.py` output or a compatibility semantic
 receipt for that governed evidence.

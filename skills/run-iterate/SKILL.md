@@ -37,6 +37,8 @@ protected-destination and author-acceptance prerequisites remain in force.
 
 # run-iterate — public iterate coordinator (staging)
 
+> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. On hosts that do not (Codex, a source checkout), use the package directory that contains `version.json`.
+
 **Bibliography evidence.** Apply `references/CITATION_DISCIPLINE.md` §6. New references, changed claims, expanded attribution or changed source roles reopen affected coverage. Only harmless numbering with unchanged identities/attachments may reuse judgments. Explicit prose-only work reports bibliography not assessed.
 
 ## Output Profile
@@ -86,7 +88,7 @@ pre-MCR deep-pass or mint CLEAN.
 
 1. Planner binds one active target and the selected profile. No manuscript write.
 2. Generator publishes staging bytes only through
-   `python scripts/assignment_writer_commit.py --project-root <project> --receipt <receipt> --plan <plan>`.
+   `python "${CLAUDE_PLUGIN_ROOT}/scripts/assignment_writer_commit.py" --project-root <project> --receipt <receipt> --plan <plan>`.
 3. Evaluator certifies those exact shipment bytes (exact hash). Citation,
    claim, derivation, and similar checks stay invoke-able and still fire.
 4. Reflector performs the required scoped closeout after a certified shipment.

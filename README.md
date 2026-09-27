@@ -100,8 +100,10 @@ proceed without either connector.
 On Claude Code the plugin installs a PreToolUse and Stop hook. Without a declared
 run scope it only guards harness territory (native projects and governed
 workspace roots) and lets every other write through; a declared
-`FRC_PARENT_SCOPE` must be set before the host starts. See the Hooks section of
-[`references/CLAUDE_CODE_HOST.md`](references/CLAUDE_CODE_HOST.md).
+`FRC_PARENT_SCOPE` must be set before the host starts. A SessionStart and
+SubagentStart hook adds the grounding protocol's quick reference card and the
+package root to every session and to the harness's own subagents. See the
+Hooks section of [`references/CLAUDE_CODE_HOST.md`](references/CLAUDE_CODE_HOST.md).
 
 Ordinary drafting and revision need a host that can spawn real child agents and
 keep an inspectable original trace. Registered adapters: Codex (`codex-jsonl`)

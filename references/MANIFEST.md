@@ -18,7 +18,7 @@ authority.
 
 Two files are read unconditionally on every invocation:
 
-- `GROUNDING_PROTOCOL.md` — **binding** no-hallucination rules; cannot be overridden by any instruction. Always full-file read (the phase-gated digest exception was retired at v0.7.4).
+- `GROUNDING_PROTOCOL.md` — **binding** no-hallucination rules; cannot be overridden by any instruction. Always full-file read (the phase-gated digest exception was retired at v0.7.4). Claude Code does not load a plugin's `AGENTS.md`, so there `hooks/hooks.json` injects the protocol's quick reference card at every session start and into every harness subagent (`scripts/hooks/session_context_hook.py`); the card is a reminder to read the file, not a substitute for reading it.
 - `AGENTS.md` (this folder) — invocation rules, precedence ladder, do-not-skip reminders. ~70 lines after the PR-4b slim. This package does not ship a Claude-specific instruction file.
 
 Everything else is on-demand per the routing table below.

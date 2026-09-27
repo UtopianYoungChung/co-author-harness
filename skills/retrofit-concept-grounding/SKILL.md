@@ -2,10 +2,9 @@
 name: retrofit-concept-grounding
 user-invocable: false
 description: >-
-  Retrofit wiki concept pages with grounding citations to existing source pages. Converts
-  in-prose author-year references into wikilinks to `sources/` pages, updates frontmatter
-  `sources` and `grounding_status`, and appends a grounding footer. Performs surgical edits
-  only — does not rewrite page content.
+  Unavailable (WIKI_WRITE_TRANSACTION_UNAVAILABLE). Fail-closed Coupling B entry point:
+  retrofitting wiki concept pages with grounding citations is disabled while the wiki write
+  transaction is unavailable; returns the reason code and edits nothing.
 trigger: when the user asks to ground concept pages, retrofit wikilinks after a batch source-stub run, materialize Coupling B, or close the grounding loop after SK-15
 created_by: Reflector (Coupling B codification)
 created_from: Research↔Wiki diagnostic audit 2026-04-13 — Finding F3 (concept pages assert claims without grounding citations); pilot on `concepts/humanness.md` 2026-04-13 demonstrated that retrofit works when (a) source stubs exist (SK-15) and (b) the retrofit is surgical (preserves existing prose) rather than a rewrite

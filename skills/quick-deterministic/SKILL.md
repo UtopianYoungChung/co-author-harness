@@ -1,6 +1,6 @@
 ---
 name: quick-deterministic
-description: 'Run the canonical mechanical pre-flight on a manuscript via `python scripts/audit/run_all.py`, adding `--project-root` when available so D-STYLE profile routing and surface validation are emitted. Summarizes severity counts and top locators. Use when: "quick check", "pre-flight", "mechanical pass", before deep review.'
+description: 'Run the canonical mechanical pre-flight on a manuscript via the package script `scripts/audit/run_all.py`, adding `--project-root` when available so D-STYLE profile routing and surface validation are emitted. Summarizes severity counts and top locators. Use when: "quick check", "pre-flight", "mechanical pass", before deep review.'
 trigger: when the user asks for a quick check, a mechanical pass, a deterministic scan, or a pre-flight
 created_by: Reflector
 created_from: v0.15.0-pre — promoted from LLM-prosecuted regex counting to a scripts-first audit suite
@@ -8,6 +8,8 @@ pattern_source: scripts/audit/ (rule anchors in DETERMINISTIC_CHECKS.md)
 version: 2.0
 ---
 # Quick Deterministic Check (scripts-first)
+
+> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. On hosts that do not (Codex, a source checkout), use the package directory that contains `version.json`.
 
 **Invoke-only / fail-closed.** Mechanical pre-flight only. Does not auto-dispatch as scholarly CLEAN and does not mint CLEAN.
 
@@ -21,7 +23,7 @@ You are running a fast mechanical pre-flight on an academic manuscript. As of v0
 
 2. **Invoke the audit suite:**
    ```
-   python scripts/audit/run_all.py <target> --project-root <project-root> --date YYYY-MM-DD --out reviews/findings.json
+   python "${CLAUDE_PLUGIN_ROOT}/scripts/audit/run_all.py" <target> --project-root <project-root> --date YYYY-MM-DD --out reviews/findings.json
    ```
    The script writes `reviews/findings.json`, writes `reviews/d_style_profile_YYYY-MM-DD.json` when `--project-root` is supplied, and prints a one-line summary. If no project root exists for the target, omit `--project-root` and state that D-STYLE profile routing and surface validation were skipped.
 
@@ -40,9 +42,9 @@ You are running a fast mechanical pre-flight on an academic manuscript. As of v0
 
 Writing `reviews/findings.json` needs a writable destination. On a machine with
 no governed workspace, either run
-`python ${CLAUDE_PLUGIN_ROOT}/scripts/init_governed_workspace.py <workspace-dir>` once
+`python "${CLAUDE_PLUGIN_ROOT}/scripts/init_governed_workspace.py" <workspace-dir>` once
 and work in its staging lane, or run the read-only form, which writes nothing:
-`python ${CLAUDE_PLUGIN_ROOT}/scripts/audit/run_all.py <target> --stdout` (add
+`python "${CLAUDE_PLUGIN_ROOT}/scripts/audit/run_all.py" <target> --stdout` (add
 `--project-root <root> --skip-d-style-profile --skip-accessibility` to read a
 project without writing its reports).
 

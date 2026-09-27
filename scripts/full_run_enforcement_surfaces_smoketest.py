@@ -29,6 +29,8 @@ import io
 import json
 import os
 import re
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -36,8 +38,8 @@ ROOT = Path(__file__).resolve().parents[1]
 FAILURES: list[str] = []
 CHECK_COUNT = 0
 # 34 existing checks plus 20 R-6/R-7 checks, plus 12 adhoc_review dispatch
-# checks. No platform split.
-EXPECTED_CHECKS = 84
+# checks, plus 13 session-context hook checks. No platform split.
+EXPECTED_CHECKS = 97
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:
@@ -955,6 +957,77 @@ def case_adhoc_review_dispatch_without_parent_scope() -> None:
                   _denied(out), out.strip())
 
 
+def case_session_context_hook_injects_grounding_floor() -> None:
+    """SessionStart / SubagentStart put the grounding floor into harness contexts."""
+    config = json.loads((ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+    gate = config["hooks"]["PreToolUse"][0]["hooks"][0]
+    gate_rel = "scripts/hooks/full_run_pretooluse_gate.py"
+    context_rel = "scripts/hooks/session_context_hook.py"
+    for event in ("SessionStart", "SubagentStart"):
+        entry = (config["hooks"].get(event) or [{}])[0].get("hooks", [{}])[0]
+        expected = json.loads(json.dumps(gate))
+        expected["args"][-1] = expected["args"][-1].replace(gate_rel, context_rel)
+        check(f"{event} runs the context hook through the gate's interpreter resolver",
+              entry == expected and context_rel in json.dumps(entry))
+
+    hook = ROOT / context_rel
+    protocol = (ROOT / "references" / "GROUNDING_PROTOCOL.md").read_text(encoding="utf-8")
+    card_start = protocol.index("## Quick reference card")
+    card = protocol[protocol.index("\n", card_start) + 1:]
+    card = card[:card.index("\n---")].strip()
+
+    def run(payload, *, root: Path = ROOT, env_extra: dict | None = None):
+        env = {k: v for k, v in os.environ.items() if k != "COAUTHOR_SESSION_CONTEXT_DISABLE"}
+        env["CLAUDE_PLUGIN_ROOT"] = str(root)
+        env.update(env_extra or {})
+        data = payload if isinstance(payload, str) else json.dumps(payload)
+        proc = subprocess.run([sys.executable, "-B", str(hook)], input=data, env=env,
+                              capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=60)
+        out = proc.stdout.strip()
+        parsed = json.loads(out) if out else None
+        return proc.returncode, parsed, proc.stderr
+
+    def context(parsed) -> str:
+        return (parsed or {}).get("hookSpecificOutput", {}).get("additionalContext", "")
+
+    rc, parsed, _ = run({"hook_event_name": "SessionStart", "source": "startup"})
+    text = context(parsed)
+    check("SessionStart injects the protocol's own quick reference card verbatim",
+          rc == 0 and parsed["hookSpecificOutput"]["hookEventName"] == "SessionStart"
+          and card in text)
+    check("SessionStart names the package root for package-relative script paths",
+          f'python "{ROOT}/scripts/..."' in text)
+    check("SessionStart carries no execution identity", "agentId" not in text)
+
+    rc, parsed, _ = run({"hook_event_name": "SubagentStart", "agent_type": "co-author-harness:generator",
+                         "agent_id": "a1b2c3d4e5f6a7b8c"})
+    text = context(parsed)
+    check("a harness subagent receives the floor and its own agentId",
+          rc == 0 and card in text and "your agentId is a1b2c3d4e5f6a7b8c" in text)
+
+    for label, payload in (
+        ("another plugin's subagent", {"hook_event_name": "SubagentStart", "agent_type": "other:generator",
+                                       "agent_id": "x"}),
+        ("the host's own subagent", {"hook_event_name": "SubagentStart", "agent_type": "Explore", "agent_id": "x"}),
+        ("an unrelated event", {"hook_event_name": "PreToolUse", "tool_name": "Write"}),
+        ("a non-object payload", "[1, 2]"),
+        ("an unparseable payload", "{not json"),
+    ):
+        rc, parsed, _ = run(payload)
+        check(f"{label} receives nothing and the hook exits 0", rc == 0 and parsed is None)
+
+    with tempfile.TemporaryDirectory() as td:
+        rc, parsed, err = run({"hook_event_name": "SessionStart"}, root=Path(td))
+        check("an unreadable protocol still starts the session with a pointer to the file",
+              rc == 0 and "GROUNDING_PROTOCOL.md in full first" in context(parsed)
+              and "could not read" in err)
+
+    rc, parsed, _ = run({"hook_event_name": "SessionStart"},
+                        env_extra={"COAUTHOR_SESSION_CONTEXT_DISABLE": "1"})
+    check("COAUTHOR_SESSION_CONTEXT_DISABLE=1 turns the hook off", rc == 0 and parsed is None)
+
+
 def main() -> int:
     print("full_run_enforcement_surfaces_smoketest")
     for case in (
@@ -969,6 +1042,7 @@ def main() -> int:
         case_r7_structured_terminal_detection,
         case_territory_scoping_and_artifact_protection,
         case_adhoc_review_dispatch_without_parent_scope,
+        case_session_context_hook_injects_grounding_floor,
     ):
         print(f"\n{case.__name__}:")
         try:

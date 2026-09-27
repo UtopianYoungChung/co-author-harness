@@ -1,8 +1,12 @@
 # Claude Code / Claude Desktop host integration
 
 Claude Code (CLI, Claude Desktop Code tab, Cowork, Agent SDK) loads this package
-from `.claude-plugin/plugin.json` and exposes every public skill and the four
-role agents under the `co-author-harness:` namespace. The adapter described here
+from `.claude-plugin/plugin.json` and exposes every public skill and the role
+agents under the `co-author-harness:` namespace. The Planner is the exception:
+it runs on the main thread (the session that runs `/run-draft`, `/run-iterate`
+or `/run-finalize`), because a Claude Code subagent cannot dispatch
+subagents. The Generator, Evaluator and Reflector are dispatched children, and
+each child runs its own sub-passes inline. The adapter described here
 is the native-host boundary those sessions use for ordinary drafting and
 revision under `PROJECT_INDEPENDENT_WORKFLOW.md`. Read-only passes never need it.
 
@@ -40,12 +44,16 @@ session actually has the Agent tool. Unknown or false is refused with
    coordinator prints it as `request_sha256`). Invoke the native Agent tool with
    the matching role (`co-author-harness:generator`, `:evaluator`, or
    `:reflector`), passing the complete request JSON and that token in the prompt.
-   Do not pass a `model` override where dispatch inherits a pin. The request
-   binds `role_prompt`, `skill_bodies`, and `package_root` so the child reads the
-   same role file and skill bodies on every host.
+   Do not pass a `model` argument: the agent file's `model:` frontmatter
+   applies its `MODEL_ALLOCATION.md` §2 family. A directive override passes a
+   family alias (`opus`, `sonnet` or `haiku`); the tool rejects full model
+   IDs. The request binds `role_prompt`, `skill_bodies`, and `package_root` so
+   the child reads the same role file and skill bodies on every host.
 4. Wait for the tool to return `completed`. The child's final message must be
    the substantive result JSON, including its own `agent_execution_id` (the
    `agentId` the host assigned; it is the suffix of its subagent log filename).
+   A child cannot discover it by itself; the SubagentStart hook tells each
+   harness child its `agentId` (see Session context below).
 5. Ingest with the original evidence:
    `{"agent_execution_id": "<agentId>", "turn_id": "<toolu_... tool_use id>", "child_log": "<logs_root>/<session-id>/subagents/agent-<agentId>.jsonl"}`.
    The verifier checks parent-child linkage, the token in the dispatching
@@ -98,3 +106,23 @@ launching shell or in the project's `.claude/settings.json`:
 
 `FRC_REQUIRE_SCOPE=1` refuses every event without a valid scope, and
 `FRC_GATE_HOOK_DISABLE=1` turns the gate off.
+
+### Session context
+
+Claude Code does not load a plugin's `AGENTS.md`, so the grounding floor would
+otherwise reach a session only when a model chose to read it. A SessionStart
+hook (startup, resume, clear and compact) and a SubagentStart hook run
+`scripts/hooks/session_context_hook.py`, which adds to the context:
+
+- the package root, with the rule that `scripts/…` and `references/…` paths
+  in the package's own files resolve against it, so a bare
+  `python scripts/…` in a reference is run as `python "<root>/scripts/…"`;
+- the quick reference card of `GROUNDING_PROTOCOL.md`, read from the file on
+  every run;
+- for a `co-author-harness:` subagent only, the `agentId` the host assigned,
+  which step 4 above requires as the result's `agent_execution_id`.
+
+Other plugins' subagents and the host's own receive nothing. The hook never
+blocks a session; if the protocol is unreadable it injects a pointer to the
+file and reports the fault on stderr. `COAUTHOR_SESSION_CONTEXT_DISABLE=1`
+turns it off.

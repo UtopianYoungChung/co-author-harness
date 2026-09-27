@@ -21,7 +21,7 @@ The strategic-dependency framing is that the author depends on each agent for a 
 
 **Legend.** ★ = non-negotiable Opus 4.7 floor (see §3). ↓ = downshift from the naive default of "match model to role-seniority"; rationale in §4. *(bounded policy pass)* = the Ph1 centroid and all-drafts governance evaluation, not the full Ph2 review. *(lightweight)* / *(full)* = Reflector dispatch mode.
 
-The model strings the Planner passes to the Agent tool's `model` parameter are `claude-opus-4-7`, `claude-sonnet-4-6`, and `claude-haiku-4-5-20251001` respectively. The Planner does not accept per-agent overrides in `agents/*.md` frontmatter; dispatch is resolved exclusively from this file.
+**Host binding.** The allocation is by model family; the release numbers in the table record the releases it was set against. On Claude Code the agent files carry the allocation as frontmatter: `agents/evaluator.md`, `agents/reflector-closeout.md` and the `agents/reflector.md` router declare `model: opus`, `agents/generator.md` declares `model: sonnet`, and `agents/reflector-probe.md` declares `model: haiku`. A dispatch that passes no `model` parameter therefore runs the allocated family, and this file remains the authority those lines must match. The Agent tool's `model` parameter accepts only the family aliases `opus`, `sonnet` and `haiku`, never a full model ID; pass one only to apply a §6 directive override. An alias resolves to the host's current release of that family, so the floor (§3) and the ordering (§5, §7) bind at family level. The Planner runs on the host's main thread, whose model is the session's and cannot be set by the package; the Planner row is the recommended session model. Hosts without per-agent model selection (Codex) run every role on the session model, so the floor is not enforced there.
 
 ## 3. The non-negotiable Opus 4.7 floor
 
@@ -61,7 +61,7 @@ Justification: [project-specific reason, one paragraph]
 Scope: [per-round | per-section | for duration of project]
 ```
 
-The Planner reads the directive at dispatch, logs the override to `reviews/phase_state.json` in the `phase_entry_log[].notes` field as `model_override:{agent}-{phase}:={model}`, and proceeds. The Reflector Phase 2f audit verifies that every override was justified by an active directive; orphan overrides are flagged as `R-Refl-MA-3` findings.
+On Claude Code the override is applied by passing the family alias (for example `opus`) as the Agent tool's `model` parameter. The Planner reads the directive at dispatch, logs the override to `reviews/phase_state.json` in the `phase_entry_log[].notes` field as `model_override:{agent}-{phase}:={model}`, and proceeds. The Reflector Phase 2f audit verifies that every override was justified by an active directive; orphan overrides are flagged as `R-Refl-MA-3` findings.
 
 ## 7. Reflector Phase 2f audit extension
 
@@ -75,7 +75,7 @@ Findings from the Phase 2f model-selection audit are appended to the same `revie
 
 ## 8. Deprecation and forward compatibility
 
-Opus 4.6 is deprecating and is not in the allocation. Any project directive that hard-codes `claude-opus-4-6` will be rejected at dispatch with `E-MA-DEPRECATED-MODEL`; the Planner will prompt the user to choose between Opus 4.7 (capability-equivalent forward) and Sonnet 4.6 (cost-efficient alternative). The model strings the Planner passes are documented in §2; these strings are the contract surface, and any future model family release (e.g., a Fable/Mythos-class model) will require a package version bump with updated allocation and updated capability-ordering in §5. *(Known deferred item, recorded at v0.25.0: the advisor plane moved to `claude-fable-5`; this subagent-dispatch plane deliberately did not — migrating it requires re-validating the capability ordering and the `E-MA-DEPRECATED-MODEL` list in its own cycle.)*
+Opus 4.6 is deprecating and is not in the allocation. Any project directive that hard-codes `claude-opus-4-6` will be rejected at dispatch with `E-MA-DEPRECATED-MODEL`; the Planner will prompt the user to choose between Opus 4.7 (capability-equivalent forward) and Sonnet 4.6 (cost-efficient alternative). The family aliases in §2 are the contract surface, and any future model family release (e.g., a Fable/Mythos-class model) will require a package version bump with updated allocation and updated capability-ordering in §5. *(Known deferred item, recorded at v0.25.0: the advisor plane moved to `claude-fable-5`; this subagent-dispatch plane deliberately did not — migrating it requires re-validating the capability ordering and the `E-MA-DEPRECATED-MODEL` list in its own cycle.)*
 
 **Rename history.** The v0.7.4 Tier → Phase rename applied to this file: the identifiers in §2 are phase-named (T1–T4 → Ph1–Ph4), and model assignments carried forward unchanged, as the v0.7.3 edition anticipated. The ledger-side rename was handled by `migrate_v073_to_v074_tier_to_phase.py` *(script retired from the tree)*.
 

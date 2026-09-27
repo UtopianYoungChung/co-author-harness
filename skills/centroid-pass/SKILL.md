@@ -1,12 +1,15 @@
 ---
 name: centroid-pass
 user-invocable: true
+disable-model-invocation: true
 description: 'centroid-bind: bind live policy centroid-source plus graph eligibility plus named manuscript bytes. Catalog id stays /centroid-pass. This is not a centroid-check and does not move centroid-source yu-et-al-2011-social-modeling.'
 trigger: invoke-only / fail-closed. Explicit /centroid-pass only. Do not auto-dispatch as scholarly CLEAN. Reader-profile v2 with semantic_usage not_invoked does not dispatch this skill. GRAPH-SEMANTIC-INELIGIBLE stays fail-closed.
 version: 3.1
 ---
 
 # centroid-pass (instrument: centroid-bind)
+
+> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. On hosts that do not (Codex, a source checkout), use the package directory that contains `version.json`.
 
 **Invoke-only / fail-closed.** Not a scholarly CLEAN mint and not an
 auto-dispatch. Graph / centroid remain invoke-only. `GRAPH-SEMANTIC-INELIGIBLE`
@@ -42,7 +45,7 @@ a passage, quotation, attestation, locator, or member.
 ## Ordinary invocation without a project
 
 For an ordinary requested bind on an existing manuscript outside a governed
-project, use `python scripts/centroid_service.py --mode review --manuscript
+project, use `python "${CLAUDE_PLUGIN_ROOT}/scripts/centroid_service.py" --mode review --manuscript
 <exact-file>`. Do not manufacture a project or milestone to run this command.
 The result is a centroid-bind packet only; `GRAPH-SEMANTIC-INELIGIBLE` remains
 an honest graph eligibility result. For requested substantive sentence judgment,
@@ -60,13 +63,13 @@ commissioned generation/evaluation contracts. It remains mandatory there.
 
 1. Resolve the project and exact target. Run:
 
-   `python scripts/draft_governance.py prepare --project-root <project-root> --target <M1|M2|M3|M4|FINAL> --role <generator|evaluator> --phase <generation|evaluation> [--artifact <path>]`
+   `python "${CLAUDE_PLUGIN_ROOT}/scripts/draft_governance.py" prepare --project-root <project-root> --target <M1|M2|M3|M4|FINAL> --role <generator|evaluator> --phase <generation|evaluation> [--artifact <path>]`
 
    If the target file does not yet exist, omit `--artifact`. The returned
    `artifact_state: absent` is valid and does not relax any obligation.
 
 2. Build the centroid-bind packet with
-   `python scripts/centroid_service.py --mode <write|review|revise>
+   `python "${CLAUDE_PLUGIN_ROOT}/scripts/centroid_service.py" --mode <write|review|revise>
    --manuscript <input-or-draft> --project-root <project-root>`. For `write` when
    the target is absent, use the closest grounded controlling text that will
    actually condition the draft: accepted predecessor, structured outline, or
@@ -89,7 +92,7 @@ commissioned generation/evaluation contracts. It remains mandatory there.
    bytes, a non-empty canonical extracted-passage file, the verbatim quote
    actually used, citation identity, its corpus/page locator, its `surface` or
    `argument` use, and the exact deterministic centroid-bind packet. Produce PDF
-   extracts with `python scripts/source_extract.py`; a lone `pypdf` extraction
+   extracts with `python "${CLAUDE_PLUGIN_ROOT}/scripts/source_extract.py"`; a lone `pypdf` extraction
    is not canonical evidence.
    `references/templates/centroid_semantic_execution.json` is the authoring
    shape. A policy/member packet or generic path/hash evidence is not this
@@ -108,7 +111,7 @@ commissioned generation/evaluation contracts. It remains mandatory there.
    always-on obligation may not be marked `not_applicable`.
    Invoke the mechanics suite for diagnostics only:
 
-   `python scripts/audit/run_all.py <artifact> --project-root <project-root> --out <shipment-findings-path>`
+   `python "${CLAUDE_PLUGIN_ROOT}/scripts/audit/run_all.py" <artifact> --project-root <project-root> --out <shipment-findings-path>`
 
    This command never produces lifecycle evidence. Hard evidence failures cannot
    be adjudicated away. Generation may surface semantic candidates for the

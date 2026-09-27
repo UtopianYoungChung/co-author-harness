@@ -1,12 +1,15 @@
 ---
 name: centroid-sentence-logic
 user-invocable: true
+disable-model-invocation: true
 description: 'centroid-check: join consecutive manuscript sentences to admitted Yu 2011 and Dennett passages against centroid-source yu-et-al-2011-social-modeling. A check of named bytes is a check, not a redefinition of the source. Does not mint scholarly CLEAN.'
-trigger: explicitly when Writer or Reviewer invokes /centroid-sentence-logic after a binding_resolved centroid-bind packet. Auto-run after the binder only once a later packet is semantically eligible. Not dispatched by chat-to-manuscript apply.
+trigger: explicitly when Writer or Reviewer invokes /centroid-sentence-logic after a binding_resolved centroid-bind packet. Model invocation stays disabled while reader-profile v2 cannot produce a semantically eligible packet; re-enable it together with semantic activation. Not dispatched by chat-to-manuscript apply.
 version: 1.2
 ---
 
 # centroid-sentence-logic (instrument: centroid-check)
+
+> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. On hosts that do not (Codex, a source checkout), use the package directory that contains `version.json`.
 
 **Invoke-only / fail-closed.** Stays invoke-able. Does not auto-dispatch as scholarly CLEAN.
 
@@ -36,8 +39,8 @@ After `centroid-pass` (centroid-bind) emits `status: binding_resolved`. While `r
 From the harness root:
 
 ```
-python scripts/centroid_sentence_logic.py --mode review --packet <binder.json> --manuscript <named.md> --passages <joseph-passages.json>
-python scripts/centroid_sentence_logic.py --mode write --packet <binder.json> --manuscript <named.md> --admit-pdf <yu-2011.pdf> --pages 3,7,12 --project-root <package> --shipment-id <id>
+python "${CLAUDE_PLUGIN_ROOT}/scripts/centroid_sentence_logic.py" --mode review --packet <binder.json> --manuscript <named.md> --passages <joseph-passages.json>
+python "${CLAUDE_PLUGIN_ROOT}/scripts/centroid_sentence_logic.py" --mode write --packet <binder.json> --manuscript <named.md> --admit-pdf <yu-2011.pdf> --pages 3,7,12 --project-root <package> --shipment-id <id>
 ```
 
 `--pages 3,7,12` means printed book pages 3, 7, and 12 (running footer or non-identity labels). Identity 1…N labels are ignored. Title/foreword/contents are not admitted Yu body. The same numbers used as a legacy PDF-index are refused.

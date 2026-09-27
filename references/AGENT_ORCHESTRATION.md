@@ -69,7 +69,7 @@ Coupling C/D canonical Wiki mutation is **unavailable**
 
 | Agent | Role | Primary output | Writes to manuscript? |
 |---|---|---|---|
-| **Planner** | Session initializer and dispatcher. Reads project state, classifies the piece, produces a revision plan, and dispatches other agents. Sole writer of `reviews/phase_state.json`. Keeps the user in the loop at every decision point. | `reviews/classification.md`, `reviews/revision_plan.md`, `reviews/phase_state.json`, `reviews/escalation_log.md`, `reviews/ph1_draft_completion.md`, `reviews/ph2_review_completion.md`, `reviews/manuscript_convergence_report.md` | **Never** |
+| **Planner** | Session initializer and dispatcher; runs on the host's main thread, because a Claude Code subagent cannot dispatch subagents. Reads project state, classifies the piece, produces a revision plan, and dispatches other agents. Sole writer of `reviews/phase_state.json`. Keeps the user in the loop at every decision point. | `reviews/classification.md`, `reviews/revision_plan.md`, `reviews/phase_state.json`, `reviews/escalation_log.md`, `reviews/ph1_draft_completion.md`, `reviews/ph2_review_completion.md`, `reviews/manuscript_convergence_report.md` | **Never** |
 | **Evaluator** | Independent reviewer. Engages at Ph2 and above. Runs the full package review pipeline at Ph2 local scope, Ph3 full scope with external verifiers optional, Ph4 full scope with external verifiers required. Produces findings. Catches what the Generator missed or introduced. **Does not engage at Ph1** — Confirmation Mode and Self-Ph1 Verdict are retired at v0.7.0. | All `reviews/` artifacts: deterministic checks, step findings, consolidated report, safeguard layer results, G4 signoff (mandatory at Ph4), DO_NOT_DISTURB updates | **Never** |
 | **Generator** | Prose stager and editor. The sole writer of academic deliverables within the plugin. Publishes only via `assignment_writer_commit.py` into classified staging or the exact private shipment lane. Executes the Planner's revision plan and (at Ph2 and above) the Evaluator's findings. Writer (outside the plugin) applies Joseph-accepted exact path-and-hash bytes to the governed workbench. At Ph1 stages under the declared P-stage register with no Self-Ph1 Verdict emission (retired at v0.7.0). | Staging bytes for M1–M4 deliverables; `manuscript/revision_log.md` (append-only log) on the staged tree | **Stages only — never a workbench apply** |
 | **Reflector — lightweight** | Engaged at Ph1, Ph2, and Ph3 close-out. Runs integrity probes on the just-closed cycle. **Does not write to `lessons_learned.md`** and does not propose skills. Emits `reviews/reflection_probe_*.md` only. | `reviews/reflection_probe_Ph<N>_<date>.md` | **Never** |
@@ -294,14 +294,15 @@ When dispatching an agent, use the Agent tool with a prompt that includes:
 1. The agent's role description (from this file §1)
 2. The agent's full prompt (read the appropriate file from `agents/`)
 3. The project path and the specific task
-4. **The `model` parameter**, resolved by the Planner from `MODEL_ALLOCATION.md §2` at dispatch time (v0.7.3 onward). The Planner looks up the section's `current_phase` × the dispatched agent in the allocation table and passes the resolved string (`claude-opus-4-7`, `claude-sonnet-4-6`, or `claude-haiku-4-5-20251001`) as the Agent tool's `model` argument. No per-agent frontmatter `model:` field is authoritative; the allocation table is the single source of truth.
+4. **The model**, resolved by the Planner from `MODEL_ALLOCATION.md §2` at dispatch time (v0.7.3 onward). The Planner looks up the section's `current_phase` × the dispatched agent in the allocation table. On Claude Code each agent file's `model:` frontmatter already carries that family, so the dispatch passes a `model` argument only for a directive override, and then only as a family alias (`opus`, `sonnet` or `haiku`). The allocation table is the single source of truth; the frontmatter must match it (`MODEL_ALLOCATION.md §2`, host binding).
 
 Example dispatch pattern:
 
 ```
 Agent tool invocation for Evaluator at Ph3:
-  subagent_type: co-author-harness-claude:evaluator
-  model:         claude-opus-4-7   ← resolved from MODEL_ALLOCATION.md §2 (Evaluator × Ph3 = Opus 4.7, non-negotiable floor)
+  subagent_type: co-author-harness:evaluator
+                 (no model argument: agents/evaluator.md declares model: opus,
+                  matching MODEL_ALLOCATION.md §2 Evaluator × Ph3, the non-negotiable floor)
   prompt:        "You are the Evaluator agent. Read and follow the instructions in
                  agents/evaluator.md (in the package folder) exactly.
 

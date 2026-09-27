@@ -37,6 +37,8 @@ protected-destination and author-acceptance prerequisites remain in force.
 
 # run-draft — public draft coordinator (staging)
 
+> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. On hosts that do not (Codex, a source checkout), use the package directory that contains `version.json`.
+
 **Bibliography evidence.** Apply `references/CITATION_DISCIPLINE.md` §6 through discovery, generation and evaluation. Require complete reference/use assessments in existing role evidence before substantive completion; current-state claims need current evidence, and advisor guidance is not automatically a reference.
 
 `/run-draft` is a real public coordinator. It is not a degraded ad and not a
@@ -66,7 +68,7 @@ Reviewer, Wiki, Orchestrator, and Overseer are not plugin roles.
 
 1. Planner binds one active target and reserves READY. No manuscript write.
 2. Generator publishes staging bytes only through
-   `python scripts/assignment_writer_commit.py --project-root <project> --receipt <receipt> --plan <plan>`.
+   `python "${CLAUDE_PLUGIN_ROOT}/scripts/assignment_writer_commit.py" --project-root <project> --receipt <receipt> --plan <plan>`.
    Staging roots are
    `<workspace-root>/outputs/co-author-harness/staging/<work-id>/<run-id>/`
    and dest-safe receipts under
@@ -128,7 +130,7 @@ Reflector. Ordinary drafting does not require bootstrap. Explicit whole-lifecycl
 intent ("harness full run", "run the ladder", Ph4, M1-M5 acceptance/finalization)
 retains the native project prerequisites in `references/FULL_RUN_CONTRACT.md`.
 If no governed project exists, stop at the canonical
-`python scripts/native_project_bootstrap.py ...` instruction; that bootstrap
+`python "${CLAUDE_PLUGIN_ROOT}/scripts/native_project_bootstrap.py" ...` instruction; that bootstrap
 must install reader-profile binding v2 before governed drafting or evaluation.
 `lab_iteration` is proposal-only with an existing governed project, resolved
 assignment contract and staging/private-shipment output, no lifecycle and no F9

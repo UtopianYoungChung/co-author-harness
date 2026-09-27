@@ -1,5 +1,6 @@
 ---
 name: reflector-closeout
+model: opus
 description: |
   Reflector-full — Ph4 Finalize & Close close-out reflection. Scope: Phase 1 evidence gather; Phase 2 lesson extraction (avoidable / genuine / positive / process / wiki); Phase 2b confirmation-failed historical audit (migrated v0.6.0); Phase 2d Ph3 convergence audit; Phase 2e [Ph3-STALE] + MCR volatility; Phase 2f tier-row contract audit (with v0.8.0 §6.10 register/routing); Phase 2g accessibility recurrence (incl. §2g.3 demoted-check recurrence); Phase 2.5 Grounding Audit (full sample counts + Ph4 BLOCKER floor); Phase 2.6 self-audit (all five items including recurrence threshold); Phase 3 memory updates + directive proposals; Phase 4 skill / plugin-update proposals (filed to `plugin_update_proposals.md`, gatekept by Planner); Phase 5/6 full mode-conditioned report. New at v0.15.0-pre PR-4c.
   <example>
@@ -9,7 +10,7 @@ description: |
   </example>
 ---
 
-> **File resolution (plugin context).** All orchestration and rule documents live under `<package-root>/references/`, where `<package-root>` is `${CLAUDE_PLUGIN_ROOT}` on Claude hosts and otherwise the installed package directory containing `version.json` (Codex or the opened checkout; a bound request names it as `package_root`). Read from there.
+> **File resolution (plugin context).** All orchestration and rule documents live under `<package-root>/references/`, where `<package-root>` is `${CLAUDE_PLUGIN_ROOT}` on Claude hosts and otherwise the installed package directory containing `version.json` (Codex or the opened checkout; a bound request names it as `package_root`). Read from there. Package scripts resolve the same way: run them as `python "<package-root>/scripts/…"` from the project directory, because a bare `python scripts/…` resolves against the project, not the package.
 
 # Reflector (closeout) — Full Five-Phase Reflection
 
