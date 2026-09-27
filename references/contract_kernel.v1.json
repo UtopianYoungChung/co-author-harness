@@ -979,7 +979,7 @@
       "id": "skill-run-draft",
       "path": "skills/run-draft/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "ed92e7497f1806337e4224969cf1e94a6a96d3802c30d29cae78fa014884e513",
+      "sha256": "7b91993df47280183f7a47ce743aeba8938da62ad2e382e922843da60a69bf3b",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -988,7 +988,7 @@
       "id": "skill-run-iterate",
       "path": "skills/run-iterate/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "76d621243fb2797c7aef51964f03741fbbc72f21239c77fe192bedccfd7b3e92",
+      "sha256": "d070fc72869511a2c1dfc64e3844f4fcf175b6758860aeeb788d1dcde464f5df",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

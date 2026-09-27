@@ -17,6 +17,31 @@ Task completion is verified separately from scholarly CLEAN, lifecycle terminal
 status and research acceptance. A missing child capability blocks this workflow
 with `PIW-HOST-CAPABILITY-UNAVAILABLE`; read-only passes remain available.
 
+Run it through the coordinator; its verifier, not the caller, decides whether
+the task is complete (commands resolve from the package root, as below):
+
+1. `python "${CLAUDE_PLUGIN_ROOT}/scripts/piw_session.py" open --outputs-root <task area>`
+   (for a revision add `--ingress mss_revision --mss-path <file>`). Use the
+   `session_path` it prints as `<session>`.
+2. Write a request JSON with `brief`, `requested_scope`, `profile` (`draft`,
+   `refine`, `structural`, `deep` or `stability`), `exclusions`, and `host`
+   exactly as your session context gives it, then run
+   `python "${CLAUDE_PLUGIN_ROOT}/scripts/piw_coordinator.py" start --piw-session <session> --request-json <request.json>`.
+3. Repeat `piw_coordinator.py next --piw-session <session>`. At `plan`, write
+   the plan and run `piw_coordinator.py plan … --plan-json <plan.json>`. For a
+   role request, dispatch that role's `co-author-harness:` agent with the
+   request path and its `COAUTHOR_REQUEST_SHA256` token, wait for the child to
+   finish (a completion notice when the host runs it in the background), save
+   the child's final JSON unedited, and run `piw_coordinator.py ingest …
+   --result-json <child-final.json> --host-evidence <host.json>` with
+   `{"agent_execution_id", "turn_id", "child_log"}` (`CLAUDE_CODE_HOST.md`).
+4. At `ready_to_deliver`, run `piw_coordinator.py deliver … --destination <final.md>`,
+   then `python "${CLAUDE_PLUGIN_ROOT}/scripts/piw_completion_guard.py" verify --piw-session <session>`.
+
+Never write a completion record or a `task_complete` value yourself. When a
+step is refused, report its code: the draft may still be useful, but it is
+uncertified, not complete.
+
 For an existing manuscript, independent diagnosis precedes the Planner's revision
 plan and Generator edits. Preserve unrequested bytes, terms, claims and citations.
 Proposal-only delivery leaves the original untouched. Every correction returns to
