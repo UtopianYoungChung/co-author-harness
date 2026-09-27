@@ -54,16 +54,18 @@ session actually has the Agent tool. Unknown or false is refused with
    `agentId` the host assigned; it is the suffix of its subagent log filename).
    A child cannot discover it by itself; the SubagentStart hook tells each
    harness child its `agentId` (see Session context below).
-   **Known gap (27 September 2026).** Claude Code 2.1.283 in a
-   non-interactive session launches every subagent asynchronously, even when
-   the dispatch passes `run_in_background: false`: the Agent `tool_result`
-   is `{"isAsync": true, "status": "async_launched", "agentId": …}`, and the
+   **Asynchronous children.** Claude Code 2.1.283 in a non-interactive
+   session launches every subagent asynchronously, even when the dispatch
+   passes `run_in_background: false`. The Agent `tool_result` is then
+   `{"isAsync": true, "status": "async_launched", "agentId": …}`, and the
    child's final message arrives later in a host-written `<task-notification>`
-   row (`origin.kind: "task-notification"`, `promptSource: "system"`). The
-   adapter accepts only a `completed` `tool_result`, so ingest refuses with
-   `PIW-HOST-NOT-FINISHED`. The roles still run as distinct children on their
-   allocated models, but the coordinator cannot certify their steps on such a
-   host until the adapter learns the asynchronous shape.
+   row (`origin.kind: "task-notification"`, `promptSource: "system"`; a typed
+   prompt carries neither). Wait for that notification before ingesting. The
+   adapter accepts exactly one completed notice for the same `agentId` and
+   dispatching `tool_use`, reads the identity fields only from the notice's
+   header, requires its `<result>` to equal the child's final message, and
+   refuses a child resumed after completing (two notices). The evidence
+   object is the same in both modes; `finished_at` is the notice's time.
 5. Ingest with the original evidence:
    `{"agent_execution_id": "<agentId>", "turn_id": "<toolu_... tool_use id>", "child_log": "<logs_root>/<session-id>/subagents/agent-<agentId>.jsonl"}`.
    The verifier checks parent-child linkage, the token in the dispatching

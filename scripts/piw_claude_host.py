@@ -7,6 +7,16 @@ The parent records the ``Agent``/``Task`` ``tool_use`` block that dispatched the
 child and the ``tool_result`` row that returned its final message; the child log
 carries every turn of that subagent with its own ``agentId``.
 
+A host that launches the child asynchronously (Claude Code 2.1.283 in a
+non-interactive session does so even when the dispatch asks for foreground)
+returns ``{"isAsync": true, "status": "async_launched"}`` as the tool_result and
+later writes the finished child's message into the parent log as a
+``<task-notification>`` user row. That row is host-written: its ``origin.kind``
+is ``task-notification`` and its ``promptSource`` is ``system``, which a typed
+prompt never carries. Exactly one completed notice for the same agent and
+dispatch then stands in for the synchronous tool_result, and its ``<result>``
+must equal the child's final message.
+
 Python never dispatches cognitive roles here. The caller invokes the host's
 native Agent tool with the exact role request and waits; this module verifies
 parent-child linkage, request binding, a finished outcome, the exact returned
@@ -78,6 +88,48 @@ def _completions(parent_rows: list[dict], turn_id: str, execution_id: str) -> li
     return hits
 
 
+NOTICE_ORIGIN = 'task-notification'
+
+
+def _notice_header(content: str) -> str:
+    """The host-written fields of a notice: everything before the child's ``<result>``."""
+    cut = content.find('<result>')
+    return content if cut < 0 else content[:cut]
+
+
+def _notice_field(header: str, tag: str) -> str | None:
+    open_tag, close_tag = f'<{tag}>', f'</{tag}>'
+    start = header.find(open_tag)
+    if start < 0:
+        return None
+    end = header.find(close_tag, start)
+    return header[start + len(open_tag):end].strip() if end >= 0 else None
+
+
+def _notice_result(content: str) -> str | None:
+    """The child's final message as the host relayed it (it may itself contain tags)."""
+    start, end = content.find('<result>'), content.rfind('</result>')
+    return content[start + len('<result>'):end] if 0 <= start < end else None
+
+
+def _async_notices(parent_rows: list[dict], turn_id: str, execution_id: str) -> list[dict]:
+    """Host-written completion notices for one asynchronously launched child."""
+    hits = []
+    for row in parent_rows:
+        origin = row.get('origin')
+        if row.get('type') != 'user' or not isinstance(origin, dict) or origin.get('kind') != NOTICE_ORIGIN \
+                or row.get('promptSource') != 'system':
+            continue
+        message = row.get('message')
+        content = message.get('content') if isinstance(message, dict) else None
+        if not isinstance(content, str) or not content.lstrip().startswith('<task-notification>'):
+            continue
+        header = _notice_header(content)
+        if _notice_field(header, 'task-id') == execution_id and _notice_field(header, 'tool-use-id') == turn_id:
+            hits.append(row)
+    return hits
+
+
 def verify_execution(host: dict, evidence: dict, request: dict, result: dict, pins: dict | None = None, read_rows=None) -> dict:
     from piw_native_host import require, _rows, _time, trace_path
     archived = read_rows is not None
@@ -115,7 +167,21 @@ def verify_execution(host: dict, evidence: dict, request: dict, result: dict, pi
     completion = _completions(rows['parent'], turn_id, execution_id)
     require(len(completion) == 1, 'PIW-HOST-NOT-FINISHED', 'No unique returned tool_result for this subagent')
     outcome = completion[0]['toolUseResult']
-    require(outcome.get('status') == 'completed', 'PIW-HOST-NOT-FINISHED', 'Subagent did not finish successfully: ' + str(outcome.get('status')))
+    if outcome.get('isAsync') is True and outcome.get('status') == 'async_launched':
+        notices = _async_notices(rows['parent'], turn_id, execution_id)
+        require(len(notices) == 1, 'PIW-HOST-NOT-FINISHED',
+                'An asynchronously launched subagent needs exactly one host completion notice; '
+                f'found {len(notices)} (a child resumed after completing cannot be certified)')
+        finished = notices[0]
+        status = _notice_field(_notice_header(finished['message']['content']), 'status')
+        require(status == 'completed', 'PIW-HOST-NOT-FINISHED', 'Subagent did not finish successfully: ' + str(status))
+        returned = _notice_result(finished['message']['content'])
+        require(returned is not None, 'PIW-HOST-RESULT-MISSING', 'Host completion notice carries no result')
+        require(_time(completion[0]['timestamp']) <= _time(finished['timestamp']),
+                'PIW-HOST-STALE-EXECUTION', 'Host completion notice predates the asynchronous launch')
+    else:
+        require(outcome.get('status') == 'completed', 'PIW-HOST-NOT-FINISHED', 'Subagent did not finish successfully: ' + str(outcome.get('status')))
+        finished, returned = completion[0], _text(outcome.get('content'))
     first = child_rows[0]
     require(first.get('type') == 'user' and first.get('parentUuid') is None and token in _text(first.get('message', {}).get('content')),
             'PIW-HOST-DISPATCH-MISSING', 'Child log does not begin with the bound role request')
@@ -125,9 +191,9 @@ def verify_execution(host: dict, evidence: dict, request: dict, result: dict, pi
     require(isinstance(last.get('message'), dict) and last['message'].get('stop_reason') == 'end_turn',
             'PIW-HOST-NOT-FINISHED', 'Child final turn is not a completed end_turn')
     final = _text(last['message'].get('content')).strip()
-    require(final == _text(outcome.get('content')).strip(), 'PIW-HOST-RESULT-MISMATCH', 'Parent tool_result differs from the child final message')
+    require(final == returned.strip(), 'PIW-HOST-RESULT-MISMATCH', 'Parent tool_result differs from the child final message')
     require(_time(request['created_at']) <= _time(dispatch[0]['timestamp']) <= _time(first['timestamp'])
-            <= _time(last['timestamp']) <= _time(completion[0]['timestamp']),
+            <= _time(last['timestamp']) <= _time(finished['timestamp']),
             'PIW-HOST-STALE-EXECUTION', 'Host execution predates this request or its events are out of order')
     if final.startswith('```json') and final.endswith('```'):
         final = final[7:-3].strip()
@@ -138,7 +204,7 @@ def verify_execution(host: dict, evidence: dict, request: dict, result: dict, pi
     require(actual == result, 'PIW-HOST-RESULT-MISMATCH', 'Supplied result differs from the actual finished host output')
     require(result.get('agent_execution_id') == execution_id, 'PIW-HOST-IDENTITY', 'Result must identify the actual child session')
     return {'agent_execution_id': execution_id, 'turn_id': turn_id, 'child_log': str(child),
-            'started_at': first['timestamp'], 'finished_at': completion[0]['timestamp'], 'pins': {
+            'started_at': first['timestamp'], 'finished_at': finished['timestamp'], 'pins': {
                 name: {'path': str(path), 'bytes': len(data[name]), 'sha256': piw.digest(data[name])}
                 for name, path in (('child', child), ('parent', parent))},
             'trust_boundary': host['trust_boundary']}

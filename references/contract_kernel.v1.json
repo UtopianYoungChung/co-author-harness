@@ -1177,7 +1177,7 @@
       "id": "piw-claude-host",
       "path": "scripts/piw_claude_host.py",
       "revision_kind": "sha256",
-      "sha256": "77921571b2e009edef8d6efc65ba0fd2d70272299005c0d19ef20157ac5deaef",
+      "sha256": "1b73291b0bfb752d61e41bf068396b742a8eab27f280c70a2288e052ca30f7bc",
       "migration_ids": []
     },
     {
