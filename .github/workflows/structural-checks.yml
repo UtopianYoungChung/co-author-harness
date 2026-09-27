@@ -102,6 +102,52 @@ jobs:
       # The hosted Windows TEMP is an 8.3 alias (C:\Users\RUNNER~1\...). It is
       # used as is, so every resolver that compares a resolved path with a
       # supplied one runs against a short-name spelling on each push.
+      # Record the two host facts the Windows registry depends on: whether TEMP
+      # is an 8.3 alias of its long form, and whether the runner's Job object
+      # lets a process break away (the release controller's detached worker
+      # needs that; its fixture-owner case is declared UNAVAILABLE here).
+      - name: Windows host facts
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: python
+        run: |
+          import ctypes, os
+          from ctypes import wintypes
+          k = ctypes.WinDLL("kernel32", use_last_error=True)
+          k.GetLongPathNameW.argtypes = (wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD)
+          k.GetLongPathNameW.restype = wintypes.DWORD
+          k.GetCurrentProcess.restype = wintypes.HANDLE
+          k.IsProcessInJob.argtypes = (wintypes.HANDLE, wintypes.HANDLE, ctypes.POINTER(wintypes.BOOL))
+          k.QueryInformationJobObject.argtypes = (
+              wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD))
+          temp = os.environ.get("TEMP", "")
+          buffer = ctypes.create_unicode_buffer(32768)
+          long_temp = buffer.value if k.GetLongPathNameW(temp, buffer, len(buffer)) else temp
+          print(f"TEMP                  {temp}")
+          print(f"TEMP, long form       {long_temp}")
+          print(f"TEMP is an 8.3 alias  {temp.casefold() != long_temp.casefold()}")
+
+          class BasicLimit(ctypes.Structure):
+              _fields_ = [
+                  ("PerProcessUserTimeLimit", ctypes.c_int64), ("PerJobUserTimeLimit", ctypes.c_int64),
+                  ("LimitFlags", wintypes.DWORD), ("MinimumWorkingSetSize", ctypes.c_size_t),
+                  ("MaximumWorkingSetSize", ctypes.c_size_t), ("ActiveProcessLimit", wintypes.DWORD),
+                  ("Affinity", ctypes.c_size_t), ("PriorityClass", wintypes.DWORD),
+                  ("SchedulingClass", wintypes.DWORD),
+              ]
+
+          in_job = wintypes.BOOL()
+          k.IsProcessInJob(k.GetCurrentProcess(), None, ctypes.byref(in_job))
+          print(f"step runs in a Job    {bool(in_job.value)}")
+          if in_job.value:
+              limits, size = BasicLimit(), wintypes.DWORD()
+              if k.QueryInformationJobObject(None, 2, ctypes.byref(limits), ctypes.sizeof(limits), ctypes.byref(size)):
+                  flags = limits.LimitFlags
+                  print(f"Job LimitFlags        {flags:#06x}")
+                  print(f"BREAKAWAY_OK          {bool(flags & 0x0800)}")
+                  print(f"SILENT_BREAKAWAY_OK   {bool(flags & 0x1000)}")
+              else:
+                  print(f"Job limits unreadable {ctypes.WinError(ctypes.get_last_error())}")
       - name: Poppler pdftotext (Linux)
         if: runner.os == 'Linux'
         run: |
