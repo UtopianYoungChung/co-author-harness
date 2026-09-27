@@ -464,6 +464,20 @@ def test_an_unexecuted_gate_names_the_environment_and_still_blocks() -> None:
         assert [f.check_id for f in found] == ["CIT-LOC-002"], found
         assert found[0].severity == "inviolable", found[0].severity
 
+        # validate_sources.py reports a missing PDF reader as a FAIL of each source; that is
+        # the same environment fault, not a manuscript defect (CIT-LOC-010).
+        found = _run(root, cited, validate=(
+            VALIDATE_OK + "FAIL   9a yu2024: cannot open pdf (ModuleNotFoundError)\n", 1))
+        by_id = {f.check_id: f for f in found}
+        assert set(by_id) == {"CIT-LOC-001", "CIT-LOC-003"}, found
+        assert "PyMuPDF" in by_id["CIT-LOC-001"].evidence, by_id["CIT-LOC-001"].evidence
+        assert by_id["CIT-LOC-003"].severity == "inviolable", by_id["CIT-LOC-003"].severity
+
+        # an unreadable PDF for any other reason is still a citation failure
+        found = _run(root, cited, validate=(
+            VALIDATE_OK + "FAIL   9a yu2024: cannot open pdf (FileDataError)\n", 1))
+        assert "CIT-LOC-010" in {f.check_id for f in found}, found
+
 
 def test_uncovered_citations_are_relayed_and_block() -> None:
     """Reviewer R1, 2026-09-20: the verifier printed UNCOVERED and nobody read it.

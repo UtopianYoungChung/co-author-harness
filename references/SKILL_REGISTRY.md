@@ -19,6 +19,8 @@ Coupling C/D canonical Wiki mutation is **unavailable**
   downstream deferral. Phase 4 / G.4 completion does not depend on Wiki write
   availability.
 
+**Status fields.** `references/capabilities.yaml` is the authority for whether a skill works (`active`, `degraded`, `external-dependent` or `unavailable`). A **Status** line below records whether the skill is in service, parked, closed or unavailable, and any history; "Active" there means in service, not the capability status `active`. Where the two appear to disagree, `capabilities.yaml` governs.
+
 **Purpose.** Index of all skills created by the Reflector agent or manually added to the package. Each entry records the skill's name, what pattern it encodes, when it was created, and whether it has been deployed to a project or to the global skills directory.
 
 **How skills work in this package.** Skills are `.md` files with frontmatter (name, description, trigger) and a body (the prompt that executes when invoked). They are user-invocable shortcuts that encode a recurring workflow, check, or fix pattern discovered during review rounds. The Reflector proposes skills; the Planner filters (three-filter gate); the user approves; the skill file is written.
@@ -202,7 +204,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Created:** 2026-04-13
 - **Source:** Research↔Wiki diagnostic audit 2026-04-13 — Finding F6 (M5 final paper is a natural wiki source, not just a review artefact). Coupling D was registered as a bootstrap-time intent in PROJECT_BOOTSTRAP.md §3 Step 5 on 2026-04-13; SK-17 formalizes the ingestion protocol itself so the coupling becomes executable rather than aspirational.
 - **Tier:** Package
-- **Status:** Active
+- **Status:** Unavailable (`WIKI_WRITE_TRANSACTION_UNAVAILABLE` in `capabilities.yaml`); returns the deferred result and writes nothing to the Wiki.
 - **Depends on:** Project at M5 with G4_signoff; wiki reachable; project AGENTS.md declares `wiki_linked: true` and `coupling_d_on_m5: true` (per PROJECT_BOOTSTRAP.md §3 Step 5)
 - **Sibling:** SK-14 (independent, both can fire at round close); SK-16 (downstream consumer — SK-17 queues concept-page follow-ons that SK-16 executes); SK-15 (inverse relationship — SK-17 produces full source pages, SK-15 produces stubs)
 - **One-time trigger on first deployment:** SK-17 Phase 9 surfaces a recommendation to upgrade `QUICKSTART.md` and `OPERATING_MANUAL.md` from the lighter patch (applied 2026-04-13) to full integration, based on actual-use experience. Scheduled 2026-04-13 against the first SK-17 invocation in the workspace.
@@ -213,7 +215,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Created:** 2026-04-13
 - **Source:** Research↔Wiki diagnostic audit 2026-04-13 — Finding F3 (concept pages assert claims without grounding citations, violating Grounding Protocol Rule 4). Pilot retrofit of `concepts/humanness.md` 2026-04-13 established the stub-then-cite pattern.
 - **Tier:** Package
-- **Status:** Active
+- **Status:** Unavailable (`WIKI_WRITE_TRANSACTION_UNAVAILABLE` in `capabilities.yaml`); returns the reason code and edits no concept page.
 - **Depends on:** SK-15 (external-source stubs must exist before retrofit); SK-17 (for M5-triggered batch retrofits against a newly ingested paper)
 - **Sibling:** SK-15 upstream for stub corpus; SK-17 upstream for M5-triggered concept-page follow-ons
 
@@ -223,7 +225,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Created:** 2026-04-13
 - **Source:** Research↔Wiki diagnostic audit 2026-04-13 — Finding F1 (wiki holds zero external scholarly sources; the wiki and the pipeline are complementary, not redundant). Humanness retrofit (2026-04-13) demonstrated that stub-first grounding works if `grounding_status` frontmatter carries the audit trail; this skill codifies the stub-generation half as a repeatable batch operation.
 - **Tier:** Package
-- **Status:** Active
+- **Status:** Unavailable (`WIKI_WRITE_TRANSACTION_UNAVAILABLE` in `capabilities.yaml`); returns the deferred result and writes nothing to the Wiki.
 - **Depends on:** Project has a REFERENCES file in the INF3006Y_AgencyDelegation format (source-root aliases + core + snowball + cited-via tables); wiki exists at the path declared in workspace AGENTS.md
 - **Sibling:** SK-14 `promote-lessons-to-wiki` — downstream consumer. Together SK-15 → SK-14 forms the batch pathway "populate external sources, then promote project lessons into syntheses that can cite them without red links."
 
@@ -233,7 +235,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Created:** 2026-04-13
 - **Source:** Research↔Wiki diagnostic audit 2026-04-13 — Finding F4 (lessons terminate in-project; `wiki/syntheses/` is the natural sink but no protocol connected the two); pilot executed ad hoc on INF3006Y_AgencyDelegation L-01..L-05 producing `lessons-agency-delegation-2026-04-13.md`. This skill codifies the pilot as a repeatable protocol so the Reflector can trigger it at review-round close.
 - **Tier:** Package
-- **Status:** Active
+- **Status:** Unavailable (`WIKI_WRITE_TRANSACTION_UNAVAILABLE` in `capabilities.yaml`); returns the deferred result and writes nothing to the Wiki.
 - **Depends on:** A functioning LLM wiki at the path the workspace AGENTS.md declares; the project's source page must exist in `wiki/sources/` (else skill stops and asks)
 - **Related couplings:** Coupling B (concept-page grounding retrofit) is a likely follow-on when red-link candidates accumulate; Coupling D (manuscript self-ingestion on M5) is this skill's upstream prerequisite
 
@@ -396,7 +398,7 @@ include what to read, what to check, what to output, and what NOT to do.>
 - **Created:** 2026-04-27
 - **Source:** v0.10.0 Stage S6 implementation per `docs/superpowers/plans/2026-04-26-snowball-reference-architecture.md §§5.5.5, 6.8` and `docs/superpowers/plans/2026-04-26-snowball-implementation-strategy.md §5.6`
 - **Tier:** Package (executor — Sonnet; on-disk reads only, no external API calls)
-- **Status:** Active (v0.10.0+)
+- **Status:** Unavailable (`GRAPH_GOVERNED_GENERATION_UNAVAILABLE` in `capabilities.yaml`); a no-op that emits no pre-seed authority.
 - **Depends on:** `references/EXTERNAL_VERIFIERS.md §1.5` (wiki-first ordering; SK-36 is the pre-seed predecessor in that chain); `reviews/classification.md` (`inherit_snowball` — wiki_linked-conditional opt-in, default true; `pre_seed_cap` — default 10); `${wiki_path}/graphify-out/graph.json` + `GRAPH_REPORT.md` (community structure and labels from a prior project's graphify run); `skills/graph-grounding-overlay/SKILL.md` SK-20 Precondition 3 (graph-staleness check — reused verbatim)
 - **Sibling:** SK-33 `seed-snowball-discovery` (SK-36 is the pre-seed predecessor — SK-33 auto-invokes SK-36 when opt-in conditions hold; SK-36 pre-seeds the pool SK-33 then saturates); SK-35 `extend-snowball-incremental` (orthogonal — SK-36 operates at Ph1 pre-seed time; SK-35 operates at Ph2 in-loop for single-claim gap-closing)
 - **Not a replacement for:** SK-33 `seed-snowball-discovery` (SK-36 pre-seeds; SK-33 saturates — when `inherit_snowball: true`, SK-36 runs first and SK-33 resumes from the pre-seeded pool, not from zero; SK-36 cannot replace the saturation iteration); manual cross-project curation (SK-36 uses graphify communities as a proxy for relevance — the proxy is useful but not equivalent to an expert selection of prior project sources)

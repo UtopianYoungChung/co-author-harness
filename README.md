@@ -72,30 +72,41 @@ SK-32 stays CLOSED. Graph `extraction_mode` structural-only remains; 2026-07-25 
 
 ## Prerequisites
 
-The harness's review surface depends on two external connectors. Both are
-optional; the harness degrades gracefully when neither is connected, but
-several SAFEGUARD checks and the snowball-discovery skill require at
-least one of them to do useful work.
+**Required for every install.**
 
-- **Zotero MCP** — used by the snowball-discovery skill to look up
-  bibliographic metadata for cited sources and to admit new sources to
-  the project's reference pool. Without Zotero, snowball discovery
-  no-ops with `NO_REACHABLE_VERIFIER` per `skills/seed-snowball-discovery/SKILL.md §2`.
-- **Scholarly-search MCP** (or any Class 1 verifier MCP that exposes
-  Google Scholar, OpenAlex, or Crossref) — used by the snowball
-  discovery loop's verifier fall-through path. Same no-op behaviour
-  applies when the connector is absent.
+- **Python 3 with PyYAML and jsonschema** (`pip install pyyaml jsonschema`).
+  CI runs Python 3.11. The hooks' contract checks and most package scripts
+  import both packages, so scoped hook decisions and governed scripts fail
+  without them; a hook that finds no Python at all reports `HOOK-INTERPRETER`.
+- **Bash on `PATH`** for the Claude Code hooks, which launch through `bash -c`.
+  On Windows this is Git Bash (`C:\Program Files\Git\bin\bash.exe`). Set
+  `CLAUDE_PLUGIN_PYTHON` if the interpreter the hooks find is not the one with
+  the packages above.
 
-- **Poppler `pdftotext`** — required for canonical PDF evidence (source
-  extraction, scholarly evaluation, the product gate). The reference build is
-  Poppler 24.04.0 on Windows; any other `pdftotext` on `PATH` is admitted when it
+**Required for specific capabilities.**
+
+- **A governed workspace** for governed writes: project bootstrap, reports under
+  a project's `reviews/`, staging and shipments. Run
+  `python scripts/init_governed_workspace.py <workspace-dir>` once. Read-only
+  modes and ordinary drafting outside a governed workspace need none.
+- **Poppler `pdftotext`** for canonical PDF evidence (source extraction,
+  scholarly evaluation, the product gate). The reference build is Poppler
+  24.04.0 on Windows; any other `pdftotext` on `PATH` is admitted when it
   reproduces the committed conformance fixture byte for byte (for example
   `poppler-utils` 24.02 on Ubuntu 24.04). Without one, PDF extraction refuses
   with `EXTRACTOR-UNAVAILABLE` or `EXTRACTOR-IDENTITY-MISMATCH`.
-
-Sessions that do not invoke `/seed-snowball-discovery`,
-`/extend-snowball-incremental`, or the Ph2 claim-coverage audit can
-proceed without either connector.
+- **The reader policy's corpus** for `/centroid-pass` and
+  `/centroid-sentence-logic`, which are external-dependent: they read the wiki
+  roots named in `references/policies/reader_accessibility.v1.json`, which only
+  the author's workspace holds. Elsewhere a dormant reader profile still gets a
+  general binding packet, and every other bind is refused.
+- **External verifiers.** A Class 1 verifier (Scholar Gateway, Consensus or
+  Zotero with Scite; see `references/EXTERNAL_VERIFIERS.md`) is optional for
+  ordinary work, needed by `/seed-snowball-discovery`,
+  `/extend-snowball-incremental` and the Ph2 claim-coverage audit (which no-op
+  with `NO_REACHABLE_VERIFIER` without one), and **required at Ph4**, where a
+  failed verifier probe blocks finalization (`skills/run-phase-4/SKILL.md`).
+  Verifiers are matched by server and tool name in the session's tool list.
 
 On Claude Code the plugin installs a PreToolUse and Stop hook. Without a declared
 run scope it only guards harness territory (native projects and governed

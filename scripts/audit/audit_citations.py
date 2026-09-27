@@ -186,6 +186,11 @@ GATE_RULE_REF = "GROUNDING_PROTOCOL.md#gp-1"
 # whatever it exited with: a Python traceback also exits 1, which is a legitimate verdict code
 # for both tools, so the exit status alone cannot tell success from collapse.
 GATE_SUMMARY_RE = re.compile(r"^checks:\s*(\d+)\s+bound\s*/\s*\d+\s+failed\s*/\s*(\d+)\s+total")
+# validate_sources.py reports a PDF it could not open as a FAIL, including when its reader
+# (PyMuPDF) is not installed at all. That is a missing dependency, not a citation defect, so it
+# is relayed like verify_locators.py's GATE_UNAVAILABLE rather than as CIT-LOC-010.
+MISSING_PDF_READER_RE = re.compile(r"cannot open pdf \((?:ModuleNotFoundError|ImportError)\)")
+
 GATE_COMPLETION_RE = {
     "verify_locators.py": GATE_SUMMARY_RE,
     "validate_sources.py": re.compile(r"^validation \(item 9/10\):\s*\d+\s+sources"),
@@ -356,6 +361,20 @@ def audit_source_locators(text: str, target: Path) -> List[Finding]:
                 "CIT-LOC-003", "inviolable",
                 f"{name} could not execute, so its checks are UNVERIFIED. An unexecuted gate "
                 "clears nothing, whatever the reason it could not run",
+            ))
+            continue
+        missing_reader = next(
+            (l for l in lines if l.startswith("FAIL") and MISSING_PDF_READER_RE.search(l)), None)
+        if missing_reader:
+            out.append(finding(
+                "CIT-LOC-001", "default",
+                f"{name}: {missing_reader[len('FAIL'):].strip()}: its PDF reader (PyMuPDF) is "
+                "not installed. This is an environment fault, not evidence",
+            ))
+            out.append(finding(
+                "CIT-LOC-003", "inviolable",
+                f"{name} could not read the source PDFs, so its checks are UNVERIFIED. An "
+                "unexecuted gate clears nothing, whatever the reason it could not run",
             ))
             continue
         marker = GATE_COMPLETION_RE[name]

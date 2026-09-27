@@ -943,7 +943,7 @@
       "id": "planner-agent",
       "path": "agents/planner.md",
       "revision_kind": "sha256",
-      "sha256": "32fdad577da9075cd18cda2dac1ebbe529b3a91c7d05a11b38fafed4f040c7f2",
+      "sha256": "6b494bc1a5d0b575ff5b8da0187886af83b989acfe478fc2dfbc2e0e6dfde9dc",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
@@ -1024,7 +1024,7 @@
       "id": "skill-quick-deterministic",
       "path": "skills/quick-deterministic/SKILL.md",
       "revision_kind": "sha256",
-      "sha256": "9ce973e48eb9f8015ea4503aaab47451d6f74da313cead361d2218387e483f80",
+      "sha256": "4f0c5695bda8f52c0070b9fa664515438e88c808f3f25ec7547feb83171d40a5",
       "migration_ids": [
         "typed-output-policy-v1"
       ]
