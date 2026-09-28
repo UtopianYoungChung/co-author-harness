@@ -298,6 +298,101 @@ def case_ungoverned_fails_closed() -> None:
         dc.discovered_workspace_root = real
 
 
+def case_extra_root_needs_routing_manifest() -> None:
+    """The additive test hook cannot make an ungoverned host writable (audit M13).
+
+    A nonexistent, manifest-less or file-valued COAUTHOR_EXTRA_GOVERNED_ROOTS
+    entry used to turn every path outside it `external` and open the staging,
+    shipment, instrument and re-pin lanes and the container guards below it.
+    Governance comes only from a routing manifest; without one, a root only
+    protects its own tree.
+    """
+    with tempfile.TemporaryDirectory(prefix="destcap-extra-") as td:
+        base = Path(td)
+        outside = base / "outside" / "x.txt"
+        bare = base / "bare-root"
+        (bare / "research" / "60_Workbench").mkdir(parents=True)
+        root_file = base / "root-file"
+        root_file.write_text("", encoding="utf-8")
+        fake = make_fake_root(base)
+        real = dc.discovered_workspace_root
+        dc.discovered_workspace_root = lambda: None
+        try:
+            for label, value in (
+                ("nonexistent extra root", str(base / "missing-root")),
+                ("manifest-less extra root", str(bare)),
+                ("extra root that is a file", str(root_file)),
+            ):
+                os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = value
+                got = dc.classify(outside)
+                check(f"{label}: outside path stays ungoverned", got == "ungoverned", got)
+                refused = None
+                try:
+                    dc.assert_writable(outside)
+                except dc.DestinationRefused as exc:
+                    refused = exc
+                check(f"{label}: assert_writable raises DEST-UNGOVERNED",
+                      refused is not None and refused.code == dc.DEST_UNGOVERNED)
+                root = Path(value)
+                work = root / "research" / "60_Workbench" / "w1"
+                granted = []
+                for lane in (
+                    root / "outputs" / "co-author-harness" / "staging" / "w" / "r" / "x.md",
+                    work / "reviews" / "harness" / "shipments" / "s1" / "report.md",
+                    work / "reviews" / ".harness" / "assignment" / "x.json",
+                    work / "reviews" / "repin_rebind_request.json",
+                ):
+                    try:
+                        granted.append(f"{lane.relative_to(root)}={dc.assert_writable(lane)}")
+                    except dc.DestinationRefused:
+                        pass
+                check(f"{label}: no lane below it is writable", not granted, "; ".join(granted))
+                opened = []
+                for guard in (dc.guard_lifecycle_project_root, dc.guard_repin_project_root,
+                              dc.guard_instrument_lane):
+                    try:
+                        opened.append(f"{guard.__name__}={guard(work)}")
+                    except dc.DestinationRefused:
+                        pass
+                check(f"{label}: no container guard opens below it", not opened, "; ".join(opened))
+            os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = str(bare)
+            inside = bare / "research" / "60_Workbench" / "probe.md"
+            check("manifest-less extra root still protects its own tree",
+                  dc.classify(inside) == "protected", dc.classify(inside))
+            os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = os.pathsep.join(
+                [str(base / "missing-root"), str(fake)])
+            check("a manifest-bearing extra root still makes outside paths external",
+                  dc.classify(outside) == "external", dc.classify(outside))
+            lane = fake / "outputs" / "co-author-harness" / "staging" / "w" / "r" / "x.md"
+            check("a manifest-bearing extra root still opens its staging lane",
+                  dc.classify(lane) == "staging", dc.classify(lane))
+            dc.discovered_workspace_root = lambda: fake
+            os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = str(bare)
+            check("a discovered root keeps outside paths external beside a bare extra root",
+                  dc.classify(outside) == "external", dc.classify(outside))
+            # Nested inside a governed root, a bare hook root must not un-protect it.
+            for label, nested in (("nonexistent", fake / "research" / "nested-missing"),
+                                  ("manifest-less", fake / "research" / "nested-bare")):
+                if label == "manifest-less":
+                    nested.mkdir(parents=True)
+                os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = str(nested)
+                lane = nested / "outputs" / "co-author-harness" / "staging" / "w" / "r" / "x.md"
+                check(f"{label} hook root nested in a governed root opens no lane",
+                      dc.classify(lane) == "protected", dc.classify(lane))
+                work = nested / "research" / "60_Workbench" / "w1"
+                opened = []
+                for guard in (dc.guard_lifecycle_project_root, dc.guard_repin_project_root):
+                    try:
+                        opened.append(f"{guard.__name__}={guard(work)}")
+                    except dc.DestinationRefused:
+                        pass
+                check(f"{label} hook root nested in a governed root opens no container",
+                      not opened, "; ".join(opened))
+        finally:
+            dc.discovered_workspace_root = real
+            os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
+
+
 # Wiring: every guarded mutator must refuse a governed project root BEFORE
 # writing. Each entry: (label, argv builder given a probe root). The fake
 # governed root absorbs any red-phase mutation harmlessly. Guard-first
@@ -702,7 +797,8 @@ def main() -> int:
     for fn in (case_classifier, case_package_local_staging_hygiene,
                 case_real_workspace_discovery,
                 case_distributed_destination_discovery,
-                case_ungoverned_fails_closed, case_mutator_wiring,
+                case_ungoverned_fails_closed,
+                case_extra_root_needs_routing_manifest, case_mutator_wiring,
                 case_output_redirect_refusals, case_r0_writer_refusals,
                 case_audit_shipment_output,
                 case_installer_workspace_and_read_only_modes,

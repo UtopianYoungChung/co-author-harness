@@ -131,6 +131,11 @@ def case_shipment_only_walk(raw: Path) -> None:
     lane = fake / "outputs" / "co-author-harness" / "staging"
     lane.mkdir(parents=True)
     (fake / "research").mkdir()
+    # A governed root grants its lanes only when it carries the routing
+    # manifest (destination_capability, audit M13).
+    routing = fake / "governance" / "output-routing" / "output_routing.yaml"
+    routing.parent.mkdir(parents=True)
+    routing.write_text("schema_version: 1\nroutes: []\n", encoding="utf-8")
     os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = str(fake)
     try:
         project = lane / "w-staging" / "run-manual" / "project"

@@ -19,9 +19,10 @@ research/10_Governance/HARNESS_SHIPMENT_BOUNDARY.md, binding 2026-07-22):
   protected  anywhere else under a governed root     -> REFUSE
   external   outside every governed root             -> writable (OS temp, test
              sandboxes; not governed space)
-  ungoverned no governed root discoverable at all    -> REFUSE all non-package
+  ungoverned no root carrying the routing manifest   -> REFUSE all non-package
              destinations (fail closed: a distributed install without workspace
-             governance has no basis to claim any write capability)
+             governance has no basis to claim any write capability; a path
+             under an extra root without a manifest is `protected` instead)
 
 Governed-root discovery walks up from both the harness root and the requested
 destination looking for `governance/output-routing/output_routing.yaml` (the
@@ -30,7 +31,12 @@ discovery is what lets a distributed plugin cache recognize a governed consumer
 workspace without granting authority from the process cwd. `COAUTHOR_EXTRA_GOVERNED_ROOTS`
 (os.pathsep-separated) ADDS governed roots -- used by hermetic tests to govern a
 fake tree. It is additive only: it can never remove or replace the discovered
-root, so pointing it elsewhere cannot un-protect the real workspace.
+root, so pointing it elsewhere cannot un-protect the real workspace. Governance
+itself comes only from a routing manifest: a root that carries none -- such as a
+hook entry naming a directory that does not exist or has no manifest -- only
+protects its own tree. It opens no lane or container guard, even nested inside a
+governed workspace, and when no root carries a manifest every other non-package
+destination is `ungoverned` (audit M13).
 
 Alias handling: destinations are compared after os.path.realpath (resolves
 junctions and symlinks on Windows) + os.path.normcase (case-folds and normalizes
@@ -238,6 +244,17 @@ def governed_roots(destination: os.PathLike | str | None = None) -> list[Path]:
     return unique
 
 
+def _governing(roots: list[Path]) -> list[Path]:
+    """The roots that carry the routing manifest; only these grant anything.
+
+    Discovered roots carry it by construction. An extra root from
+    COAUTHOR_EXTRA_GOVERNED_ROOTS that does not exist or has no manifest only
+    protects its own tree: it opens no lane or container guard and makes no
+    destination `external` (audit M13).
+    """
+    return [root for root in roots if (root / _MANIFEST_REL).is_file()]
+
+
 def classify(destination: os.PathLike | str) -> str:
     """Classify a resolved write destination. Pure; raises nothing."""
     dest = _canon(destination)
@@ -248,7 +265,8 @@ def classify(destination: os.PathLike | str) -> str:
     roots = governed_roots(destination)
     if not roots:
         return "ungoverned"
-    for root in roots:
+    governing = _governing(roots)
+    for root in governing:
         if _is_under(dest, root / _STAGING_REL):
             return "staging"
         if _is_research_shipment(dest, root):
@@ -260,6 +278,8 @@ def classify(destination: os.PathLike | str) -> str:
     for root in roots:
         if _is_under(dest, root):
             return "protected"
+    if not governing:
+        return "ungoverned"
     return "external"
 
 
@@ -325,7 +345,7 @@ def guard_lifecycle_project_root(project_root: os.PathLike | str) -> str:
     receipt/evidence dependency graph and publishes state last.
     """
     dest = _canon(project_root)
-    for root in governed_roots(project_root):
+    for root in _governing(governed_roots(project_root)):
         if _is_workbench_work_id_root(dest, root):
             return "lifecycle_container"
     return guard_project_root(project_root)
@@ -342,7 +362,7 @@ def guard_repin_project_root(project_root: os.PathLike | str) -> str:
     project root stays ``protected``.
     """
     dest = _canon(project_root)
-    for root in governed_roots(project_root):
+    for root in _governing(governed_roots(project_root)):
         if _is_workbench_work_id_root(dest, root):
             return "repin_container"
     return guard_project_root(project_root)

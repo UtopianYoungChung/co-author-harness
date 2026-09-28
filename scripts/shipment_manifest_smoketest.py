@@ -36,6 +36,11 @@ def fake_root(base: Path) -> Path:
     fake = base / "fake-ws"
     (fake / "outputs" / "co-author-harness" / "staging").mkdir(parents=True, exist_ok=True)
     (fake / "research").mkdir(parents=True, exist_ok=True)
+    # A governed root grants its lanes only when it carries the routing
+    # manifest (destination_capability, audit M13).
+    routing = fake / "governance" / "output-routing" / "output_routing.yaml"
+    routing.parent.mkdir(parents=True, exist_ok=True)
+    routing.write_text("schema_version: 1\nroutes: []\n", encoding="utf-8")
     return fake
 
 

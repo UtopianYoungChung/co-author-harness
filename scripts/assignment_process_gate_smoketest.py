@@ -83,7 +83,13 @@ def main() -> int:
     assert deliverables["FINAL"]["prerequisites"] == ["M1", "M2", "M3", "M4"]
     assert "a fifth assigned milestone" in deliverables["FINAL"]["must_not_be_treated_as"]
 
+    # A hermetic governed root: only a root carrying the routing manifest lets
+    # OS temp projects classify as external on a host without workspace
+    # governance (destination_capability, audit M13).
     dummy_governed = Path(tempfile.mkdtemp(prefix="apg-dummy-governed-"))
+    routing = dummy_governed / "governance" / "output-routing" / "output_routing.yaml"
+    routing.parent.mkdir(parents=True)
+    routing.write_text("schema_version: 1\nroutes: []\n", encoding="utf-8")
     extra_roots = [
         item
         for item in os.environ.get("COAUTHOR_EXTRA_GOVERNED_ROOTS", "").split(os.pathsep)

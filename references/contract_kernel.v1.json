@@ -1069,7 +1069,7 @@
       "id": "shipment-manifest-v2-smoketest",
       "path": "scripts/shipment_manifest_smoketest.py",
       "revision_kind": "sha256",
-      "sha256": "68e268e24fba4c4a26c65943657c10e206e0bb99a400aae6374ec50cbd97e008",
+      "sha256": "a4c4759459aecd208251ed314a2effa9e687df335dc5b5977b5d7259d341f2e6",
       "migration_ids": [
         "runtime-shipment-capability-v1"
       ]

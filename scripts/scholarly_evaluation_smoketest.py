@@ -981,8 +981,13 @@ def main() -> int:
         api_cases += 1
 
     # No workspace routing manifest in this install. A dummy extra governed
-    # root makes OS temp projects classify as external, not DEST-UNGOVERNED.
+    # root carrying its own routing manifest makes OS temp projects classify
+    # as external, not DEST-UNGOVERNED; without the manifest it would govern
+    # nothing (destination_capability, audit M13).
     dummy_governed = Path(tempfile.mkdtemp(prefix="c6-dummy-governed-"))
+    routing = dummy_governed / "governance" / "output-routing" / "output_routing.yaml"
+    routing.parent.mkdir(parents=True)
+    routing.write_text("schema_version: 1\nroutes: []\n", encoding="utf-8")
     extra_roots = [
         item
         for item in os.environ.get("COAUTHOR_EXTRA_GOVERNED_ROOTS", "").split(os.pathsep)

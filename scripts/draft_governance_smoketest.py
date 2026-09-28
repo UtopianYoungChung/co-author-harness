@@ -509,6 +509,11 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="draft-governance-") as td:
         # v0.50.0: Create project at research/60_Workbench/<work-id>/ to match shipment path requirements
         workspace_root = Path(td)
+        # A governed root grants its lanes only when it carries the routing
+        # manifest (destination_capability, audit M13).
+        routing = workspace_root / "governance" / "output-routing" / "output_routing.yaml"
+        routing.parent.mkdir(parents=True)
+        routing.write_text("schema_version: 1\nroutes: []\n", encoding="utf-8")
         project = workspace_root / "research" / "60_Workbench" / "test-work"
         project.mkdir(parents=True)
         (project / "reviews").mkdir()
