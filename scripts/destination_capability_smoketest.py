@@ -393,6 +393,58 @@ def case_extra_root_needs_routing_manifest() -> None:
             os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
 
 
+def case_drive_root_roots() -> None:
+    """A root at a drive or filesystem root contains every path on it.
+
+    Its canonical spelling already ends in a separator (``c:\\``, ``/``).
+    Appending a second one made every containment test false, so a governed
+    root there protected nothing, an admitted evidence root refused every
+    child, and the release controller treated nothing as inside it.
+    """
+    import release_qualification_controller as rqc
+
+    anchor = Path(tempfile.gettempdir()).anchor
+    with tempfile.TemporaryDirectory(prefix="destcap-anchor-") as td:
+        base = Path(td)
+        check("a path on the drive is under the drive root",
+              dc._is_under(dc._canon(base / "x.txt"), Path(anchor)))
+        fake = make_fake_root(base)
+        real = dc.discovered_workspace_root
+        dc.discovered_workspace_root = lambda: fake
+        os.environ["COAUTHOR_EXTRA_GOVERNED_ROOTS"] = anchor
+        try:
+            outside = base / "outside" / "x.txt"
+            got = dc.classify(outside)
+            check("a hook root at the drive root protects the paths below it",
+                  got == "protected", got)
+        finally:
+            dc.discovered_workspace_root = real
+            os.environ.pop("COAUTHOR_EXTRA_GOVERNED_ROOTS", None)
+    # Pre-registered child: ensure_directory returns it without touching the drive.
+    tree = evidence_publication._BoundDirectoryTree(Path(anchor))
+    tree.root_held = object()
+    child = Path(anchor) / "destcap-anchor-never-created"
+    held = object()
+    tree._by_norm[evidence_publication._norm_abs(child)] = held
+    try:
+        got = tree.ensure_directory(child) is held
+    except evidence_publication.EvidencePublicationError as exc:
+        got = f"refused: {exc}"
+    check("an evidence root at the drive root admits its children", got is True, str(got))
+    check("the release controller treats a drive-root path as inside the drive root",
+          rqc._inside(Path(anchor) / "x", anchor))
+    if os.name == "nt":
+        # A bare UNC prefix also ends in a separator but is not a root: it must
+        # not contain every extended-length, device or UNC path.
+        bare = "\\\\"
+        leaks = [f"{fn}({child!r})" for fn, child, got in (
+            ("_is_under", "\\\\?\\c:\\users\\x", dc._is_under("\\\\?\\c:\\users\\x", Path(bare))),
+            ("_inside", "\\\\.\\pipe\\x", rqc._inside("\\\\.\\pipe\\x", bare)),
+        ) if got]
+        check("a bare \\\\ prefix contains no extended-length or device path",
+              not leaks, "; ".join(leaks))
+
+
 # Wiring: every guarded mutator must refuse a governed project root BEFORE
 # writing. Each entry: (label, argv builder given a probe root). The fake
 # governed root absorbs any red-phase mutation harmlessly. Guard-first
@@ -798,7 +850,8 @@ def main() -> int:
                 case_real_workspace_discovery,
                 case_distributed_destination_discovery,
                 case_ungoverned_fails_closed,
-                case_extra_root_needs_routing_manifest, case_mutator_wiring,
+                case_extra_root_needs_routing_manifest, case_drive_root_roots,
+                case_mutator_wiring,
                 case_output_redirect_refusals, case_r0_writer_refusals,
                 case_audit_shipment_output,
                 case_installer_workspace_and_read_only_modes,

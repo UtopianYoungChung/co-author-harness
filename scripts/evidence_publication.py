@@ -12,7 +12,7 @@ import os
 import tempfile
 import time
 import uuid
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any, Callable, Iterator
 
 from destination_capability import assert_writable, classify
@@ -174,7 +174,11 @@ class _BoundDirectoryTree:
         abs_path = _norm_abs(path)
         if abs_path == abs_root:
             return self.root_held
-        prefix = abs_root + os.sep
+        # A drive or filesystem root already ends in a separator (``c:\``, ``/``);
+        # anything else, including a bare ``\\`` prefix, needs one appended.
+        anchored = PurePath(abs_root)
+        prefix = (abs_root if anchored.root and anchored.anchor == abs_root
+                  else abs_root + os.sep)
         if not abs_path.startswith(prefix):
             raise EvidencePublicationError("directory escapes admitted root")
         current = self.root_held

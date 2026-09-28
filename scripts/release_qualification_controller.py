@@ -20,7 +20,7 @@ import threading
 import time
 import traceback
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any, Iterable, Mapping
 
 from jsonschema import Draft202012Validator
@@ -1265,7 +1265,11 @@ def _spawn_windows_job_process(
 def _inside(path: str | Path, root: str | Path) -> bool:
     child = os.path.normcase(os.path.realpath(os.fspath(path)))
     parent = os.path.normcase(os.path.realpath(os.fspath(root)))
-    return child == parent or child.startswith(parent + os.sep)
+    # A drive or filesystem root already ends in a separator (``c:\``, ``/``);
+    # anything else, including a bare ``\\`` prefix, needs one appended.
+    anchored = PurePath(parent)
+    prefix = parent if anchored.root and anchored.anchor == parent else parent + os.sep
+    return child == parent or child.startswith(prefix)
 
 
 def _lexical(path: str | Path) -> str:

@@ -51,7 +51,7 @@ limited to the staging lane and the exact private research shipment lane.
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from pathlib import Path, PurePath
 
 HARNESS = Path(__file__).resolve().parent.parent
 
@@ -99,7 +99,12 @@ def _canon(p: os.PathLike | str) -> str:
 
 def _is_under(child_canon: str, root: Path) -> bool:
     root_canon = _canon(root)
-    return child_canon == root_canon or child_canon.startswith(root_canon + os.sep)
+    # A drive or filesystem root already ends in a separator (``c:\``, ``/``);
+    # anything else, including a bare ``\\`` prefix, needs one appended.
+    anchored = PurePath(root_canon)
+    prefix = (root_canon if anchored.root and anchored.anchor == root_canon
+              else root_canon + os.sep)
+    return child_canon == root_canon or child_canon.startswith(prefix)
 
 
 def _is_research_shipment(child_canon: str, root: Path) -> bool:
