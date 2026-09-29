@@ -43,7 +43,7 @@ def _unique(pairs):
 def _load(path: Path) -> tuple[dict[str, Any], bytes]:
     try:
         payload = path.read_bytes()
-        value = json.loads(payload.decode("utf-8"), object_pairs_hook=_unique,
+        value = json.loads(payload.decode("utf-8", errors="strict"), object_pairs_hook=_unique,
                            parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)))
         if not isinstance(value, dict):
             raise ValueError("JSON root must be an object")

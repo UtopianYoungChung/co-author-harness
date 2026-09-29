@@ -208,7 +208,7 @@ def passages_from_pdf(
         mapped: dict[int, tuple[int, str]] = {}
         for record in validated["page_map"]["pages"]:
             index = record["page"]
-            page_text = normalized[record["normalized_start_utf8"]:record["normalized_end_utf8"]].decode("utf-8")
+            page_text = normalized[record["normalized_start_utf8"]:record["normalized_end_utf8"]].decode("utf-8", errors="strict")
             printed = _printed_page(page_text, index)
             if printed is None:
                 continue

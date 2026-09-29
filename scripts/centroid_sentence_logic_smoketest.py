@@ -158,7 +158,7 @@ def case_inventory(tmp: Path, passages: Path) -> None:
     require(not any("Reference sentence" in row or "Code." in row or "Cell." in row for row in snippets), "nonprose excluded")
     raw = man.read_bytes()
     for row in receipt["sentences"]:
-        require(raw[row["start_utf8"]:row["end_utf8"]].decode("utf-8") == row["text"], "exact UTF-8 offset")
+        require(raw[row["start_utf8"]:row["end_utf8"]].decode("utf-8", errors="strict") == row["text"], "exact UTF-8 offset")
     by_id = {row["id"]: row for row in receipt["sentences"]}
     require(all(by_id[row["left_id"]]["paragraph_id"] == by_id[row["right_id"]]["paragraph_id"] for row in receipt["pairs"]), "pairs stay in paragraph")
     require(all(set(row) == {"id", "left_id", "right_id", "verdict", "signals", "context_paragraph_ids"} for row in receipt["pairs"]), "compact pair shape")
@@ -232,7 +232,7 @@ def case_full_scope_and_view(tmp: Path, passages: Path) -> None:
     require(receipt["scope"]["sha256"] == receipt["manuscript_sha256"], "full scope hash bound")
     raw = man.read_bytes()
     for row in receipt["sentences"]:
-        require(raw[row["start_utf8"]:row["end_utf8"]].decode("utf-8") == row["text"], "Unicode and CRLF byte offsets")
+        require(raw[row["start_utf8"]:row["end_utf8"]].decode("utf-8", errors="strict") == row["text"], "Unicode and CRLF byte offsets")
     result = subprocess.run([sys.executable, "-B", "-X", "utf8", str(SCRIPT), *args, "--format", "review"],
                             cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
     require(result.returncode == 0 and result.stdout.count("Café actors depend.") == 1, "compact review view stores sentence once")
