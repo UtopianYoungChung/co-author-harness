@@ -49,9 +49,14 @@ def main() -> int:
         "AGENTS.md": (ROOT / "AGENTS.md").read_text(encoding="utf-8"),
         "README.md": (ROOT / "README.md").read_text(encoding="utf-8"),
     }
+    # AGENTS.md is the canonical maintainer checklist and carries every invocation;
+    # README.md keeps the corpus command and delegates the checklist to AGENTS.md.
+    _require_invocation(docs["AGENTS.md"], INFRA_REL, "AGENTS.md", no_write=False)
     for name, text in docs.items():
-        _require_invocation(text, INFRA_REL, name, no_write=False)
         _require_invocation(text, RUNNER_REL, name, no_write=False)
+    assert "AGENTS.md#maintainer--structural-checks" in docs["README.md"], (
+        "README.md does not point maintainers to the AGENTS.md structural checklist"
+    )
 
     surfaces = {
         "CI": (ROOT / ".github/workflows/structural-checks.yml").read_text(
