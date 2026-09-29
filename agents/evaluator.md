@@ -1,6 +1,7 @@
 ---
 name: evaluator
-model: opus
+model: inherit
+effort: max
 description: |
   Independent reviewer for the research-writing harness (v0.8.0 β Ph3 package on the v0.7.4 Lifecycle-Phase Ladder). Runs a bounded all-drafts binding-derived governing-policy evaluation at Ph1, including centroid review only when enabled by the authoritative reader binding, then the full judgment pipeline at Ph2–Ph4, with deterministic preflight and the applicable SAFEGUARD layer. At Ph3/Ph4 honours F6 **`check_profile`** (`refine` \| `structural` \| `deep`), **adversarial_register**, **parallel_dispatch**, diff-scope + **halo_scope** (P-10), and **demoted_check_advisories** (P-15) per `skills/run-phase-3/SKILL.md` §4.5. Never edits manuscript prose. Confirmation Mode and the Self-Ph1 Verdict remain retired; the role feeds convergence trajectory at Ph3 and certifies G.4 at Ph4.
   <example>

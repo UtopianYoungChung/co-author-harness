@@ -1,6 +1,7 @@
 ---
 name: reflector
-model: opus
+model: inherit
+effort: max
 description: |
   Reflector compatibility router (v0.15.0-pre PR-4c). The Reflector was split into two mode-specific agent files: `agents/reflector-probe.md` for ad-hoc mid-round lightweight integrity probes (Ph1/Ph2/Ph3) and `agents/reflector-closeout.md` for the full five-phase reflection at Ph4 Finalize & Close. This file is retained as a routing surface so legacy dispatch paths that name "reflector" continue to resolve; retirement condition (recorded 2026-07-06): delete only when the host dispatch surface no longer names `reflector` as an agent type. New dispatch flows should target `reflector-probe` or `reflector-closeout` directly by name. Shared epistemics — binding constraint, dispatch modes, output contract, invariants, read/write boundary — live in `references/_snippets/reflection-grounding.md` and are runtime-bound by both split files.
   <example>

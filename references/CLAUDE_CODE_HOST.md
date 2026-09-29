@@ -96,7 +96,9 @@ session actually has the Agent tool. Unknown or false is refused with
    coordinator prints it as `request_sha256`). Invoke the native Agent tool with
    the matching role (`co-author-harness:generator`, `:evaluator`, or
    `:reflector`), passing the complete request JSON and that token in the prompt.
-   The agent file's `model:` frontmatter requests a family. Verify the actual
+   The Evaluator and Reflector agent files set `model: inherit` and
+   `effort: max`, so they run on the parent session's model at maximum effort;
+   the Generator's `model:` frontmatter requests a family. Verify the actual
    resolved model and highest supported effort under `MODEL_ALLOCATION.md`
    before relying on planning or review, including either Reflector mode.
    An active directive override may pass a family alias when the Agent tool

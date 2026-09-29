@@ -301,8 +301,8 @@ Example dispatch pattern:
 ```
 Agent tool invocation for Evaluator at Ph3:
   subagent_type: co-author-harness:evaluator
-                  (agents/evaluator.md requests the opus family; verify the
-                   resolved model and maximum effort before relying on review)
+                  (agents/evaluator.md sets model: inherit and effort: max;
+                   verify the resolved model and effort before relying on review)
   prompt:        "You are the Evaluator agent. Read and follow the instructions in
                  agents/evaluator.md (in the package folder) exactly.
 
