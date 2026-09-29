@@ -96,10 +96,14 @@ session actually has the Agent tool. Unknown or false is refused with
    coordinator prints it as `request_sha256`). Invoke the native Agent tool with
    the matching role (`co-author-harness:generator`, `:evaluator`, or
    `:reflector`), passing the complete request JSON and that token in the prompt.
-   Do not pass a `model` argument: the agent file's `model:` frontmatter
-   applies its `MODEL_ALLOCATION.md` §2 family. A directive override passes a
-   family alias (`opus`, `sonnet` or `haiku`); the tool rejects full model
-   IDs. The request binds `role_prompt`, `skill_bodies`, and `package_root` so
+   The agent file's `model:` frontmatter requests a family. Verify the actual
+   resolved model and highest supported effort under `MODEL_ALLOCATION.md`
+   before relying on planning or review, including either Reflector mode.
+   An active directive override may pass a family alias when the Agent tool
+   supports it, but an alias alone does not prove the resolved release or
+   effort. If the required selection cannot be verified or is unavailable,
+   report that limitation and hold the affected planning/review. The request
+   binds `role_prompt`, `skill_bodies`, and `package_root` so
    the child reads the same role file and skill bodies on every host.
 4. Wait for the tool to return `completed`. The child's final message must be
    the substantive result JSON, including its own `agent_execution_id` (the

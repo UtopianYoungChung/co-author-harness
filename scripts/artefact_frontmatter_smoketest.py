@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from semantic_graph_fixture_support import semantic_graph_fixture_environment
 
@@ -34,10 +35,28 @@ def main() -> int:
         if proc.returncode != expected:
             tail = (proc.stdout + proc.stderr).decode("utf-8", errors="replace")[-800:]
             failures.append(f"{rel}: exit {proc.returncode}, expected {expected}: {tail}")
+    source = (FIXTURES / "pass/reviews/dispatch_plan_C0001.md").read_text(encoding="utf-8")
+    variants = (
+        ("resolved-model-id", source.replace("opus-4-7", "openai/gpt-6-astra").replace("sonnet-4-6", "openai/gpt-6-astra"), 0),
+        ("blank-model-id", source.replace("model_used: opus-4-7", 'model_used: ""'), 3),
+        ("placeholder-model-id", source.replace("model_used: opus-4-7", "model_used: unknown"), 3),
+    )
+    with tempfile.TemporaryDirectory() as directory:
+        for name, content, expected in variants:
+            candidate = Path(directory) / f"{name}.md"
+            candidate.write_text(content, encoding="utf-8")
+            proc = subprocess.run(
+                [sys.executable, str(VALIDATOR), str(candidate)],
+                capture_output=True,
+                check=False,
+            )
+            if proc.returncode != expected:
+                tail = (proc.stdout + proc.stderr).decode("utf-8", errors="replace")[-800:]
+                failures.append(f"{name}: exit {proc.returncode}, expected {expected}: {tail}")
     if failures:
         print("\n".join(failures), file=sys.stderr)
         return 1
-    print(f"PASS: artefact-frontmatter validator {len(CASES)} fixtures")
+    print(f"PASS: artefact-frontmatter validator {len(CASES)} fixtures and {len(variants)} model IDs")
     return 0
 
 

@@ -121,7 +121,20 @@ def extract_frontmatter(path: Path) -> Tuple[Optional[Dict[str, Any]], Optional[
 
 VALID_PHASES = {"Ph1", "Ph2", "Ph3", "Ph3_converged", "Ph4"}
 VALID_LEGACY_PHASES = {"T1", "T2", "T3", "T3_converged", "T4"}
-VALID_MODELS = {"opus-4-7", "sonnet-4-6", "haiku-4-5"}
+MODEL_IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,127}$")
+MODEL_PLACEHOLDERS = {
+    "auto", "default", "haiku", "n/a", "none", "null", "opus",
+    "sonnet", "tbd", "unavailable", "unknown", "unverified",
+}
+
+
+def valid_model_identifier(value: Any) -> bool:
+    """Check identifier shape only; host selection and effort need separate evidence."""
+    return (
+        isinstance(value, str)
+        and MODEL_IDENTIFIER_RE.fullmatch(value) is not None
+        and value.lower() not in MODEL_PLACEHOLDERS
+    )
 VALID_ACTORS = {"planner", "evaluator", "generator", "reflector"}
 # F6 planner_dispatch_plan.dispatched_agents[].scope enum (schema §7a.1)
 VALID_DISPATCH_SCOPES = {"per_section", "manuscript_level", "cycle_level"}
@@ -374,7 +387,7 @@ FAMILY_SCHEMAS: Dict[str, Dict[str, Any]] = {
             "dispatched_agents": ("list", {
                 "agent": ("enum", VALID_ACTORS),
                 "phase": ("enum", VALID_PHASES),
-                "model_allocation": ("enum", VALID_MODELS),
+                "model_allocation": ("model_identifier", None),
                 "scope": ("enum", VALID_DISPATCH_SCOPES),
                 "purpose": str,
             }),
@@ -495,14 +508,14 @@ def validate_common(fm: Dict[str, Any], path: Path) -> List[Finding]:
             )
 
     if "model_used" in fm and isinstance(fm["model_used"], str):
-        if fm["model_used"] not in VALID_MODELS:
+        if not valid_model_identifier(fm["model_used"]):
             findings.append(
                 Finding(
                     path,
                     "R-Refl-FM-2",
                     "MAJOR",
                     "model_used",
-                    f"model_used='{fm['model_used']}' not in {sorted(VALID_MODELS)}",
+                    "model_used must be a nonblank resolved model identifier (1-128 permitted characters), not a placeholder or family alias",
                 )
             )
 
@@ -578,6 +591,18 @@ def _check_nested(
                 Finding(
                     path, "R-Refl-FM-2", "MAJOR", field_path,
                     f"expected {schema_subtree.__name__}, got {type(fm_subtree).__name__}",
+                )
+            )
+        return findings
+
+    # Schema leaf: a resolved model identifier. This shape check is not proof
+    # that the host selected the strongest model or maximum supported effort.
+    if isinstance(schema_subtree, tuple) and len(schema_subtree) == 2 and schema_subtree[0] == "model_identifier":
+        if not valid_model_identifier(fm_subtree):
+            findings.append(
+                Finding(
+                    path, "R-Refl-FM-2", "MAJOR", field_path,
+                    "expected a nonblank resolved model identifier (1-128 permitted characters), not a placeholder or family alias",
                 )
             )
         return findings

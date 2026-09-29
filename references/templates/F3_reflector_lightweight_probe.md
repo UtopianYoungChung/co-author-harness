@@ -12,7 +12,7 @@ document_type: reflector_lightweight_probe
 schema_version: "1.0"
 produced_at: "2026-04-21T00:00:00Z"
 produced_by: reflector
-model_used: sonnet-4-6               # lightweight Reflector default; pilot slot for Haiku 4.5 per MODEL_ALLOCATION.md §2 hazard H-MA-2
+model_used: <resolved-review-model-id> # replace with the actual verified strongest host model; record maximum effort evidence in the report
 cycle_id: "TEMPLATE-PLACEHOLDER"
 iteration: 0
 section_heading_path: []

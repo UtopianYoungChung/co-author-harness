@@ -84,6 +84,14 @@ Checks without a published `halo_scope` assignment default to `cross_paragraph` 
 
 ## 5. Capability-inversion protection
 
+The ordering and examples below apply to the named historical models. They do
+not establish the current strongest available model or its maximum effort.
+Under `MODEL_ALLOCATION.md`, a cache hit cannot substitute for a required
+current-byte Evaluator or Reflector review at the strongest verified host model
+and maximum supported effort. A change in required review model or effort
+invalidates reuse until the current review is performed and evidenced. Keep
+the source and byte freshness checks in this contract in force as well.
+
 The cache refuses hits across a model-family **downgrade** on the family ordering:
 
 ```

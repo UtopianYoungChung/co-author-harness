@@ -63,7 +63,7 @@ document_type:          # required, string, enum per §1
 schema_version:         # required, string, "1.0" at v0.7.4; "1.1" after v0.8.0 P2.1b field-adds on F1/F4/F6; "1.x" on other additive field adds; "2.0" on breaking change
 produced_at:            # required, ISO 8601 timestamp "YYYY-MM-DDTHH:MM:SSZ"
 produced_by:            # required, string, one of {planner, evaluator, generator, reflector}
-model_used:             # required, string, one of {opus-4-7, sonnet-4-6, haiku-4-5}
+model_used:             # required, nonblank resolved model identifier (1-128 characters); legacy slugs remain valid. Identity syntax does not prove strongest-model or effort compliance.
 cycle_id:               # required, string, references reviews/phase_state.json cycle identifier
 iteration:              # required, integer, ≥ 0; iteration number within the cycle
 section_heading_path:   # required, list of strings; slash-joined heading path, root-to-leaf; empty list for manuscript-scoped artefacts
@@ -357,7 +357,7 @@ sections_in_scope:        # list of strings; slash-joined section_heading_path v
 dispatched_agents:        # list of objects; one entry per agent expected to engage during the round
   - agent:                # string, one of {planner, evaluator, generator, reflector}
     phase:                # string, one of {Ph1, Ph2, Ph3, Ph3_converged, Ph4}; phase at which the dispatch fires
-    model_allocation:     # string, one of {opus-4-7, sonnet-4-6, haiku-4-5}; the resolved model per references/MODEL_ALLOCATION.md §2
+    model_allocation:     # nonblank resolved model identifier (1-128 characters); allocation per references/MODEL_ALLOCATION.md §2, with effort verified separately
     scope:                # string, one of {per_section, manuscript_level, cycle_level}; per-section is the default, manuscript_level applies under P-7 batching, cycle_level is Planner-only orchestration
     purpose:              # string (≤ 140 chars); one-line rationale the user can skim
 checks_scheduled:         # list of strings; the deterministic and judgment checks planned to run this round; drawn from {safeguard_1..8, grounding_audit, d_style_profile_check, deterministic_step_0a, coupling_e2_overlay, accessibility_overlay, contract_verification}

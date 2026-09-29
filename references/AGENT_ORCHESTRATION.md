@@ -117,16 +117,16 @@ The Lifecycle-Phase Ladder conditions agent engagement on the current phase. The
 | **Ph3 Iterate & Converge** | Dispatches; runs MCR admission check at close-out | Full-scope pass; external verifiers optional; Coupling E.2 at Step 0.2 | Applies findings under P-stage register | Lightweight integrity probe only |
 | **Ph4 Finalize & Close** | Dispatches; runs MCR admission check; G.4 gate | Full-scope pass; external verifiers required; G.4 mandatory | Final edits under declared submission-bound register | **Reflector-full** five-phase close-out |
 
-**Model-capability overlay (v0.7.3).** The Planner resolves each dispatched agent's Claude model from `MODEL_ALLOCATION.md §2`; the table below is a read-only mirror for orientation. Authoritative source remains `MODEL_ALLOCATION.md`.
+**Model-capability overlay.** The Planner resolves the current host's strongest verified available model at maximum supported effort for its own planning and orchestration, the Evaluator, and either Reflector mode. The Generator may use a suitable lower model for bounded execution. The table below is a read-only role mirror; `MODEL_ALLOCATION.md` is authoritative.
 
 | Phase | Planner | Evaluator | Generator | Reflector |
 |---|---|---|---|---|
-| **Ph1** | Sonnet 4.6 | Opus 4.7 (bounded independent) | Sonnet 4.6 ↓ | Haiku 4.5 (lightweight) |
-| **Ph2** | Sonnet 4.6 | **Opus 4.7** ★ | Sonnet 4.6 | Haiku 4.5 (lightweight) |
-| **Ph3** | Sonnet 4.6 | **Opus 4.7** ★ | Sonnet 4.6 | Haiku 4.5 (lightweight) |
-| **Ph4** | Sonnet 4.6 ↓ | **Opus 4.7** ★ | Sonnet 4.6 ↓ | **Opus 4.7** (full) ★ |
+| **Ph1** | Strongest verified, maximum effort | Strongest verified, maximum effort (bounded pass) | Suitable execution model | Strongest verified, maximum effort (lightweight scope) |
+| **Ph2** | Strongest verified, maximum effort | Strongest verified, maximum effort | Suitable execution model | Strongest verified, maximum effort (lightweight scope) |
+| **Ph3** | Strongest verified, maximum effort | Strongest verified, maximum effort | Suitable execution model | Strongest verified, maximum effort (lightweight scope) |
+| **Ph4** | Strongest verified, maximum effort | Strongest verified, maximum effort | Suitable execution model (fix-only scope) | Strongest verified, maximum effort (full closeout) |
 
-★ non-negotiable Opus 4.7 floor (`MODEL_ALLOCATION.md §3`). ↓ downshift from naive role-seniority default (`§4`). The Planner refuses any round that places Evaluator below Generator on `{Haiku 4.5} ≺ {Sonnet 4.6} ≺ {Opus 4.7}` with `E-MA-CAPABILITY-INVERSION`.
+The Planner refuses a verified Evaluator-below-Generator inversion with `E-MA-CAPABILITY-INVERSION`. If current host model or effort cannot be verified, it reports the gap and holds the affected planning/review dispatch.
 
 ### 3.1 The Ph3/Ph4 canonical loop
 
@@ -294,15 +294,15 @@ When dispatching an agent, use the Agent tool with a prompt that includes:
 1. The agent's role description (from this file §1)
 2. The agent's full prompt (read the appropriate file from `agents/`)
 3. The project path and the specific task
-4. **The model**, resolved by the Planner from `MODEL_ALLOCATION.md §2` at dispatch time (v0.7.3 onward). The Planner looks up the section's `current_phase` × the dispatched agent in the allocation table. On Claude Code each agent file's `model:` frontmatter already carries that family, so the dispatch passes a `model` argument only for a directive override, and then only as a family alias (`opus`, `sonnet` or `haiku`). The allocation table is the single source of truth; the frontmatter must match it (`MODEL_ALLOCATION.md §2`, host binding).
+4. **The model and effort**, resolved under `MODEL_ALLOCATION.md §2–3` against the current host at dispatch time. Planning and review, including reflection, require the strongest verified available model at its maximum supported effort. Claude Code frontmatter requests a family; verify the actual model and effort separately. Use an explicit child model/effort option only when the host supports it. The approved F6 plan, when required, must agree with the actual dispatch.
 
 Example dispatch pattern:
 
 ```
 Agent tool invocation for Evaluator at Ph3:
   subagent_type: co-author-harness:evaluator
-                 (no model argument: agents/evaluator.md declares model: opus,
-                  matching MODEL_ALLOCATION.md §2 Evaluator × Ph3, the non-negotiable floor)
+                  (agents/evaluator.md requests the opus family; verify the
+                   resolved model and maximum effort before relying on review)
   prompt:        "You are the Evaluator agent. Read and follow the instructions in
                  agents/evaluator.md (in the package folder) exactly.
 
@@ -312,9 +312,9 @@ Agent tool invocation for Evaluator at Ph3:
                  Read the project AGENTS.md first, then follow the Evaluator procedure."
 ```
 
-**Capability-inversion refusal.** Before dispatching, the Planner checks that the round's resolved allocation does not place the Evaluator below the Generator on the family ordering `{Haiku 4.5} ≺ {Sonnet 4.6} ≺ {Opus 4.7}`. If it would, the Planner refuses the round with `E-MA-CAPABILITY-INVERSION` and presents the resolved allocation to the user for override or correction. See `MODEL_ALLOCATION.md §5 Hazard H-MA-1`.
+**Capability-inversion refusal.** Before dispatching, the Planner compares resolved models using verified current host capability information. It refuses a verified Evaluator-below-Generator inversion with `E-MA-CAPABILITY-INVERSION`. Unknown ordering cannot be recorded as a pass; use the same verified strongest model for both roles or hold review. See `MODEL_ALLOCATION.md §4`.
 
-**Audit trail.** Every dispatch writes one row to `phase_state.json phase_entry_log` with the `notes` field carrying `model_dispatch:{agent}:={model}` (or `model_override:{agent}-{phase}:={model}` for directive-based overrides from `research_notes/directives.md`). The Reflector's Phase 2f audit reads these rows to verify model-selection consistency against `MODEL_ALLOCATION.md §2`.
+**Audit trail.** Every dispatch writes one row to `phase_state.json phase_entry_log` with `model_dispatch:{agent}:={model}` (or `model_override:{agent}-{phase}:={model}` for an active directive) in `notes`. Record actual effort and verification source in existing notes/report text. Reflector Phase 2f checks this evidence, F6 agreement when present, and `MODEL_ALLOCATION.md §2–4`.
 
 ### Via the parent session
 

@@ -12,6 +12,10 @@ and `agents/reflector.md` task-closeout routing. Bind the current reviewed bytes
 and actual role evidence; perform required grounding, scope, exclusion and
 unresolved-finding checks as a distinct native child. No project root or
 lifecycle mode is required. A new material finding reopens correction and review.
+Both lightweight and full reflection are review: verify the strongest available
+host model and its maximum supported reasoning effort under
+`references/MODEL_ALLOCATION.md` before dispatch. Report an unavailable or
+unverifiable model/effort and hold the affected review.
 A standalone reflection request reviews its named evidence and reports limits;
 it cannot complete a missing drafting/revision chain. The mode selection and
 project requirements below apply to governed lifecycle reflection only.
@@ -46,6 +50,8 @@ The dispatch must declare exactly one of:
 |---|---|---|
 | `mode: lightweight` | Integrity probe after a certified staging shipment | `agents/reflector-probe.md` |
 | `mode: full` | Close-out after a certified finalize shipment | `agents/reflector-closeout.md` |
+
+The mode changes the reflection scope, not the model or effort requirement.
 
 A bare `/run-reflection` or an ambiguous request must **halt and ask** for
 the mode. Never guess and never run both modes.

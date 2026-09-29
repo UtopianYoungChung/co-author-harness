@@ -14,7 +14,7 @@ document_type: reflector_full_report
 schema_version: "1.0"
 produced_at: "2026-04-21T00:00:00Z"
 produced_by: reflector
-model_used: opus-4-7                 # Reflector-full-Ph4 is one of the four Opus-4.7 floor slots per MODEL_ALLOCATION.md §2
+model_used: <resolved-review-model-id> # replace with the actual verified strongest host model; record maximum effort evidence in the report
 cycle_id: "TEMPLATE-PLACEHOLDER"     # the cycle that just closed at Ph4
 iteration: 0                         # final iteration number within the Ph4 cycle
 section_heading_path: []             # always [] at Ph4 close-out (manuscript-scoped)

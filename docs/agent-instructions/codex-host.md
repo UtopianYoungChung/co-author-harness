@@ -56,9 +56,14 @@ encloses the package (`SETUP-ENCLOSES-PACKAGE`), and any path inside a governed
 workspace (`SETUP-IN-GOVERNED-WORKSPACE`); keep roles for governed research in
 the personal directory above. Names use `coauthor_`
 followed by the role, with underscores replacing hyphens. The setup changes no
-model, reasoning effort, permissions, or hook trust, so every role runs on the
-session model and the `MODEL_ALLOCATION.md` floor is not enforced under Codex
-(Claude Code applies it through each agent file's `model:` frontmatter). Codex
+model, reasoning effort, permissions, or hook trust. At dispatch, inspect the
+active Codex host's agent tool for per-agent model and effort controls; supported
+hosts may expose both. Apply `MODEL_ALLOCATION.md`: the parent Planner,
+Evaluator, and either Reflector mode require the strongest verified available
+model at its maximum supported effort. If a child inherits the parent session,
+verify that selection; if the required model or effort cannot be established,
+report the gap and hold affected planning/review. An agent pointer or Claude
+`model:` family alias alone does not establish the actual model or effort. Codex
 also does not receive the Claude Code SessionStart context; read
 `references/GROUNDING_PROTOCOL.md` directly. Refresh/reopen Codex and
 verify discovery in a new chat. Rerun from the desired package after its root
