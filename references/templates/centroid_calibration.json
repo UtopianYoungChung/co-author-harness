@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0.0",
+  "label_provenance": "unlabelled",
+  "labeler": null,
+  "label_evidence": null,
+  "instructions": "These are synthetic calibration prompts, not source excerpts or author labels. Add author-supplied CLEAN/ADVISORY/BLOCKER labels, a named labeler, and a path/hash-bound label record before measuring author agreement. Generate predictions separately on the same text hashes.",
+  "cases": [
+    {
+      "id": "forward_step",
+      "text": "The task requires two inputs. Only one is available, so the task must wait for the other.",
+      "text_sha256": "5306a2616cb9e062d934346a5aeecf4e6bacdd79d2685561500584d0bd065e45",
+      "expected": null,
+      "author_notes": null
+    },
+    {
+      "id": "unsupported_conclusion",
+      "text": "The task requires two inputs. Therefore every team should be reorganized.",
+      "text_sha256": "4cba02c2152075f2195a49b223b7210acc6c771b08b720873810c28afdcbb968",
+      "expected": null,
+      "author_notes": null
+    },
+    {
+      "id": "lexical_cue_without_link",
+      "text": "The team shares a printer. Because bananas are yellow, its process is optimal.",
+      "text_sha256": "d37e2d35a556578689d395db4e4230ae743d704f07eaaf4a7c02450180e160b6",
+      "expected": null,
+      "author_notes": null
+    },
+    {
+      "id": "qualified_commitment",
+      "text": "The team planned to publish today. However, publication depends on approval that has not arrived.",
+      "text_sha256": "1120148987f1dc98479b223431953cb7ad1aa1ea53ed60c005b2c17d9afd61fe",
+      "expected": null,
+      "author_notes": null
+    },
+    {
+      "id": "topic_change",
+      "text": "The team shares a printer. Rainfall increased last winter.",
+      "text_sha256": "be8f7d6863d0a418309ac8329b3e221110053dd7ce03eba3030b1a196f346386",
+      "expected": null,
+      "author_notes": null
+    },
+    {
+      "id": "abbreviation_and_citation",
+      "text": "Dr. Smith described a dependency. (Smith, 2020) uses the term in a different sense.",
+      "text_sha256": "399dbb4f6088ff18f14249cf5f8085b2972ebd8f56455684d817c84f83f135c1",
+      "expected": null,
+      "author_notes": null
+    }
+  ]
+}

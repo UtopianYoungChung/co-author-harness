@@ -1,5 +1,14 @@
 # Centroid sentence-logic pass (spec only)
 
+> **Implementation update, 2026-09-29.** This dated design record retains the
+> original rationale and decisions. The current preparation, canonical-source
+> admission, compact receipt, and completed-review procedure is documented in
+> [centroid-check-review.md](centroid-check-review.md) and the
+> [skill](../../skills/centroid-sentence-logic/SKILL.md). Earlier receipt examples
+> below are historical shapes and must not be used as current machine evidence.
+> Source identity and canonical extraction receipts are required for automatic
+> PDF admission; a supplied source key and file hash alone are insufficient.
+
 **Status.** Implemented on the existing `centroid-sentence-logic` skill and script as **centroid-check**. Binder is **centroid-bind**. Policy member is **centroid-source**. Not promoted. SK-32 stays CLOSED.
 **Date.** 2026-08-19. Join-cadence retarget the same day (Joseph via Orchestrator). Naming split 2026-08-30 (Joseph): leftover shared word `centroid` repaired without moving the Yu 2011 window.
 **Owner.** Harness (instrument). Joseph is the only R-plane actor.

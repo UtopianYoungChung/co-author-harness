@@ -137,6 +137,16 @@ commissioned generation/evaluation contracts. It remains mandatory there.
 
 ## Semantic output
 
+For explicit sentence-level review, use `/centroid-sentence-logic` with the exact
+bound scope and admitted evidence. The checker validates PDF identity against
+policy and reuses canonical extraction receipts; a caller-supplied source key
+does not establish identity. Its compact review view is separate from its JSON
+evidence. Roles return a completed pair review, checked by
+`scripts/centroid_review.py validate` for coverage, current bindings, and the
+assigned reviewer identity/model/effort. See
+`docs/specs/centroid-check-review.md`. These checks do not authenticate native
+execution or establish semantic correctness. A dormant binding remains dormant.
+
 The deterministic service deliberately emits no semantic verdict. Its job is to
 prove which policy, members, warrants, scope, and bytes the role received. The
 Generator or Evaluator must perform and document the semantic judgment; empty

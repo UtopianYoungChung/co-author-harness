@@ -1,252 +1,309 @@
 #!/usr/bin/env python3
-"""Hermetic smoketest for centroid_sentence_logic.py."""
+"""Registered synthetic regression cases for centroid-check preparation."""
 
 from __future__ import annotations
 
-import hashlib
 import json
-import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from assignment_fixture_support import package_scratch
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "centroid_sentence_logic.py"
 sys.path.insert(0, str(ROOT / "scripts"))
-import centroid_sentence_logic as csl  # noqa: E402
+sys.path.insert(0, str(ROOT / "scripts" / "tests"))
+import centroid_service as binder  # noqa: E402
+from assignment_fixture_support import package_scratch  # noqa: E402
+from domain_native_register_smoketest import write_fixture  # noqa: E402
 
 
-def sha(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+def require(ok: bool, label: str) -> None:
+    if not ok:
+        raise SystemExit(f"FAIL: {label}")
 
 
-def run(tmp: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [sys.executable, str(SCRIPT), *args],
-        cwd=str(ROOT / "scripts"),
-        capture_output=True,
-        text=True,
-        encoding="utf-8", errors="replace"
+def run(*args: str) -> tuple[int, dict]:
+    result = subprocess.run([sys.executable, "-B", "-X", "utf8", str(SCRIPT), *args],
+                            cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    try:
+        output = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        raise SystemExit(f"FAIL: non-JSON output: {result.stdout[:300]} {result.stderr}")
+    return result.returncode, output
+
+
+def fixture(tmp: Path, text: str, heading: str | None = None) -> tuple[Path, Path]:
+    man = tmp / "synthetic.md"
+    pkt = tmp / "packet.json"
+    man.write_text(text, encoding="utf-8", newline="")
+    scoped, scope = binder._scope(text, heading)
+    packet = binder._general_packet(
+        manuscript_path=man.resolve(), manuscript_bytes=man.read_bytes(),
+        scoped_text=scoped, scope=scope, prose=binder._prose_lines(scoped),
+        mode="review", reason_code="GRAPH-SEMANTIC-INELIGIBLE",
+        detail="synthetic fixture: graph semantic capability unavailable",
     )
+    pkt.write_text(json.dumps(packet), encoding="utf-8")
+    return man, pkt
 
 
-def require(cond: bool, msg: str) -> None:
-    if not cond:
-        raise SystemExit(f"FAIL: {msg}")
+def passage_file(tmp: Path) -> Path:
+    path = tmp / "passages.json"
+    path.write_text(json.dumps([{
+        "source_key": "yu-et-al-2011-social-modeling", "locator": "book p. 7",
+        "quote": "SYNTHETIC TEST PASSAGE — mechanics only, no scholarly support claimed.",
+        "warrant_layer": "surface", "admitted_by": "Synthetic fixture author",
+    }]), encoding="utf-8")
+    return path
+
+
+def case_scope(tmp: Path, passages: Path) -> None:
+    manuscript = "# Target\nTargetMarker begins. That dependency continues.\n\n# Outside\nOutsideMarker begins. OutsideMarker continues.\n"
+    man, pkt = fixture(tmp, manuscript, "Target")
+    common = ("--packet", str(pkt), "--manuscript", str(man), "--mode", "review", "--passages", str(passages))
+    code, receipt = run(*common)
+    require(code == 0, f"valid heading scope: {receipt}")
+    require(receipt["scope"]["kind"] == "heading" and receipt["scope"]["heading"] == "Target", "scope identity")
+    require(all("OutsideMarker" not in s["text"] for s in receipt["sentences"]), "outside section excluded")
+    require(len(receipt["pairs"]) == 1, "only in-scope prose pair")
+    for heading in ("Outside", "DOES-NOT-EXIST"):
+        code, blocked = run(*common, "--heading", heading)
+        require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-SCOPE", f"heading mismatch {heading}")
+    changed = json.loads(pkt.read_text(encoding="utf-8"))
+    changed["manuscript"]["scope"]["sha256"] = "0" * 64
+    pkt.write_text(json.dumps(changed), encoding="utf-8")
+    code, blocked = run(*common)
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-STALE", "stale scope hash")
+    man, pkt = fixture(tmp, manuscript, "Target")
+    changed = json.loads(pkt.read_text(encoding="utf-8"))
+    changed["manuscript"]["scope"]["start_line"] += 1
+    pkt.write_text(json.dumps(changed), encoding="utf-8")
+    code, blocked = run(*common)
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-STALE", "stale scope lines")
+    duplicate = "# Target\nOne sentence.\n# Target\nAnother sentence.\n"
+    try:
+        binder._scope(duplicate, "Target")
+    except binder.Unavailable as exc:
+        require(exc.reason_code == "HEADING_AMBIGUOUS", "ambiguous heading code")
+    else:
+        raise SystemExit("FAIL: duplicate heading should be ambiguous")
+
+
+def case_states(tmp: Path, passages: Path) -> None:
+    man, pkt = fixture(tmp, "Actors depend. That dependency matters.\n")
+    common = ("--packet", str(pkt), "--manuscript", str(man), "--mode", "review")
+    duplicate = tmp / "duplicate-packet.json"
+    duplicate.write_text('{"capability":"forged",' + pkt.read_text(encoding="utf-8")[1:], encoding="utf-8")
+    code, blocked = run("--packet", str(duplicate), "--manuscript", str(man), "--mode", "review", "--passages", str(passages))
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-INPUT", "duplicate JSON packet key refused")
+    valid_packet = json.loads(pkt.read_text(encoding="utf-8"))
+    for label, changed in (
+        ("null manuscript path", {**valid_packet, "manuscript": {**valid_packet["manuscript"], "path": None}}),
+        ("boolean scope line", {**valid_packet, "manuscript": {**valid_packet["manuscript"], "scope": {**valid_packet["manuscript"]["scope"], "start_line": True}}}),
+    ):
+        pkt.write_text(json.dumps(changed), encoding="utf-8")
+        code, blocked = run(*common, "--passages", str(passages))
+        require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-PACKET", f"{label} refused")
+    pkt.write_text(json.dumps(valid_packet), encoding="utf-8")
+    code, blocked = run(*common)
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-NO-PASSAGE", "all states need passages")
+    packet = json.loads(pkt.read_text(encoding="utf-8"))
+    packet["reason_code"] = "SEMANTIC_USAGE_NOT_INVOKED"
+    pkt.write_text(json.dumps(packet), encoding="utf-8")
+    code, blocked = run(*common, "--passages", str(passages), "--allow-eligible")
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-DORMANT", "dormant cannot be overridden")
+    packet["reason_code"] = "unexpected-state"
+    pkt.write_text(json.dumps(packet), encoding="utf-8")
+    code, blocked = run(*common, "--passages", str(passages))
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-STATE", "unknown state refuses")
+    packet["reason_code"] = None
+    pkt.write_text(json.dumps(packet), encoding="utf-8")
+    code, blocked = run(*common, "--passages", str(passages), "--allow-eligible")
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-ELIGIBILITY", "forged eligible refuses")
+    packet["reason_code"] = "GRAPH-SEMANTIC-INELIGIBLE"
+    packet["capability"] = "forged"
+    pkt.write_text(json.dumps(packet), encoding="utf-8")
+    code, blocked = run(*common, "--passages", str(passages))
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-PACKET", "binder schema enforced")
+    packet["capability"] = "centroid-pass"
+    packet["manuscript"]["scope"].pop("start_line")
+    pkt.write_text(json.dumps(packet), encoding="utf-8")
+    code, blocked = run(*common, "--passages", str(passages))
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-PACKET", "nested scope invariant enforced")
+    packet["manuscript"]["scope"]["start_line"] = 1
+    packet["centroid_source"]["role"] = "forged"
+    pkt.write_text(json.dumps(packet), encoding="utf-8")
+    code, blocked = run(*common, "--passages", str(passages))
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-PACKET", "invalid nested source schema refused")
+    packet["centroid_source"]["role"] = "centroid"
+    packet["policy"]["profile_sha256"] = "0" * 64
+    pkt.write_text(json.dumps(packet), encoding="utf-8")
+    code, blocked = run(*common, "--passages", str(passages))
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-STALE", "stale ineligible policy hash refused")
+
+
+def case_inventory(tmp: Path, passages: Path) -> None:
+    text = ("---\ntitle: Synthetic\n---\n# Target\nDr. Smith explains e.g. an actor. (Yu, 2011) The actor continues.\n"
+            "Another line completes the paragraph.\n\n> A quoted prose sentence. A second quoted sentence.\n\n"
+            "| A | B |\n| --- | --- |\n| Cell. | Cell. |\n\n```md\nCode. Not prose.\n```\n"
+            "## References\nReference sentence. Another reference sentence.\n")
+    man, pkt = fixture(tmp, text, "Target")
+    code, receipt = run("--packet", str(pkt), "--manuscript", str(man), "--mode", "review", "--passages", str(passages))
+    require(code == 0, f"Markdown inventory: {receipt}")
+    snippets = [row["text"] for row in receipt["sentences"]]
+    require(any("Dr. Smith" in row for row in snippets), "Dr. protected")
+    require(not any(row.strip() == "Dr." for row in snippets), "Dr. not standalone")
+    require(any(row.startswith("(Yu, 2011)") for row in snippets), "parenthetical citation opening")
+    require(not any("Reference sentence" in row or "Code." in row or "Cell." in row for row in snippets), "nonprose excluded")
+    raw = man.read_bytes()
+    for row in receipt["sentences"]:
+        require(raw[row["start_utf8"]:row["end_utf8"]].decode("utf-8") == row["text"], "exact UTF-8 offset")
+    by_id = {row["id"]: row for row in receipt["sentences"]}
+    require(all(by_id[row["left_id"]]["paragraph_id"] == by_id[row["right_id"]]["paragraph_id"] for row in receipt["pairs"]), "pairs stay in paragraph")
+    require(all(set(row) == {"id", "left_id", "right_id", "verdict", "signals", "context_paragraph_ids"} for row in receipt["pairs"]), "compact pair shape")
+    require(all(row["verdict"] == "not_run" for row in receipt["pairs"]), "no minted verdict")
+    require(all(row.get("id", "").startswith("centroid-passage-") for row in receipt["admitted_passages"]), "stable passage IDs")
+    require(receipt["schema_version"] == "2.0.0", "receipt v2")
+    require(receipt["inputs"]["manuscript"] == str(man.resolve()), "rerunnable inputs")
+
+
+def case_markdown_boundaries(tmp: Path, passages: Path) -> None:
+    text = ("Setext Title\n============\n"
+            "Visible first. Visible second.\n\n"
+            "----\n"
+            "After break first. After break second.\n\n"
+            "````md\nHidden code first. Hidden code second.\n````oops\n"
+            "```\nStill hidden after short fence.\n~~~\nStill hidden after alternate fence.\n````\n"
+            "After fence first. After fence second.\n\n"
+            "Another Heading\n---------------\n"
+            "Following heading first. Following heading second.\n\n"
+            "References\n----------\nCited sentence. Another cited sentence.\n")
+    man, pkt = fixture(tmp, text)
+    code, receipt = run("--packet", str(pkt), "--manuscript", str(man), "--mode", "review", "--passages", str(passages))
+    require(code == 0, f"Markdown boundaries: {receipt}")
+    snippets = [row["text"] for row in receipt["sentences"]]
+    require(len(snippets) == 8 and len(receipt["pairs"]) == 4, "four prose blocks with internal pairs")
+    require(all("Hidden" not in row and "Still hidden" not in row and "Cited" not in row for row in snippets), "fence and references excluded")
+    require(all("Setext Title" not in row and "Another Heading" not in row and "----" not in row for row in snippets), "setext headings and thematic break excluded")
+
+
+def case_admission(tmp: Path) -> None:
+    man, pkt = fixture(tmp, "First sentence. Second sentence.\n")
+    base = ("--packet", str(pkt), "--manuscript", str(man), "--mode", "review")
+    path = tmp / "bad_passages.json"
+    for locator in ("book pp. 3-99", "book pp. 3, 99"):
+        path.write_text(json.dumps([{"source_key": "yu-et-al-2011-social-modeling", "locator": locator,
+                                     "quote": "SYNTHETIC TEST ONLY", "admitted_by": "Synthetic fixture author"}]), encoding="utf-8")
+        code, blocked = run(*base, "--passages", str(path))
+        require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-SCOPE", f"entire locator checked: {locator}")
+    path.write_text(json.dumps([{"source_key": "yu-et-al-2011-social-modeling", "locator": "book p. 7",
+                                 "quote": "SYNTHETIC TEST ONLY"}]), encoding="utf-8")
+    code, blocked = run(*base, "--passages", str(path))
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-PASSAGE", "anonymous passage refused")
+    code, receipt = run(*base, "--passages", str(path), "--admitted-by", "Synthetic fixture author")
+    require(code == 0 and receipt["admitted_passages"][0]["admitted_by"] == "Synthetic fixture author", "named admission")
+
+
+def case_signals(tmp: Path, passages: Path) -> None:
+    cases = (
+        ("Actors depend on one another. That dependency continues.\n", "join_cadence", "derivation_cue_present"),
+        ("Actors depend. Thus i-star applies. Therefore they agree.\n", "join_cadence", "unearned_verdict"),
+        ("Actors depend on one another. However theory is enough.\n", "needed_backtrack", "missing"),
+    )
+    for index, (text, signal, expected) in enumerate(cases):
+        man, pkt = fixture(tmp, text)
+        code, receipt = run("--packet", str(pkt), "--manuscript", str(man), "--mode", "review", "--passages", str(passages))
+        require(code == 0, f"signal fixture {index}: {receipt}")
+        require(receipt["pairs"][0]["signals"][signal] == expected, f"{signal}={expected}")
+        require(all(pair["verdict"] == "not_run" for pair in receipt["pairs"]), "signals never mint a verdict")
+        require(all(pair["signals"].get("join_cadence") != "derivation_shown" for pair in receipt["pairs"]), "derivation cue never claims proof")
+        if index == 1:
+            require(receipt["summary"]["all_short_stack"] is True, "three short sentences form short stack")
+
+
+def case_full_scope_and_view(tmp: Path, passages: Path) -> None:
+    text = "# Synthetic title\r\nCafé actors depend. The relation continues.\r\n\r\n# References\r\nExcluded citation.\r\n"
+    man, pkt = fixture(tmp, text)
+    args = ("--packet", str(pkt), "--manuscript", str(man), "--mode", "review", "--passages", str(passages))
+    code, receipt = run(*args)
+    require(code == 0 and receipt["scope"]["kind"] == "full_manuscript", "full scope accepted")
+    require(len(receipt["sentences"]) == 2 and len(receipt["pairs"]) == 1, "full scope excludes references")
+    require(receipt["scope"]["sha256"] == receipt["manuscript_sha256"], "full scope hash bound")
+    raw = man.read_bytes()
+    for row in receipt["sentences"]:
+        require(raw[row["start_utf8"]:row["end_utf8"]].decode("utf-8") == row["text"], "Unicode and CRLF byte offsets")
+    result = subprocess.run([sys.executable, "-B", "-X", "utf8", str(SCRIPT), *args, "--format", "review"],
+                            cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    require(result.returncode == 0 and result.stdout.count("Café actors depend.") == 1, "compact review view stores sentence once")
+    require(result.stdout.count("SYNTHETIC TEST PASSAGE") == 1 and "centroid-passage-" in result.stdout, "review view includes source passage once")
+    require("heading=None" in result.stdout and "lines=1-" in result.stdout, "review view includes exact scope")
+    code, blocked = run(*args, "--out-dir", str(ROOT / "outputs" / "co-author-harness" / "forbidden-fixture"))
+    require(code == 4 and blocked["reason_code"] == "DEST-MISROUTED", f"package output lookalike refused: {blocked}")
+    with tempfile.TemporaryDirectory(prefix="centroid-check-", dir=package_scratch(ROOT)) as raw:
+        out = Path(raw)
+        code, written = run(*args, "--out-dir", str(out))
+        require(code == 0 and set(written) == {"status", "schema_version", "sentences", "pairs", "written"}, "artifact stdout summary")
+        require((out / "centroid-check_review.json").is_file() and (out / "centroid-check_review.md").is_file(), "artifact writes")
+
+
+def case_live_eligible(tmp: Path, passages: Path) -> None:
+    project = tmp / "eligible-project"
+    man = project / "manuscript" / "main.md"
+    man.parent.mkdir(parents=True)
+    man.write_text("# Synthetic Study\nActors depend on one another. That dependency continues.\n", encoding="utf-8")
+    wiki, workspace = write_fixture(tmp / "eligible-corpus", all_members=True)
+    bind = subprocess.run([
+        sys.executable, "-B", "-X", "utf8", str(ROOT / "scripts" / "centroid_service.py"),
+        "--manuscript", str(man), "--project-root", str(project), "--wiki-root", str(wiki),
+        "--workspace-root", str(workspace), "--harness-root", str(ROOT),
+    ], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    require(bind.returncode == 0, f"real fixture binder resolved: {bind.stdout[:300]} {bind.stderr[:300]}")
+    packet = json.loads(bind.stdout)
+    require(packet["reason_code"] is None and packet["binding_provenance"] in {"project", "package-default"}, "real fixture eligible state")
+    pkt = tmp / "eligible-packet.json"
+    pkt.write_text(bind.stdout, encoding="utf-8")
+    base = ("--packet", str(pkt), "--manuscript", str(man), "--mode", "review",
+            "--project-root", str(project), "--wiki-root", str(wiki),
+            "--workspace-root", str(workspace), "--harness-root", str(ROOT), "--allow-eligible")
+    code, blocked = run(*base)
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-NO-PASSAGE", "eligible state still needs admission")
+    code, receipt = run(*base, "--passages", str(passages))
+    require(code == 0 and receipt["graph_state"] == "eligible" and receipt["summary"]["qualification"] == "incomplete", "real fixture eligible preparation")
+    stale = json.loads(bind.stdout)
+    stale["policy"]["profile_sha256"] = "0" * 64
+    pkt.write_text(json.dumps(stale), encoding="utf-8")
+    code, blocked = run(*base, "--passages", str(passages))
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-ELIGIBILITY", "stale live policy pin refused")
+    stale = json.loads(bind.stdout)
+    stale["binding_provenance"] = "general"
+    pkt.write_text(json.dumps(stale), encoding="utf-8")
+    code, blocked = run(*base, "--passages", str(passages))
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-ELIGIBILITY", "stale live provenance refused")
+    pkt.write_text(bind.stdout, encoding="utf-8")
+    (wiki / "wiki" / "sources" / "yu-1995-istar.md").write_text("changed synthetic corpus\n", encoding="utf-8")
+    code, blocked = run(*base, "--passages", str(passages))
+    require(code == 4 and blocked["reason_code"] == "SENTENCE-LOGIC-ELIGIBILITY", "changed live corpus refused")
 
 
 def main() -> int:
-    manuscript = "Actors depend on one another. That dependency is the unit of analysis.\n"
-    ms_sha = sha(manuscript)
-    packet = {
-        "schema_version": "1.0.0",
-        "capability": "centroid-pass",
-        "status": "binding_resolved",
-        "reason_code": "GRAPH-SEMANTIC-INELIGIBLE",
-        "manuscript": {
-            "path": "synthetic.md",
-            "sha256": ms_sha,
-            "scope": {"kind": "full_manuscript", "sha256": ms_sha},
-        },
-        "semantic_findings": [],
-    }
-    passages = [
-        {
-            "source_key": "yu-et-al-2011-social-modeling",
-            "locator": "book p. 7",
-            "quote": "Strategic actors depend on each other for goals to be achieved.",
-            "warrant_layer": "surface",
-            "admitted_by": "the project author",
-        }
-    ]
     with tempfile.TemporaryDirectory() as raw:
         tmp = Path(raw)
-        man = tmp / "m.md"
-        pkt = tmp / "packet.json"
-        pas = tmp / "passages.json"
-        out = Path(tempfile.mkdtemp(prefix=".centroid-check-smoke-", dir=str(package_scratch(ROOT))))
-        try:
-            _run_cases(tmp, man, pkt, pas, out, manuscript, packet, passages)
-        finally:
-            shutil.rmtree(out, ignore_errors=True)
-
+        passages = passage_file(tmp)
+        case_scope(tmp, passages)
+        case_states(tmp, passages)
+        case_inventory(tmp, passages)
+        case_markdown_boundaries(tmp, passages)
+        case_admission(tmp)
+        case_signals(tmp, passages)
+        case_full_scope_and_view(tmp, passages)
+        case_live_eligible(tmp, passages)
+        from centroid_source_evidence_cases import run_cases as source_cases
+        source_cases(tmp)
+        from centroid_review_cases import run_cases as review_cases
+        review_cases(tmp)
     print("centroid_sentence_logic_smoketest: PASS")
     return 0
-
-
-def _run_cases(tmp, man, pkt, pas, out, manuscript, packet, passages) -> None:
-        man.write_text(manuscript, encoding="utf-8", newline="\n")
-        pkt.write_text(json.dumps(packet), encoding="utf-8")
-        pas.write_text(json.dumps(passages), encoding="utf-8")
-
-        blocked = run(tmp, "--packet", str(pkt), "--manuscript", str(man), "--mode", "review")
-        require(blocked.returncode == 4 and "SENTENCE-LOGIC-NO-PASSAGE" in blocked.stdout, "ineligible without passages must fail closed")
-
-        # Admission provenance is supplied by a person, never by the code.
-        unnamed = [{k: v for k, v in passages[0].items() if k != "admitted_by"}]
-        unnamed_path = tmp / "unnamed.json"
-        unnamed_path.write_text(json.dumps(unnamed), encoding="utf-8")
-        anon = run(tmp, "--packet", str(pkt), "--manuscript", str(man), "--mode", "review", "--passages", str(unnamed_path))
-        require(anon.returncode == 4 and "SENTENCE-LOGIC-PASSAGE" in anon.stdout and "admitting party" in anon.stdout,
-                "a passage with no admitting party must be refused, not stamped by the code")
-        named = run(tmp, "--packet", str(pkt), "--manuscript", str(man), "--mode", "review",
-                    "--passages", str(unnamed_path), "--admitted-by", "A. Reviewer")
-        require(named.returncode == 0 and json.loads(named.stdout)["admitted_passages"][0]["admitted_by"] == "A. Reviewer",
-                "--admitted-by must record the named person")
-        own = run(tmp, "--packet", str(pkt), "--manuscript", str(man), "--mode", "review",
-                  "--passages", str(pas), "--admitted-by", "A. Reviewer")
-        require(own.returncode == 0 and json.loads(own.stdout)["admitted_passages"][0]["admitted_by"] == "the project author",
-                "a row's own admitted_by must not be overwritten")
-        foreign = [dict(passages[0], source_key="smith-2020-unrelated")]
-        foreign_path = tmp / "foreign.json"
-        foreign_path.write_text(json.dumps(foreign), encoding="utf-8")
-        outside = run(tmp, "--packet", str(pkt), "--manuscript", str(man), "--mode", "review", "--passages", str(foreign_path))
-        require(outside.returncode == 4 and "SENTENCE-LOGIC-SOURCE" in outside.stdout,
-                "a passage from outside the centroid-check members must be refused")
-
-        stale = json.loads(json.dumps(packet))
-        stale["manuscript"]["sha256"] = "0" * 64
-        stale_path = tmp / "stale.json"
-        stale_path.write_text(json.dumps(stale), encoding="utf-8")
-        stale_run = run(tmp, "--packet", str(stale_path), "--manuscript", str(man), "--mode", "review", "--passages", str(pas))
-        require(stale_run.returncode == 4 and "SENTENCE-LOGIC-STALE" in stale_run.stdout, "stale manuscript must fail")
-
-        bad = [{"source_key": "yu-et-al-2011-social-modeling", "locator": "book p. 90", "quote": "out of window", "warrant_layer": "surface"}]
-        bad_path = tmp / "bad.json"
-        bad_path.write_text(json.dumps(bad), encoding="utf-8")
-        bad_run = run(tmp, "--packet", str(pkt), "--manuscript", str(man), "--mode", "write", "--passages", str(bad_path))
-        require(bad_run.returncode == 4 and "SENTENCE-LOGIC-SCOPE" in bad_run.stdout, "Yu page outside 3-52 must fail")
-
-        ok = run(
-            tmp,
-            "--packet", str(pkt),
-            "--manuscript", str(man),
-            "--mode", "review",
-            "--passages", str(pas),
-            "--out-dir", str(out),
-        )
-        require(ok.returncode == 0, f"admitted paste should run: {ok.stdout}{ok.stderr}")
-        receipt = json.loads(ok.stdout)
-        require(receipt["status"] == "ready_for_role", "must not mint CLEAN")
-        require(receipt["summary"]["CLEAN"] == 0, "must not mint CLEAN counts")
-        require(receipt["pass"] == "centroid-check", "instrument name is centroid-check")
-        require(receipt["instrument"] == "centroid-check", "instrument field")
-        require(receipt["centroid_source"] == "yu-et-al-2011-social-modeling", "centroid-source stays Yu 2011")
-        require(
-            receipt["naming"]
-            == (
-                f"this is a centroid-check of manuscript {receipt['manuscript_sha256']}/"
-                f"{receipt['manuscript_bytes']} against centroid-source yu-et-al-2011-social-modeling"
-            ),
-            "receipt must name check vs source",
-        )
-        require("eligibility, not a pair verdict" in " ".join(receipt["limitations"]), "bind eligibility sentence")
-        require(len(receipt["pairs"]) == 1, "expected one sentence pair")
-        require(receipt["pairs"][0]["verdict"] == "not_run", "roles fill verdicts")
-        require(receipt["pairs"][0]["checks"]["join_cadence"] == "derivation_shown", "that-dependency pair should show derivation")
-        require(receipt["pairs"][0]["checks"]["needed_backtrack"] == "not_required", "forward derivation must not require backtrack")
-        require(receipt["summary"]["all_short_stack"] is False, "two-sentence manuscript is not a stack")
-        require((out / "centroid-check_review.json").is_file(), "json receipt missing")
-        require((out / "centroid-check_review.md").is_file(), "md receipt missing")
-        md = (out / "centroid-check_review.md").read_text(encoding="utf-8")
-        require("this is a centroid-check of manuscript" in md, "md receipt names the check")
-        require("centroid-source yu-et-al-2011-social-modeling" in md, "md receipt names the source")
-        require("GRAPH-SEMANTIC-INELIGIBLE" in md, "md receipt keeps bind eligibility distinct")
-
-        short = "Actors depend. So they are strategic. Thus i-star applies.\n"
-        short_sha = sha(short)
-        short_packet = json.loads(json.dumps(packet))
-        short_packet["manuscript"]["sha256"] = short_sha
-        short_packet["manuscript"]["scope"]["sha256"] = short_sha
-        short_man = tmp / "short.md"
-        short_pkt = tmp / "short_packet.json"
-        short_man.write_text(short, encoding="utf-8", newline="\n")
-        short_pkt.write_text(json.dumps(short_packet), encoding="utf-8")
-        short_run = run(tmp, "--packet", str(short_pkt), "--manuscript", str(short_man), "--mode", "review", "--passages", str(pas))
-        require(short_run.returncode == 0, f"short stack should still run: {short_run.stdout}{short_run.stderr}")
-        short_receipt = json.loads(short_run.stdout)
-        require(short_receipt["summary"]["CLEAN"] == 0, "must not mint CLEAN on short stack")
-        require(short_receipt["pairs"][0]["verdict"] == "not_run", "roles still fill verdicts")
-        require(short_receipt["summary"]["all_short_stack"] is True, "three short sentences are an all-short stack")
-        require(short_receipt["summary"]["join_cadence_misses"] >= 1, "unearned so/thus verdicts are join-cadence misses")
-        require(short_receipt["pairs"][0]["checks"]["join_cadence"] == "unearned_verdict", "so-they-are-strategic is an unearned verdict")
-
-        retract = "Actors depend on one another. But theory is enough.\n"
-        retract_sha = sha(retract)
-        retract_packet = json.loads(json.dumps(packet))
-        retract_packet["manuscript"]["sha256"] = retract_sha
-        retract_packet["manuscript"]["scope"]["sha256"] = retract_sha
-        retract_man = tmp / "retract.md"
-        retract_pkt = tmp / "retract_packet.json"
-        retract_man.write_text(retract, encoding="utf-8", newline="\n")
-        retract_pkt.write_text(json.dumps(retract_packet), encoding="utf-8")
-        retract_run = run(tmp, "--packet", str(retract_pkt), "--manuscript", str(retract_man), "--mode", "review", "--passages", str(pas))
-        require(retract_run.returncode == 0, f"retract pair should run: {retract_run.stdout}{retract_run.stderr}")
-        retract_receipt = json.loads(retract_run.stdout)
-        require(retract_receipt["pairs"][0]["checks"]["needed_backtrack"] == "missing", "short retract without return is a needed-backtrack miss")
-        require(retract_receipt["pairs"][0]["verdict"] == "not_run", "backtrack miss is a signal, not a minted BLOCKER")
-
-        locked = run(
-            tmp,
-            "--packet", str(pkt),
-            "--manuscript", str(man),
-            "--mode", "review",
-            "--passages", str(pas),
-            "--centroid-source", "yu-1995-istar",
-        )
-        require(locked.returncode == 4 and "SENTENCE-LOGIC-SOURCE" in locked.stdout, "centroid-source must stay locked")
-
-        # Legacy PDF-index 3,7,12: identity labels on title/foreword/contents are not printed book pages.
-        front_pages = []
-        headings = {3: "TITLE PAGE", 7: "FOREWORD", 12: "CONTENTS"}
-        for identity in range(1, 13):
-            heading = headings.get(identity, "front matter")
-            front_pages.append(
-                {
-                    "identity": identity,
-                    "label": str(identity),
-                    "text": f"{heading}\nSocial Modeling\n{identity}\n",
-                }
-            )
-        try:
-            csl.resolve_printed_pages(front_pages, [3, 7, 12])
-        except csl.Refusal as exc:
-            require(exc.code == "SENTENCE-LOGIC-PDF-INDEX", f"legacy PDF-index must refuse, got {exc.code}")
-        else:
-            raise SystemExit("FAIL: legacy PDF-index 3,7,12 must be refused")
-
-        yu_body = [
-            {
-                "identity": 20,
-                "label": "iv",
-                "text": "Actors depend on each other for goals to be achieved.\n7\n",
-            }
-        ]
-        admitted = csl.resolve_printed_pages(yu_body, [7])
-        require(admitted[0]["printed_page"] == 7, "printed book page 7 must resolve from a non-identity footer")
-
-        yu_running_head = [
-            {
-                "identity": 12,
-                "label": "12",
-                "text": "Actors depend on each other for goals to be achieved.\n5 Introduction\n",
-            }
-        ]
-        admitted_rh = csl.resolve_printed_pages(yu_running_head, [5])
-        require(
-            admitted_rh[0]["printed_page"] == 5,
-            "printed book page 5 must resolve from a running-head footer",
-        )
-
-        help_run = run(tmp, "--help")
-        require(help_run.returncode == 0, "help must run")
-        require("centroid-source" in help_run.stdout, "help names centroid-source")
-        require("centroid-check" in help_run.stdout, "help names centroid-check")
-        require("centroid-bind" in help_run.stdout, "help names centroid-bind")
-        require("Printed book pages" in help_run.stdout, "help says --pages is printed book pages")
-        require("PDF-index 3,7,12" in help_run.stdout, "help refuses legacy PDF-index 3,7,12")
 
 
 if __name__ == "__main__":

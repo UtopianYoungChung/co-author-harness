@@ -2,71 +2,110 @@
 name: centroid-sentence-logic
 user-invocable: true
 disable-model-invocation: true
-description: 'centroid-check: join consecutive manuscript sentences to admitted Yu 2011 and Dennett passages against centroid-source yu-et-al-2011-social-modeling. A check of named bytes is a check, not a redefinition of the source. Does not mint scholarly CLEAN.'
-trigger: explicitly when Writer or Reviewer invokes /centroid-sentence-logic after a binding_resolved centroid-bind packet. Model invocation stays disabled while reader-profile v2 cannot produce a semantically eligible packet; re-enable it together with semantic activation. Not dispatched by chat-to-manuscript apply.
-version: 1.2
+description: 'centroid-check: prepare scoped sentence pairs against admitted Yu 2011 and Dennett evidence, then validate a separately produced review. Binds exact manuscript and source bytes. No automatic scholarly CLEAN.'
+trigger: Explicit /centroid-sentence-logic after a binding_resolved centroid-bind packet. Requires admitted evidence and a valid capability state. Dormant bindings never become eligible through an override. Not dispatched by chat-to-manuscript apply.
+version: 2.0
 ---
 
 # centroid-sentence-logic (instrument: centroid-check)
 
-> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. The `references/…` and `scripts/…` paths in this skill resolve against that root, not against this skill's own directory. On hosts that do not fill it in (Codex, a source checkout), use the package directory that contains `version.json`.
+> **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. On other hosts use the directory containing `version.json`. Resolve the paths below against that package root.
 
-**Invoke-only / fail-closed.** Stays invoke-able. Does not auto-dispatch as scholarly CLEAN.
+This invoke-only skill prepares a scoped review and checks its completed record.
+The **centroid-source** remains policy member `yu-et-al-2011-social-modeling`,
+limited to Yu-authored book pp. 3-10 and 11-52. **centroid-bind** remains the
+packet from `/centroid-pass`. **centroid-check** evaluates named manuscript
+bytes against admitted evidence; changing the manuscript never moves the source.
 
-This skill is **centroid-check**. It is not centroid-source and not a centroid-bind.
-`scripts/centroid_service.py` stays the binder.
+## Preconditions
 
-| Name | What it is | What it is not |
-|---|---|---|
-| **centroid-source** | Policy member `yu-et-al-2011-social-modeling`, role `centroid`. Yu-authored window book pp. 3-10 and 11-52. | Not a manuscript hash. Not this check. |
-| **centroid-check** | This skill. Consecutive sentences must join to admitted Yu/Dennett passages. Requires named manuscript bytes at start. | Not a redefinition of centroid-source. A check of live M4 is a check. |
-| **centroid-bind** | The `/centroid-pass` packet. `GRAPH-SEMANTIC-INELIGIBLE` is eligibility, not a pair verdict. | Not a pair CLEAN. Empty `semantic_findings` is not a pass. |
+Read the [Grounding Protocol](../../references/GROUNDING_PROTOCOL.md) and the
+[review procedure](../../docs/specs/centroid-check-review.md). The packet must
+bind the exact manuscript and scope. A requested heading must equal the bound
+heading; missing, ambiguous, or stale scopes refuse.
 
-The author (a person, never the plugin) is the only R-plane actor. SK-32 stays CLOSED. DEST-PROTECTED stays.
+`GRAPH-SEMANTIC-INELIGIBLE` permits preparation only with explicitly admitted
+excerpts or validated canonical extraction evidence. A dormant
+`SEMANTIC_USAGE_NOT_INVOKED` packet refuses this semantic check. `--allow-eligible`
+only permits a packet whose eligible policy and provenance can be revalidated;
+it does not make dormant, unknown, or unavailable states eligible.
 
-## When to run
+## Prepare
 
-After `centroid-pass` (centroid-bind) emits `status: binding_resolved`. While `reason_code` is `GRAPH-SEMANTIC-INELIGIBLE`, invoke this skill; do not wait for Wiki graph repair.
+For person-admitted passages:
 
-| Mode | Who | What |
-|---|---|---|
-| `write` | Writer / Generator | Name the Yu hinge (and Dennett warrant if the pair ascribes intention) before or while drafting the next sentence. Does not write the manuscript. |
-| `review` | Reviewer / Evaluator | Mark each pair CLEAN / ADVISORY / BLOCKER with locators. Do not rewrite prose. |
-| `revise` | Writer / Generator | Repair only Evaluator-authorized pairs plus F6 items. |
-
-## Invoke
-
-From the project directory:
-
-```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/centroid_sentence_logic.py" --mode review --packet <binder.json> --manuscript <named.md> --passages <admitted-passages.json> --admitted-by <name>
-python "${CLAUDE_PLUGIN_ROOT}/scripts/centroid_sentence_logic.py" --mode write --packet <binder.json> --manuscript <named.md> --admit-pdf <yu-2011.pdf> --pages 3,7,12 --project-root <package> --shipment-id <id>
+```text
+python "${CLAUDE_PLUGIN_ROOT}/scripts/centroid_sentence_logic.py" --mode review --packet <binder.json> --manuscript <named.md> --passages <admitted-passages.json> --format review
 ```
 
-`--pages 3,7,12` means printed book pages 3, 7, and 12 (running footer or non-identity labels). Identity 1…N labels are ignored. Title/foreword/contents are not admitted Yu body. The same numbers used as a legacy PDF-index are refused.
+Each passage names its source key, complete printed-page locator, quote, warrant
+layer, and admitting person. `--admitted-by` can supply the person when a row
+omits that field. These are recorded as human attestations; a name or a quote
+hash does not independently verify the quotation. Every page in a range or list
+must be allowed. Unknown sources and malformed entries refuse.
 
-`--passages` is verbatim excerpts admitted by a named person: each row carries `admitted_by`, or `--admitted-by <name>` supplies it; a passage with neither, or from a source other than Yu 2011 or Dennett 1987, is refused. `--admit-pdf` reads hash-bound printed book pages in the 2011 window (pp. 3-10 and 11-52). Either satisfies the held 2026-08-19 default. Graph retrieval does not.
+For already extracted PDF evidence:
 
-Receipts are JSON (machine) plus a markdown sibling. Default is stdout. Package writes go only to `reviews/harness/shipments/<id>/` via `--shipment-id`, under stems `centroid-check_<mode>`.
+```text
+python "${CLAUDE_PLUGIN_ROOT}/scripts/centroid_sentence_logic.py" --mode review --packet <binder.json> --manuscript <named.md> --admit-pdf <yu-2011.pdf> --pages 3,7,12 --extract-receipt <canonical-extract.json> --evidence-root <extraction-project-root> --wiki-root <wiki-root> --format review
+```
 
-A receipt must say: this is a centroid-check of manuscript `<sha256>/<bytes>` against centroid-source `yu-et-al-2011-social-modeling`.
+The PDF must match the live policy's pinned source identity. The checker consumes
+and validates an existing `scripts/source_extract.py` receipt, normalized text,
+and page map; it never re-extracts the PDF. `--pages` names printed book pages,
+not PDF indices. Ambiguous or absent folios refuse. An unpinned source or an
+alternate edition needs explicit source admission; it cannot acquire the known
+identity by supplying a source key.
 
-## Fail closed
+Use default JSON output to save preparation evidence. `--format review` is a
+compact view for the reviewing model. Artifact output remains restricted by
+`destination_capability.py`: use `--project-root` and `--shipment-id` for the
+exact authorized `reviews/harness/shipments/<id>/` lane. A write returns a
+summary and artifact paths rather than repeating the whole receipt.
 
-No CLEAN, no manuscript write, no promote, when any of these hold: packet is not `binding_resolved`; manuscript hash mismatch; graph ineligible and no admitted passages; Yu quote outside pp. 3-10 / 11-52; Dennett used as surface register; invented unlocated "Yu says"; `/run-generator-session`.
+## Review
 
-The instrument lists pairs with `verdict: not_run`. Roles fill verdicts. One BLOCKER pair fails the bound scope for qualification.
+The strongest available model at maximum supported effort performs planning,
+orchestration, and semantic review under
+[MODEL_ALLOCATION.md](../../references/MODEL_ALLOCATION.md). Lower models may
+execute bounded extraction, indexing, formatting, and tests. Keep the required
+Generator/Evaluator role separation.
 
-Empty binder `semantic_findings` is not a pass. Do not mint CLEAN from the binder.
+| Mode | Role | Work |
+| --- | --- | --- |
+| `write` | Generator | Identify the attested Yu join and any Dennett argument warrant before drafting. |
+| `review` | Evaluator | Judge every prepared pair in its paragraph and relevant earlier context. |
+| `revise` | Generator | Repair only Evaluator-authorized pairs and applicable F6 items. |
 
-## Join-cadence
+Prepared pairs have `verdict: not_run`. The Evaluator supplies carry, hinge,
+attestation, scope, voice, role-split, and join-cadence judgments with rationales,
+passage IDs, paragraph purpose, derivation, and warrant limits. A lexical
+`derivation_cue_present` is only a signal. `unearned_verdict`, short-stack, and
+backtrack signals also require judgment. A backtrack is not required on every
+pair. Preserve the author's voice; Dennett is argument-only, never a surface
+register or imitation target.
 
-Not the hinge. Not the binder. Do not collapse this into `centroid_service.py`.
+## Validate and calibrate
 
-`S_{n+1}` must show how the idea was derived from `S_n`. A short unearned verdict (`thus` / `therefore` / `so` / `hence`) is a miss even when an attested Yu hinge is named.
+The orchestrator records the actual reviewer assignment and preparation hash.
+The Evaluator returns a separate completed-review JSON record. Then run:
 
-The script may flag `unearned_verdict`, `derivation_shown`, `all_short_stack` (every sentence ≤12 words, at least three sentences), and `needed_backtrack_missing`. Those are mechanical signals. They are not scholarly CLEAN.
+```text
+python "${CLAUDE_PLUGIN_ROOT}/scripts/centroid_review.py" validate --prepared <prepared.json> --review <completed.json> --request <request.json>
+```
 
-Do not require a backtrack on every pair. Flag a missing backtrack only when the next sentence retracts, qualifies, or abandons an open commitment without returning to it.
+The validator replays preparation, checks complete pair coverage, current
+bindings, passage references, verdict counts, and the assigned reviewer identity,
+model, and effort. One BLOCKER remains a blocker for the bound scope. The result
+checks structure and freshness; it neither authenticates a host execution nor
+proves semantic correctness or research acceptance. No scholarly CLEAN is minted
+by preparation, empty binder findings, or this structural validation.
 
-Keep: no Yu/Dennett voice imitation; Dennett argument-only; Yu 2011 window; C-7 author voice; no CLEAN mint; SK-32 CLOSED.
+Use the [calibration template](../../references/templates/centroid_calibration.json)
+and `centroid_review.py calibrate` to measure author-labelled judgments and
+observed timing/token costs. The supplied cases are unlabelled synthetic prompts;
+never present model-generated labels as author judgments.
+
+SK-32 remains CLOSED. This skill does not write manuscript prose, mutate the
+Wiki, promote artifacts, or bypass protected destinations. Binding/source/role
+failures remain refusals, and governed lifecycle requirements remain separate.

@@ -18,9 +18,8 @@ This CLI is centroid-check. It is not centroid-source and not a centroid-bind.
                    eligibility, not a pair verdict. Empty binder
                    semantic_findings is not a pass.
 
---pages is printed book pages (running footer or non-identity labels).
-Identity 1…N labels are ignored. Title/foreword/contents are not admitted
-Yu body. Legacy PDF-index 3,7,12 is refused.
+--pages names printed book pages. PDF admission requires a policy-pinned PDF
+and a validated canonical extraction receipt for those pages.
 
 Public skill folder remains skills/centroid-sentence-logic (catalog id).
 The binder stays a binder. No scholarly CLEAN mint. SK-32 stays CLOSED.
@@ -37,17 +36,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import centroid_service as binder
+from centroid_text import inventory
+from centroid_source_evidence import SourceEvidenceError
 from destination_capability import DestinationRefused, assert_writable
 
 YU_2011 = "yu-et-al-2011-social-modeling"
 DENNETT = "dennett-1987-intentional-stance"
-POLICY_SOURCES = frozenset({YU_2011, DENNETT})
-YU_PAGES = set(range(3, 11)) | set(range(11, 53))
-SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"“])")
-FRONT_HEADING_RE = re.compile(
-    r"(?im)^\s*(title page|title|foreword|preface|table of contents|contents|copyright)\s*$"
-)
-PRINTED_PAGE_RE = re.compile(r"(?m)^\s*(?:pp?\.\s*)?(\d{1,3})(?:\s+\S.*)?\s*$")
 OBJECT_NAMES = {
     "centroid-source": "live policy member yu-et-al-2011-social-modeling (role centroid)",
     "centroid-check": "this instrument: sentence-logic on named manuscript bytes",
@@ -91,11 +86,66 @@ def _sha_text(text: str) -> str:
     return _sha_bytes(text.encode("utf-8"))
 
 
-def _load_json(path: Path) -> dict[str, Any]:
-    data = json.loads(path.read_text(encoding="utf-8"))
+def _load_json(payload: bytes, path: Path) -> dict[str, Any]:
+    def unique_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise Refusal("SENTENCE-LOGIC-INPUT", f"duplicate JSON key {key!r}: {path}")
+            result[key] = value
+        return result
+
+    def nonfinite(value: str) -> None:
+        raise Refusal("SENTENCE-LOGIC-INPUT", f"nonfinite JSON number {value}: {path}")
+
+    data = json.loads(payload.decode("utf-8", errors="strict"),
+                      object_pairs_hook=unique_pairs, parse_constant=nonfinite)
     if not isinstance(data, dict):
         raise Refusal("SENTENCE-LOGIC-INPUT", f"JSON root must be an object: {path}")
     return data
+
+
+def _validate_packet(packet: dict[str, Any]) -> None:
+    try:
+        from jsonschema import Draft202012Validator
+        from jsonschema.exceptions import SchemaError
+    except ImportError as exc:
+        raise Refusal("SENTENCE-LOGIC-SCHEMA", f"jsonschema dependency unavailable: {exc}") from exc
+    schema_path = Path(__file__).resolve().parents[1] / "references" / "schemas" / "centroid_analysis.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    try:
+        Draft202012Validator.check_schema(schema)
+        errors = sorted(Draft202012Validator(schema).iter_errors(packet), key=lambda item: str(item.path))
+    except SchemaError as exc:
+        raise Refusal("SENTENCE-LOGIC-SCHEMA", f"invalid binder schema: {exc.message}") from exc
+    if errors:
+        raise Refusal("SENTENCE-LOGIC-PACKET", f"centroid-bind schema invalid at {list(errors[0].path)}: {errors[0].message}")
+    if packet["status"] != "binding_resolved":
+        raise Refusal("SENTENCE-LOGIC-PACKET", "centroid-bind packet is not binding_resolved")
+    manuscript = packet["manuscript"]
+    scope = manuscript.get("scope") if isinstance(manuscript, dict) else None
+    if not isinstance(manuscript, dict) or not isinstance(manuscript.get("path"), str) or not manuscript["path"].strip():
+        raise Refusal("SENTENCE-LOGIC-PACKET", "packet manuscript path must be a nonblank string")
+    if not isinstance(scope, dict) or scope.get("kind") not in {"heading", "full_manuscript"}:
+        raise Refusal("SENTENCE-LOGIC-PACKET", "packet manuscript scope is incomplete")
+    required_scope = {"kind", "heading", "start_line", "end_line", "sha256"}
+    if not required_scope <= scope.keys() or not all(type(scope.get(k)) is int for k in ("start_line", "end_line")):
+        raise Refusal("SENTENCE-LOGIC-PACKET", "packet scope lacks binder fields")
+    if scope["start_line"] < 1 or scope["end_line"] < scope["start_line"]:
+        raise Refusal("SENTENCE-LOGIC-PACKET", "packet scope line range invalid")
+    if scope["kind"] == "heading" and not isinstance(scope["heading"], str):
+        raise Refusal("SENTENCE-LOGIC-PACKET", "heading scope needs heading text")
+    if scope["kind"] == "full_manuscript" and scope["heading"] is not None:
+        raise Refusal("SENTENCE-LOGIC-PACKET", "full manuscript scope cannot name a heading")
+    for item in (manuscript.get("sha256"), scope.get("sha256")):
+        if not isinstance(item, str) or not re.fullmatch(r"[0-9a-f]{64}", item):
+            raise Refusal("SENTENCE-LOGIC-PACKET", "packet manuscript hashes invalid")
+    if packet.get("centroid_source", {}).get("source_key") != YU_2011:
+        raise Refusal("SENTENCE-LOGIC-PACKET", "packet centroid-source mismatch")
+    if packet.get("semantic_findings") != []:
+        raise Refusal("SENTENCE-LOGIC-PACKET", "binder cannot provide semantic findings")
+    if not isinstance(packet.get("analysis_contract"), dict) or not isinstance(packet.get("policy"), dict):
+        raise Refusal("SENTENCE-LOGIC-PACKET", "binder policy or analysis contract is missing")
 
 
 def _write_json(path: Path, value: dict[str, Any]) -> None:
@@ -108,174 +158,13 @@ def _write_md(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8", newline="\n")
 
 
-def _page_from_locator(locator: str) -> int | None:
-    match = re.search(r"(?:p{1,2}\.?|page)\s*(\d+)", locator, re.I)
-    if match:
-        return int(match.group(1))
-    match = re.search(r"\b(\d+)\b", locator)
-    return int(match.group(1)) if match else None
-
-
-def _validate_passage(row: dict[str, Any], *, admitted_by: str | None) -> dict[str, Any]:
-    source_key = str(row.get("source_key", "")).strip()
-    locator = str(row.get("locator", "")).strip()
-    quote = str(row.get("quote", "")).strip()
-    if not source_key or not locator or not quote:
-        raise Refusal("SENTENCE-LOGIC-PASSAGE", "each admitted passage needs source_key, locator, and quote")
-    if source_key not in POLICY_SOURCES:
-        raise Refusal(
-            "SENTENCE-LOGIC-SOURCE",
-            f"passage source {source_key!r} is not a centroid-check member ({', '.join(sorted(POLICY_SOURCES))})",
-        )
-    quote_sha = str(row.get("quote_sha256") or _sha_text(quote))
-    if quote_sha != _sha_text(quote):
-        raise Refusal("SENTENCE-LOGIC-PASSAGE", f"quote_sha256 does not match quote bytes: {source_key}")
-    layer = str(row.get("warrant_layer") or ("argument" if source_key == DENNETT else "surface"))
-    if source_key == YU_2011:
-        page = _page_from_locator(locator)
-        if page is None or page not in YU_PAGES:
-            raise Refusal(
-                "SENTENCE-LOGIC-SCOPE",
-                f"Yu 2011 passage is outside book pp. 3-10 and 11-52: {locator}",
-            )
-        if layer != "surface":
-            raise Refusal("SENTENCE-LOGIC-ROLE", "Yu 2011 warrant_layer must be surface")
-    if source_key == DENNETT and layer != "argument":
-        raise Refusal("SENTENCE-LOGIC-ROLE", "Dennett warrant_layer must be argument")
-    # The admitting party is a fact about the passage; the code never supplies one.
-    admitter = str(row.get("admitted_by") or admitted_by or "").strip()
-    if not admitter:
-        raise Refusal(
-            "SENTENCE-LOGIC-PASSAGE",
-            f"passage {source_key} {locator} names no admitting party; set admitted_by on the row or pass --admitted-by",
-        )
-    return {
-        "source_key": source_key,
-        "locator": locator,
-        "quote": quote,
-        "quote_sha256": quote_sha,
-        "warrant_layer": layer,
-        "admitted_by": admitter,
-    }
-
-
-def _passages_from_json(path: Path, admitted_by: str | None) -> list[dict[str, Any]]:
-    raw = json.loads(path.read_text(encoding="utf-8"))
-    rows = raw if isinstance(raw, list) else raw.get("passages")
-    if not isinstance(rows, list):
-        raise Refusal("SENTENCE-LOGIC-PASSAGE", "passages file must be a list or {passages: []}")
-    return [_validate_passage(row, admitted_by=admitted_by) for row in rows if isinstance(row, dict)]
-
-
-def _is_front_matter(text: str) -> bool:
-    head = "\n".join(text.splitlines()[:8])
-    return bool(FRONT_HEADING_RE.search(head))
-
-
-def _printed_page_number(text: str, identity: int, label: str | None) -> int | None:
-    """Return a printed book page. Identity 1…N labels are ignored."""
-    if label is not None:
-        stripped = str(label).strip()
-        if stripped.isdigit() and int(stripped) != identity:
-            return int(stripped)
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    for line in reversed(lines[-4:]):
-        match = PRINTED_PAGE_RE.fullmatch(line)
-        if not match:
-            continue
-        printed = int(match.group(1))
-        if printed != identity:
-            return printed
-        if not _is_front_matter(text):
-            return printed
-    return None
-
-
-def resolve_printed_pages(pages: list[dict[str, Any]], requested: list[int]) -> list[dict[str, Any]]:
-    """Map --pages (printed book pages) onto page records. Refuse identity/front-matter."""
-    by_printed: dict[int, dict[str, Any]] = {}
-    annotated: list[dict[str, Any]] = []
-    for rec in pages:
-        printed = _printed_page_number(rec["text"], rec["identity"], rec.get("label"))
-        row = {**rec, "printed_page": printed}
-        annotated.append(row)
-        if printed is None:
-            continue
-        if printed in by_printed:
-            raise Refusal("SENTENCE-LOGIC-PDF", f"printed book page {printed} is ambiguous")
-        by_printed[printed] = row
-
-    out: list[dict[str, Any]] = []
-    for page in requested:
-        rec = by_printed.get(page)
-        if rec is None:
-            identity_hits = [row for row in annotated if row["identity"] == page]
-            if identity_hits and (
-                _is_front_matter(identity_hits[0]["text"])
-                or identity_hits[0].get("label") == str(page)
-            ):
-                raise Refusal(
-                    "SENTENCE-LOGIC-PDF-INDEX",
-                    f"legacy PDF-index {page} is an identity 1…N label or "
-                    "title/foreword/contents, not a printed book page",
-                )
-            raise Refusal(
-                "SENTENCE-LOGIC-PDF",
-                f"printed book page {page} was not found (identity 1…N labels are ignored)",
-            )
-        if _is_front_matter(rec["text"]):
-            raise Refusal(
-                "SENTENCE-LOGIC-PDF",
-                f"printed book page {page} is title/foreword/contents, not admitted Yu body",
-            )
-        out.append(rec)
-    return out
-
-
-def _pdf_page_records(pdf_path: Path) -> list[dict[str, Any]]:
-    from pypdf import PdfReader
-
-    reader = PdfReader(str(pdf_path))
-    try:
-        labels = list(reader.page_labels)
-    except Exception:
-        labels = [None] * len(reader.pages)
-    records: list[dict[str, Any]] = []
-    for index, page in enumerate(reader.pages, start=1):
-        text = page.extract_text() or ""
-        label = labels[index - 1] if index - 1 < len(labels) else None
-        records.append({"identity": index, "text": text, "label": label})
-    return records
-
-
-def _passages_from_pdf(pdf_path: Path, source_key: str, pages: list[int], layer: str) -> list[dict[str, Any]]:
-    file_sha = _sha_bytes(pdf_path.read_bytes())
-    resolved = resolve_printed_pages(_pdf_page_records(pdf_path), pages)
-    out: list[dict[str, Any]] = []
-    for rec in resolved:
-        quote = rec["text"]
-        if not quote.strip():
-            raise Refusal("SENTENCE-LOGIC-PDF", f"{pdf_path.name} printed p. {rec['printed_page']} extracted empty text")
-        page = rec["printed_page"]
-        row = _validate_passage(
-            {
-                "source_key": source_key,
-                "locator": f"hash-bound PDF {pdf_path.name} printed p. {page} sha256={file_sha}",
-                "quote": quote,
-                "warrant_layer": layer,
-            },
-            admitted_by="hash-bound-pdf",
-        )
-        row["pdf_sha256"] = file_sha
-        row["page"] = page
-        row["pdf_identity"] = rec["identity"]
-        out.append(row)
-    return out
-
-
-def _sentences(text: str) -> list[str]:
-    parts = [part.strip() for part in SENTENCE_SPLIT.split(text) if part.strip()]
-    return parts if parts else [text.strip()] if text.strip() else []
+def _passages_from_pdf(pdf_path: Path, source_key: str, pages: list[int], layer: str, *,
+                       extract_receipt: Path | None, evidence_root: Path | None,
+                       wiki_root: Path | None) -> list[dict[str, Any]]:
+    from centroid_source_evidence import passages_from_pdf
+    return passages_from_pdf(pdf_path, source_key, pages, layer,
+                             extract_receipt=extract_receipt, evidence_root=evidence_root,
+                             wiki_root=wiki_root, policy_path=binder.POLICY_PATH)
 
 
 def _words(text: str) -> list[str]:
@@ -295,7 +184,7 @@ def _join_signals(left: str, right: str) -> dict[str, Any]:
     backtrack = bool(BACKTRACK_CUE.search(right))
     shared = bool(_content(left) & _content(right))
     if derive:
-        cadence = "derivation_shown"
+        cadence = "derivation_cue_present"
     elif short_right and verdict:
         cadence = "unearned_verdict"
     else:
@@ -309,8 +198,6 @@ def _join_signals(left: str, right: str) -> dict[str, Any]:
     return {
         "join_cadence": cadence,
         "needed_backtrack": needed,
-        "s_n_words": len(_words(left)),
-        "s_n1_words": len(right_words),
     }
 
 
@@ -321,37 +208,12 @@ def _all_short_stack(sentences: list[str]) -> bool:
 
 
 def _pairs(sentences: list[str]) -> list[dict[str, Any]]:
+    """Compatibility helper for direct synthetic signal probes."""
     rows: list[dict[str, Any]] = []
     for index in range(len(sentences) - 1):
-        left = sentences[index]
-        right = sentences[index + 1]
-        signals = _join_signals(left, right)
-        rows.append(
-            {
-                "n": index + 1,
-                "s_n": left,
-                "s_n1": right,
-                "s_n_sha256": _sha_text(left),
-                "s_n1_sha256": _sha_text(right),
-                "verdict": "not_run",
-                "yu_hinge": None,
-                "dennett_warrant": None,
-                "checks": {
-                    "carry": None,
-                    "hinge": None,
-                    "attestation": None,
-                    "scope": None,
-                    "voice": None,
-                    "role_split": None,
-                    "join_cadence": signals["join_cadence"],
-                    "needed_backtrack": signals["needed_backtrack"],
-                },
-                "word_counts": {
-                    "s_n": signals["s_n_words"],
-                    "s_n1": signals["s_n1_words"],
-                },
-            }
-        )
+        rows.append({"id": f"pair{index + 1}", "left_id": f"s{index + 1}",
+                     "right_id": f"s{index + 2}", "verdict": "not_run",
+                     "signals": _join_signals(sentences[index], sentences[index + 1])})
     return rows
 
 
@@ -394,109 +256,202 @@ def _markdown_receipt(receipt: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _review_view(receipt: dict[str, Any]) -> str:
+    """Compact role-facing view; stable IDs point to the machine evidence."""
+    lines = [f"centroid-check {receipt['mode']} | {receipt['graph_state']} | {len(receipt['sentences'])} sentences | {len(receipt['pairs'])} pairs",
+             f"manuscript {receipt['manuscript_sha256']} scope {receipt['scope']['kind']} heading={receipt['scope']['heading']!r} lines={receipt['scope']['start_line']}-{receipt['scope']['end_line']} sha256={receipt['scope']['sha256']}",
+             f"packet {receipt['packet_sha256']} policy {receipt['policy_sha256']}",
+             "All pair verdicts are not_run; signals are cues only."]
+    for row in receipt["admitted_passages"]:
+        provenance = " ".join(f"{key}={row[key]}" for key in ("admission_kind", "admitted_by", "pdf_sha256", "extract_receipt_sha256") if key in row)
+        lines.append(f"{row['id']} source={row['source_key']} locator={row['locator']} warrant={row['warrant_layer']} {provenance}")
+        lines.append(f"  quote: {row['quote']}")
+    for row in receipt["sentences"]:
+        lines.append(f"{row['id']} [{row['paragraph_id']}]: {row['text']}")
+    for pair in receipt["pairs"]:
+        left, right = pair["left_id"], pair["right_id"]
+        lines.append(f"{pair['id']} {left}→{right} context={','.join(pair['context_paragraph_ids'])} signals={pair['signals']}")
+    return "\n".join(lines) + "\n"
+
+
 def build_receipt(args: argparse.Namespace) -> dict[str, Any]:
+    from centroid_source_evidence import passages_from_json
+
     packet_path = Path(args.packet).resolve(strict=True)
     manuscript_path = Path(args.manuscript).resolve(strict=True)
-    packet = _load_json(packet_path)
-    if packet.get("status") != "binding_resolved":
-        raise Refusal("SENTENCE-LOGIC-PACKET", "centroid-bind packet is not binding_resolved")
+    packet_bytes = packet_path.read_bytes()
+    packet = _load_json(packet_bytes, packet_path)
+    _validate_packet(packet)
+    if packet["analysis_contract"].get("derivation") != args.mode:
+        raise Refusal("SENTENCE-LOGIC-PACKET", "binder analysis mode differs from requested checker mode")
     requested_source = str(getattr(args, "centroid_source", YU_2011) or YU_2011)
     if requested_source != YU_2011:
-        raise Refusal(
-            "SENTENCE-LOGIC-SOURCE",
-            "centroid-source is yu-et-al-2011-social-modeling; this check does not move that object",
-        )
+        raise Refusal("SENTENCE-LOGIC-SOURCE", "centroid-source remains yu-et-al-2011-social-modeling")
     manuscript_bytes = manuscript_path.read_bytes()
     manuscript_sha = _sha_bytes(manuscript_bytes)
-    bound = packet.get("manuscript") or {}
+    bound = packet["manuscript"]
+    if Path(bound.get("path", "")).resolve() != manuscript_path:
+        raise Refusal("SENTENCE-LOGIC-STALE", "manuscript path differs from named centroid-bind target")
     if bound.get("sha256") != manuscript_sha:
-        raise Refusal(
-            "SENTENCE-LOGIC-STALE",
-            "manuscript sha256 does not match packet.manuscript.sha256; re-run centroid-bind on these bytes",
-        )
-    scope = bound.get("scope") or {}
-    if scope.get("sha256") and scope.get("sha256") != manuscript_sha and args.heading is None:
-        raise Refusal("SENTENCE-LOGIC-STALE", "scope sha256 does not match manuscript bytes")
+        raise Refusal("SENTENCE-LOGIC-STALE", "manuscript sha256 differs from centroid-bind packet")
+    text = manuscript_bytes.decode("utf-8", errors="strict")
+    bound_scope = bound["scope"]
+    supplied_heading = getattr(args, "heading", None)
+    if supplied_heading is not None and supplied_heading != bound_scope["heading"]:
+        raise Refusal("SENTENCE-LOGIC-SCOPE", "supplied heading differs from packet heading")
+    try:
+        scoped_text, resolved_scope = binder._scope(text, bound_scope["heading"])
+    except binder.Unavailable as exc:
+        raise Refusal("SENTENCE-LOGIC-SCOPE", exc.detail) from exc
+    scope = {**resolved_scope, "sha256": _sha_text(scoped_text)}
+    if scope != bound_scope:
+        raise Refusal("SENTENCE-LOGIC-STALE", "resolved kind, heading, lines, or scope hash differs from packet")
+    current_policy_sha = _sha_bytes(binder.POLICY_PATH.read_bytes())
+    try:
+        live_centroid = binder._live_centroid_source()
+    except binder.Unavailable as exc:
+        raise Refusal("SENTENCE-LOGIC-SOURCE", exc.detail) from exc
+    if packet["centroid_source"] != live_centroid:
+        raise Refusal("SENTENCE-LOGIC-SOURCE", "packet centroid source differs from current policy")
     reason = packet.get("reason_code")
-    ineligible = reason == "GRAPH-SEMANTIC-INELIGIBLE"
-    graph_state = "ineligible" if ineligible else "eligible"
-    if ineligible is False and args.invoke_only:
-        raise Refusal(
-            "SENTENCE-LOGIC-INVOKE",
-            "packet is semantically eligible; invoke-only is for GRAPH-SEMANTIC-INELIGIBLE (auto-run is later)",
-        )
+    project_root = Path(args.project_root).resolve(strict=True) if getattr(args, "project_root", None) else None
+    if reason == "GRAPH-SEMANTIC-INELIGIBLE":
+        pinned = packet["policy"].get("profile_sha256")
+        if pinned is not None and pinned != current_policy_sha:
+            raise Refusal("SENTENCE-LOGIC-STALE", "ineligible packet policy hash differs from current policy")
+        graph_state = "ineligible"
+        policy_sha = current_policy_sha
+    elif reason == "SEMANTIC_USAGE_NOT_INVOKED":
+        raise Refusal("SENTENCE-LOGIC-DORMANT", "semantic usage is dormant; semantic checker cannot run")
+    elif reason is None:
+        if not getattr(args, "allow_eligible", False):
+            raise Refusal("SENTENCE-LOGIC-INVOKE", "eligible semantic invocation requires --allow-eligible")
+        if binder._reader_profile_v2_is_dormant(project_root):
+            raise Refusal("SENTENCE-LOGIC-DORMANT", "live project semantic usage is dormant")
+        try:
+            live = binder.policy.resolve_policy(
+                project_root,
+                wiki_root=Path(args.wiki_root) if getattr(args, "wiki_root", None) else None,
+                workspace_root=Path(args.workspace_root) if getattr(args, "workspace_root", None) else None,
+                harness_root=Path(args.harness_root) if getattr(args, "harness_root", None) else None,
+            )
+            live_provenance = binder._binding_provenance(project_root, live)
+        except (binder.Unavailable, binder.policy.PolicyError, OSError, ValueError) as exc:
+            raise Refusal("SENTENCE-LOGIC-ELIGIBILITY", f"live semantic policy could not be proven: {exc}") from exc
+        live_register = live["register_provenance"]
+        expected_policy = {
+            "profile_path": live["profile_path"],
+            "profile_sha256": live["profile_sha256"],
+            "attestation_view_pin": live["attestation_view_pin"],
+            "exemplar_view_pin": live["exemplar_view_pin"],
+            "members": binder._member_view(live_register.get("exemplar_members")),
+            "surface_member_keys": sorted(item["source_key"] for item in binder._member_view(live_register.get("surface_exemplar_members"))),
+            "argument_member_keys": sorted(item["source_key"] for item in binder._member_view(live_register.get("argument_exemplar_members"))),
+        }
+        packet_policy = packet["policy"]
+        if live_provenance != packet["binding_provenance"] or any(packet_policy.get(k) != v for k, v in expected_policy.items()):
+            raise Refusal("SENTENCE-LOGIC-ELIGIBILITY", "packet policy, source members, pins, or provenance differ from live resolution")
+        if not any(item.get("source_key") == YU_2011 and item.get("role") == "centroid" for item in expected_policy["members"]):
+            raise Refusal("SENTENCE-LOGIC-ELIGIBILITY", "live centroid source is absent")
+        graph_state = "eligible"
+        policy_sha = live["profile_sha256"]
+    else:
+        raise Refusal("SENTENCE-LOGIC-STATE", f"unknown binder reason: {reason!r}")
 
     admitted: list[dict[str, Any]] = []
     if args.passages:
-        admitted.extend(_passages_from_json(Path(args.passages).resolve(strict=True), args.admitted_by))
+        admitted.extend(passages_from_json(Path(args.passages).resolve(strict=True), admitted_by=args.admitted_by))
     if args.admit_pdf:
-        pages = [int(item) for item in args.pages.split(",") if item.strip()]
+        if not args.pages:
+            raise Refusal("SENTENCE-LOGIC-PDF", "--admit-pdf requires --pages")
+        try:
+            pages = [int(item.strip()) for item in args.pages.split(",")]
+        except ValueError as exc:
+            raise Refusal("SENTENCE-LOGIC-PDF", "--pages must be comma-separated printed page numbers") from exc
         if not pages:
             raise Refusal("SENTENCE-LOGIC-PDF", "--admit-pdf requires --pages")
         source_key = args.pdf_source_key
         layer = "argument" if source_key == DENNETT else "surface"
         admitted.extend(
-            _passages_from_pdf(Path(args.admit_pdf).resolve(strict=True), source_key, pages, layer)
+            _passages_from_pdf(Path(args.admit_pdf).resolve(strict=True), source_key, pages, layer,
+                               extract_receipt=Path(args.extract_receipt).resolve(strict=True) if getattr(args, "extract_receipt", None) else None,
+                               evidence_root=Path(args.evidence_root).resolve(strict=True) if getattr(args, "evidence_root", None) else None,
+                               wiki_root=Path(args.wiki_root).resolve(strict=True) if getattr(args, "wiki_root", None) else None)
         )
-    if ineligible and not admitted:
-        raise Refusal(
-            "SENTENCE-LOGIC-NO-PASSAGE",
-            "GRAPH-SEMANTIC-INELIGIBLE and no admitted passages; pass --passages with their admitting party, or --admit-pdf pages",
-        )
-
-    text = manuscript_bytes.decode("utf-8", errors="strict")
-    sentences = _sentences(text)
-    pairs = _pairs(sentences)
-    cadence_misses = sum(1 for row in pairs if row["checks"]["join_cadence"] == "unearned_verdict")
-    backtrack_misses = sum(1 for row in pairs if row["checks"]["needed_backtrack"] == "missing")
+    if not admitted:
+        raise Refusal("SENTENCE-LOGIC-NO-PASSAGE", "semantic checker requires admitted passages")
+    for row in admitted:
+        row["id"] = row.pop("passage_id")
+    if len({row["id"] for row in admitted}) != len(admitted):
+        raise Refusal("SENTENCE-LOGIC-PASSAGE", "duplicate admitted passage IDs")
+    sentences, paragraphs, pairs = inventory(text, scope)
+    if not sentences:
+        raise Refusal("SENTENCE-LOGIC-SCOPE", "bound scope has no prose sentences")
+    by_id = {row["id"]: row for row in sentences}
+    paragraph_positions = {row["id"]: index for index, row in enumerate(paragraphs)}
+    for pair in pairs:
+        pair["signals"] = _join_signals(by_id[pair["left_id"]]["text"], by_id[pair["right_id"]]["text"])
+        position = paragraph_positions[by_id[pair["left_id"]]["paragraph_id"]]
+        pair["context_paragraph_ids"] = [paragraphs[index]["id"] for index in range(max(0, position - 1), min(len(paragraphs), position + 2))]
+    cadence_misses = sum(row["signals"]["join_cadence"] == "unearned_verdict" for row in pairs)
+    backtrack_misses = sum(row["signals"]["needed_backtrack"] == "missing" for row in pairs)
     created = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    inputs = {key: getattr(args, key, None) for key in (
+        "packet", "manuscript", "mode", "heading", "passages", "admitted_by", "admit_pdf",
+        "pages", "pdf_source_key", "extract_receipt", "evidence_root", "project_root",
+        "wiki_root", "workspace_root", "harness_root", "centroid_source", "invoke_only",
+        "allow_eligible",
+    )}
+    for key in ("packet", "manuscript", "passages", "admit_pdf", "extract_receipt", "evidence_root", "project_root", "wiki_root", "workspace_root", "harness_root"):
+        if inputs[key]:
+            inputs[key] = str(Path(inputs[key]).resolve())
     receipt = {
-        "schema_version": "1.2.0",
+        "schema_version": "2.0.0",
+        "preparation_code_sha256": {
+            name: _sha_bytes((Path(__file__).resolve().parent / name).read_bytes())
+            for name in ("centroid_sentence_logic.py", "centroid_text.py", "centroid_source_evidence.py")
+        },
         "pass": "centroid-check",
         "instrument": "centroid-check",
         "centroid_source": YU_2011,
-        "object_names": dict(OBJECT_NAMES),
         "status": "ready_for_role",
         "reason_code": None,
         "mode": args.mode,
         "packet_path": str(packet_path),
-        "packet_sha256": _sha_bytes(packet_path.read_bytes()),
+        "packet_sha256": _sha_bytes(packet_bytes),
         "manuscript_path": str(manuscript_path),
         "manuscript_sha256": manuscript_sha,
         "manuscript_bytes": len(manuscript_bytes),
-        "scope_sha256": scope.get("sha256") or manuscript_sha,
+        "scope_sha256": scope["sha256"],
+        "scope": scope,
         "graph_state": graph_state,
         "binder_reason_code": reason,
+        "policy_sha256": policy_sha,
         "admitted_passages": admitted,
+        "sentences": sentences,
+        "paragraphs": paragraphs,
         "pairs": pairs,
         "summary": {
             "not_run": len(pairs),
-            "CLEAN": 0,
-            "ADVISORY": 0,
-            "BLOCKER": 0,
             "qualification": "incomplete",
-            "all_short_stack": _all_short_stack(sentences),
+            "all_short_stack": _all_short_stack([row["text"] for row in sentences]),
             "join_cadence_misses": cadence_misses,
             "needed_backtrack_missing": backtrack_misses,
         },
-        "c7": [],
         "actor": "Generator" if args.mode in {"write", "revise"} else "Evaluator",
         "r_plane": "author only",
         "sk32": "CLOSED",
         "created_at": created,
+        "inputs": inputs,
         "limitations": [
-            "This is a centroid-check of named manuscript bytes against centroid-source yu-et-al-2011-social-modeling.",
-            "GRAPH-SEMANTIC-INELIGIBLE is eligibility, not a pair verdict.",
-            "Instrument listed pairs and bound admitted passages only.",
-            "Roles fill CLEAN/ADVISORY/BLOCKER. This file is not a scholarly CLEAN.",
-            "One BLOCKER pair fails the bound scope for qualification.",
-            "Do not copy empty binder semantic_findings as a pass.",
-            "join_cadence and needed_backtrack are mechanical signals, not scholarly CLEAN.",
-            "A missing join-cadence is a miss even when an attested hinge is named.",
-            "Backtrack is not required on every pair.",
+            "Binder state is eligibility, not a pair verdict.",
+            "Pairs are not_run until a role reviews them; no scholarly CLEAN is minted.",
+            "Mechanical signals are review cues, not proof of derivation or source support.",
         ],
     }
     receipt["naming"] = _check_sentence(receipt)
+    if packet_path.read_bytes() != packet_bytes or manuscript_path.read_bytes() != manuscript_bytes:
+        raise Refusal("SENTENCE-LOGIC-STALE", "packet or manuscript changed during preparation")
     return receipt
 
 
@@ -529,17 +484,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--admit-pdf", help="Hash-bound PDF to read as admitted printed book pages")
     parser.add_argument(
         "--pages",
-        help=(
-            "Printed book pages (running footer or non-identity labels). "
-            "Identity 1…N labels are ignored. Title/foreword/contents are not "
-            "admitted Yu body. Legacy PDF-index 3,7,12 is refused."
-        ),
+        help="Comma-separated printed book pages in the policy-pinned PDF and canonical extraction receipt.",
     )
     parser.add_argument("--pdf-source-key", default=YU_2011)
+    parser.add_argument("--extract-receipt", help="Canonical source extraction receipt for PDF evidence")
+    parser.add_argument("--evidence-root", help="Canonical source evidence root")
     parser.add_argument("--project-root")
+    parser.add_argument("--wiki-root")
+    parser.add_argument("--workspace-root")
+    parser.add_argument("--harness-root")
     parser.add_argument("--out-dir")
     parser.add_argument("--shipment-id")
     parser.add_argument("--heading")
+    parser.add_argument("--format", choices=("json", "review"), default="json")
     parser.add_argument(
         "--invoke-only",
         action="store_true",
@@ -561,9 +518,16 @@ def main(argv: list[str] | None = None) -> int:
                 "json": str(dest / f"{stem}.json"),
                 "markdown": str(dest / f"{stem}.md"),
             }
-        print(json.dumps(receipt, indent=2, ensure_ascii=False))
+        if args.format == "review":
+            print(_review_view(receipt), end="")
+        elif dest is not None:
+            print(json.dumps({"status": receipt["status"], "schema_version": receipt["schema_version"],
+                              "sentences": len(receipt["sentences"]), "pairs": len(receipt["pairs"]),
+                              "written": receipt["written"]}, ensure_ascii=False))
+        else:
+            print(json.dumps(receipt, indent=2, ensure_ascii=False))
         return 0
-    except (Refusal, DestinationRefused, OSError, json.JSONDecodeError, ValueError) as exc:
+    except (Refusal, SourceEvidenceError, DestinationRefused, OSError, json.JSONDecodeError, ValueError, UnicodeError) as exc:
         code = getattr(exc, "code", "SENTENCE-LOGIC-IO")
         detail = getattr(exc, "detail", str(exc))
         print(json.dumps({"status": "blocked", "reason_code": code, "detail": detail}, ensure_ascii=False))

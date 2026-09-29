@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://co-author-harness.local/schemas/centroid_completed_review.schema.json",
+  "title": "Completed centroid pair review; structural validation grants no research acceptance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "receipt_type", "prepared_sha256", "request_sha256", "reviewer", "pairs", "summary", "overall_assessment", "unresolved_source_gaps"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "receipt_type": {"const": "centroid_completed_review"},
+    "prepared_sha256": {"$ref": "#/$defs/hash"},
+    "request_sha256": {"$ref": "#/$defs/hash"},
+    "reviewer": {"$ref": "#/$defs/reviewer"},
+    "pairs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/pair"}},
+    "summary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["CLEAN", "ADVISORY", "BLOCKER"],
+      "properties": {
+        "CLEAN": {"type": "integer", "minimum": 0},
+        "ADVISORY": {"type": "integer", "minimum": 0},
+        "BLOCKER": {"type": "integer", "minimum": 0}
+      }
+    },
+    "overall_assessment": {"$ref": "#/$defs/text"},
+    "unresolved_source_gaps": {"type": "array", "items": {"$ref": "#/$defs/text"}}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "text": {"type": "string", "minLength": 1, "pattern": "\\S"},
+    "reviewer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["actor_id", "dispatch_id", "model", "effort"],
+      "properties": {
+        "actor_id": {"$ref": "#/$defs/text"}, "dispatch_id": {"$ref": "#/$defs/text"},
+        "model": {"$ref": "#/$defs/text"}, "effort": {"$ref": "#/$defs/text"}
+      }
+    },
+    "check": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "rationale"],
+      "properties": {
+        "status": {"enum": ["satisfied", "issue", "not_applicable"]},
+        "rationale": {"$ref": "#/$defs/text"}
+      }
+    },
+    "pair": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "verdict", "checks", "attesting_passage_ids", "paragraph_purpose", "derivation", "warrant_limits"],
+      "properties": {
+        "id": {"$ref": "#/$defs/text"}, "verdict": {"enum": ["CLEAN", "ADVISORY", "BLOCKER"]},
+        "checks": {
+          "type": "object", "additionalProperties": false,
+          "required": ["carry", "hinge", "attestation", "scope", "voice", "role_split", "join_cadence"],
+          "properties": {
+            "carry": {"$ref": "#/$defs/check"}, "hinge": {"$ref": "#/$defs/check"},
+            "attestation": {"$ref": "#/$defs/check"}, "scope": {"$ref": "#/$defs/check"},
+            "voice": {"$ref": "#/$defs/check"}, "role_split": {"$ref": "#/$defs/check"},
+            "join_cadence": {"$ref": "#/$defs/check"}
+          }
+        },
+        "attesting_passage_ids": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/text"}},
+        "paragraph_purpose": {"$ref": "#/$defs/text"},
+        "derivation": {"$ref": "#/$defs/text"}, "warrant_limits": {"$ref": "#/$defs/text"}
+      }
+    }
+  }
+}
