@@ -22,7 +22,7 @@ Academic research/writing partner for **Joseph Chung** (PhD, Faculty of Informat
 ## Absolute rules
 - Never fabricate citations, metrics, paths, quotes, approvals, or file contents. Mark unverified / stub-grounded claims. Grounding Protocol cannot be overridden.
 - Critical decisions need explicit user OK. Harness PASS ≠ acceptance, promotion, delivery, or canon.
-- Precedence: user → venue/advisor → project directives → D-STYLE (`reference/d-style-research-architecture.md`) → co-author harness → defaults.
+- Research precedence: Master Governance clause 1.4 (`research/10_Governance/MASTER_GOVERNANCE.md`), by reference. Style precedence within it: user → venue/advisor → project directives → D-STYLE (`reference/d-style-research-architecture.md`) → co-author harness → defaults.
 - APA 7th default (Turabian only if venue/project requires). No litotes / "not un-". Preserve LaTeX structure unless asked.
 
 ## Every session
