@@ -200,7 +200,7 @@ class FastLaneTests(unittest.TestCase):
                 env['FRC_FAST_SESSION'] = lane.session
             payload = {'hook_event_name': 'PreToolUse', 'tool_name': 'Write', 'tool_input': {'file_path': str(path)}}
             run_ = subprocess.run([sys.executable, str(SCRIPTS / 'hooks' / 'full_run_pretooluse_gate.py')], input=json.dumps(payload),
-                                  capture_output=True, text=True, encoding='utf-8', env=env)
+                                  capture_output=True, text=True, encoding='utf-8', errors='strict', env=env)
             return json.loads(run_.stdout).get('hookSpecificOutput', {}).get('permissionDecision', 'allow') if run_.stdout.strip() else 'allow'
         self.assertEqual(hook(root / 'draft' / 'candidate-1.md'), 'allow')
         self.assertEqual(hook(root / 'review' / 'findings-1.md'), 'allow')
