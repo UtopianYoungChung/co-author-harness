@@ -142,7 +142,11 @@ def _profile_errors(
         errors.append(f"CONTRACT-HASH-STALE {name}: unknown kernel component {component_id!r}")
     else:
         bound = _safe_file(plugin_root, component.get("path"))
-        if bound is None or _sha256(bound, normalized_text=True) != component.get("sha256"):
+        if bound is None:
+            errors.append(f"CONTRACT-HASH-STALE {name}: kernel component {component_id}")
+        elif component.get("pinned") is False:
+            pass  # prose component: existence is the whole contract
+        elif _sha256(bound, normalized_text=True) != component.get("sha256"):
             errors.append(f"CONTRACT-HASH-STALE {name}: kernel component {component_id}")
 
     producer = planes.get("producer", {})

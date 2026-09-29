@@ -51,6 +51,11 @@ REQUIRED_COMPONENT_IDS = {
 }
 
 
+def is_prose_path(rel: Any) -> bool:
+    """A prose component is a Markdown file. Prose is required to exist, never pinned."""
+    return isinstance(rel, str) and rel.lower().endswith(".md")
+
+
 def _sha256(path: Path) -> str:
     # Bind text contracts to repository content, not a checkout's CRLF policy.
     return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
@@ -137,7 +142,17 @@ def validate(root: Path, data: dict[str, Any]) -> list[str]:
         if bound_path is None:
             errors.append(f"{cid}: component path is missing or unsafe")
             continue
-        if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
+        if is_prose_path(rel):
+            # Editing documentation must never drift the kernel. A prose entry
+            # only proves the required file exists; the PIW lane still binds by
+            # content the rules a run actually reads (piw_session rule_bindings).
+            if "sha256" in component:
+                errors.append(f"{cid}: prose component must not carry a sha256")
+            if component.get("pinned") is not False:
+                errors.append(f"{cid}: prose component must declare pinned false")
+        elif component.get("pinned") is False:
+            errors.append(f"{cid}: only prose components may be unpinned")
+        elif not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
             errors.append(f"{cid}: invalid sha256")
         elif _sha256(bound_path) != expected:
             errors.append(f"{cid}: content hash drift")
@@ -178,7 +193,10 @@ def validate(root: Path, data: dict[str, Any]) -> list[str]:
 
 
 def refresh_component_hashes(root: Path, data: dict[str, Any]) -> None:
-    """Refresh only enumerated component hashes after paths pass containment checks."""
+    """Refresh only enumerated component hashes after paths pass containment checks.
+
+    Prose (Markdown) components are never pinned, so refresh leaves them alone.
+    """
     components = data.get("components")
     if not isinstance(components, list) or not components:
         raise ValueError("components must be a non-empty list")
@@ -193,6 +211,8 @@ def refresh_component_hashes(root: Path, data: dict[str, Any]) -> None:
         bound_path = _safe_file(root, component.get("path"))
         if bound_path is None:
             raise ValueError(f"{cid}: component path is missing or unsafe")
+        if is_prose_path(component.get("path")):
+            continue
         component["sha256"] = _sha256(bound_path)
 
 
@@ -233,9 +253,10 @@ def main() -> int:
         print(f"contract-kernel-check: FAIL ({len(errors)} blockers)")
         return 1
     kernel_digest = _sha256(root / "references" / "contract_kernel.v1.json")
+    unpinned = sum(1 for row in data["components"] if is_prose_path(row.get("path")))
     print(
-        f"contract-kernel-check: PASS ({len(data['components'])} components; "
-        f"kernel_sha256={kernel_digest})"
+        f"contract-kernel-check: PASS ({len(data['components'])} components, "
+        f"{unpinned} prose exist-only; kernel_sha256={kernel_digest})"
     )
     return 0
 

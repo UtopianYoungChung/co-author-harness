@@ -128,7 +128,7 @@ def main() -> int:
         # outside the kit aggregate, so it needs its own comparison.
         if profile["contract_kernel"]["sha256"] != kernel_sha256:
             raise RuntimeError("compatibility profile contract-kernel pin drift")
-        kernel_components = {row["id"]: row["sha256"] for row in kernel["components"]}
+        kernel_components = {row["id"]: row.get("sha256") for row in kernel["components"]}
         for row in projection["components"]:
             if kernel_components.get(row["id"]) != row["sha256"]:
                 raise RuntimeError(f"compatibility-kit component drift: {row['id']}")

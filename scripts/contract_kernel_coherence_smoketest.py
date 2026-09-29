@@ -669,6 +669,39 @@ def main() -> int:
     case["components"][0]["path"] = "../phase_state_schema.md"
     require_error(case, "missing or unsafe")
 
+    # Prose (Markdown) components are required to exist and are never pinned, so
+    # documentation edits cannot drift the kernel. A pin cannot be re-added.
+    prose = [row for row in data["components"] if row["path"].endswith(".md")]
+    assert prose and all("sha256" not in row and row["pinned"] is False for row in prose)
+    prose_id = "planner-agent"
+    case = copy.deepcopy(data)
+    next(row for row in case["components"] if row["id"] == prose_id)["sha256"] = "0" * 64
+    require_error(case, f"{prose_id}: prose component must not carry a sha256")
+
+    case = copy.deepcopy(data)
+    row = next(row for row in case["components"] if row["id"] == prose_id)
+    row["sha256"] = hashlib.sha256((ROOT / row["path"]).read_bytes()).hexdigest()
+    row["pinned"] = True
+    require_error(case, f"{prose_id}: prose component must not carry a sha256")
+    require_error(case, f"{prose_id}: prose component must declare pinned false")
+
+    case = copy.deepcopy(data)
+    del next(row for row in case["components"] if row["id"] == prose_id)["pinned"]
+    require_error(case, f"{prose_id}: prose component must declare pinned false")
+
+    case = copy.deepcopy(data)
+    case["components"] = [row for row in case["components"] if row["id"] != prose_id]
+    require_error(case, f"required components missing: {prose_id}")
+
+    case = copy.deepcopy(data)
+    next(row for row in case["components"] if row["id"] == prose_id)["path"] = "agents/absent.md"
+    require_error(case, f"{prose_id}: component path is missing or unsafe")
+
+    case = copy.deepcopy(data)
+    case["components"][0].pop("sha256")
+    case["components"][0]["pinned"] = False
+    require_error(case, f"{case['components'][0]['id']}: only prose components may be unpinned")
+
     case = copy.deepcopy(data)
     case.pop("kernel_id")
     require_error(case, "kernel_id is required")
