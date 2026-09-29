@@ -68,3 +68,26 @@ the runner lock and registry invocation.
 5. Escalate to the structural census or full corpus only when the change surface or gate requires it.
 
 When no direct test exists, report that gap. Do not describe a generic linter, type checker, formatter, or repository-root test command as present unless the repository actually provides it.
+
+## Fixture runtime and hosted CI
+
+A case may declare `requires_workspace_paths` (files beside the package in a
+governed workspace, such as the sibling knowledge wiki), or
+`unavailable_on_github_hosted` (platforms whose GitHub-hosted runner cannot run
+it). Where one applies the case is `UNAVAILABLE`: a failure by default, and listed
+but never counted as a pass under `--allow-unavailable`, which hosted CI uses and
+which cannot write canonical evidence. Hosted CI runs the registry from a
+sandbox governed workspace with Poppler `pdftotext` installed.
+
+On Linux the fixture preflight and registry run each suite as a `systemd-run --user`
+unit, which needs cgroup v2 and a user manager. Containers and VMs often have
+neither. There, run the command as root under
+`scripts/analysis/systemd-user-sandbox.sh`: it starts a private user manager in
+its own mount namespace for the length of the command, leaving the host untouched.
+For example:
+
+```bash
+scripts/analysis/systemd-user-sandbox.sh python3 scripts/analysis/fixture_infrastructure_check.py
+```
+
+Where the host's user manager already works, it runs the command directly.

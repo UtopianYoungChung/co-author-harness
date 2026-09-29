@@ -5,6 +5,25 @@ selects `hooks/codex.json`. Keep the Claude hook configuration in `hooks/hooks.j
 Do not add an unsupported `agents` manifest field to try to register Claude role
 Markdown files as Codex agents.
 
+## Installation and updates
+
+Start with the [Codex installation commands](../../README.md#codex), then configure
+roles and hooks below. Plugin installation, role discovery, and hook trust are
+separate steps.
+
+Codex labels the install with the manifest's version, which changes only at
+releases, so the label does not show which commit you have. To take the latest
+`main`, refresh the marketplace and re-run the install:
+
+```text
+codex plugin marketplace upgrade
+codex plugin add co-author-harness@joseph-chung-co-author-harness
+```
+
+To see the installed commit, run `git log --oneline -1` in
+`~/.codex/plugins/cache/joseph-chung-co-author-harness/co-author-harness/<version>/`
+(under `$CODEX_HOME` instead of `~/.codex` if you set it).
+
 ## Skills and the six roles
 
 Codex initially exposes skill names, descriptions, and paths. The agent reads a

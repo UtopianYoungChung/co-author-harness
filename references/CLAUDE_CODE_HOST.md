@@ -10,6 +10,58 @@ each child runs its own sub-passes inline. The adapter described here
 is the native-host boundary those sessions use for ordinary drafting and
 revision under `PROJECT_INDEPENDENT_WORKFLOW.md`. Read-only passes never need it.
 
+## Installation and updates
+
+Start with the [Claude Code installation commands](../README.md#claude-code) or
+the [Desktop / Cowork download](../README.md#claude-desktop--cowork).
+
+The package scripts and hook contract checks need Python 3 with PyYAML and
+jsonschema. Claude Code hooks also launch through `bash -c`, so Bash must be on
+`PATH`. On Windows, use Git Bash (`C:\Program Files\Git\bin\bash.exe`). Set
+`CLAUDE_PLUGIN_PYTHON` if the interpreter the hooks find is not the one with the
+required packages. A hook that finds no Python reports `HOOK-INTERPRETER`.
+
+### Claude Code marketplace updates
+
+The Claude manifests declare no version, so an install tracks `main`: every push
+is an update. Claude Code does not auto-update third-party marketplaces by
+default; turn it on once in `/plugin` → **Marketplaces** →
+`joseph-chung-co-author-harness` → **Enable auto-update**. The settings can also be
+declared in either of these files:
+
+- **One workspace or project:** `<folder>/.claude/settings.json`, which applies to
+  sessions opened in that folder. Create the directory and file if absent;
+  Claude Code asks you to trust the folder the next time you open a session in it.
+- **Every project:** `~/.claude/settings.json`
+  (`%USERPROFILE%\.claude\settings.json` on Windows). Add the keys to any existing
+  settings instead of replacing the file.
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "joseph-chung-co-author-harness": {
+      "source": { "source": "github", "repo": "UtopianYoungChung/co-author-harness" },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": { "co-author-harness@joseph-chung-co-author-harness": true }
+}
+```
+
+Updates arrive in the background. A running session keeps the version it started
+with until `/reload-plugins`; new sessions load the latest. To update at once:
+
+```text
+claude plugin marketplace update joseph-chung-co-author-harness
+claude plugin update co-author-harness@joseph-chung-co-author-harness
+```
+
+### Desktop / Cowork uploads
+
+Each version bump on `main` publishes `co-author-harness.plugin` and an identical
+`.zip` on the [Releases page](https://github.com/UtopianYoungChung/co-author-harness/releases).
+An uploaded file does not update itself: load the newer file after a release.
+
 ## Where the original traces live
 
 Claude Code keeps one JSONL per session in its project log root
