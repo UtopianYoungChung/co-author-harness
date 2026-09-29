@@ -199,11 +199,13 @@ def _syntax_gap(errors):
     return [x for x in errors if 'unsupported citation syntax' in x]
 
 
-def _authors_own_syntax(contract, reader):
+def _within_authors_syntax(contract, target_text, reader):
+    # The author wrote this syntax: a revision candidate contains no more of it than the
+    # author's own input does, so syntax the Generator adds is never masked.
     if not contract.get('input_snapshot'):
         return False
-    text = reader(contract['input_snapshot']['path']).decode('utf-8-sig')
-    return bool(_syntax_gap(bibliography.inventory(text)['errors']))
+    written = bibliography.unsupported_syntax_count(reader(contract['input_snapshot']['path']).decode('utf-8-sig'))
+    return 0 < bibliography.unsupported_syntax_count(target_text) <= written
 
 
 def validate_result(contract, request, result, state, read_bytes=None):
@@ -267,18 +269,25 @@ def validate_result(contract, request, result, state, read_bytes=None):
         require(not bibliography_check or bibliography_check['status'] in ('not_applicable', 'unavailable'),
                 'BIBLIOGRAPHY-SCOPE', 'A prose-only pass cannot approve the bibliography')
         require(not result.get('bibliography_review'), 'BIBLIOGRAPHY-SCOPE', 'Prose-only work must report bibliography not assessed')
+        require(not bibliography_check or bibliography_check.get('unavailable_reason') != 'parser_gap',
+                'BIBLIOGRAPHY-SCOPE', 'Prose-only work does not assess the bibliography, so it has no parser gap to report')
     elif bibliography_check:
         require(bibliography_check['status'] in ('pass', 'fail', 'unavailable'),
                 'BIBLIOGRAPHY-UNASSESSED', 'A cited manuscript cannot mark its bibliography not applicable')
-        syntax = _syntax_gap(bibliography.inventory(reader(request['target']['path']).decode('utf-8-sig'))['errors'])
+        target_text = reader(request['target']['path']).decode('utf-8-sig')
+        errors = bibliography.inventory(target_text)['errors']
+        syntax = _syntax_gap(errors)
         if bibliography_check.get('unavailable_reason') == 'parser_gap':
             # Only citation syntax the inventory cannot read, and that the author wrote,
             # is a parser limit. It makes this one check unavailable; the rest of the
             # result stands. Every other inventory error is a defect in the text.
             require(bibliography_check['status'] == 'unavailable' and not result.get('bibliography_review'),
                     'BIBLIOGRAPHY-PARSER-GAP', 'parser_gap is an unavailable bibliography check with no bibliography_review')
-            require(bool(syntax) and _authors_own_syntax(contract, reader), 'BIBLIOGRAPHY-PARSER-GAP',
-                    "parser_gap is admitted only for unsupported citation syntax that the inventory reports and that is present in the author's own input bytes")
+            require(bool(syntax) and _within_authors_syntax(contract, target_text, reader), 'BIBLIOGRAPHY-PARSER-GAP',
+                    "parser_gap is admitted only for unsupported citation syntax that the inventory reports and that the author wrote: the reviewed bytes may not contain more of it than the author's own input")
+            other = [x for x in errors if x not in syntax]
+            require(not other or any(f.get('blocking') for f in result.get('findings', [])), 'BIBLIOGRAPHY-PARSER-GAP',
+                    'The inventory also reports defects in the text (' + '; '.join(other[:3]) + '); give them blocking findings')
         elif syntax and (bibliography_check['status'] == 'pass' or result.get('bibliography_review')):
             raise piw.PIWError('BIBLIOGRAPHY-PARSER-GAP', 'The inventory cannot parse this citation syntax (' + '; '.join(syntax[:3])
                                + "), so no bibliography_review can clear it. Report the check unavailable with unavailable_reason parser_gap when the syntax is in the author's input, otherwise fail with a blocking finding.")
@@ -415,10 +424,10 @@ def next_step(session_path):
                    'package_root': str(piw.ROOT),
                    'instruction': 'Perform the real assigned role in a distinct native context. Read role_prompt and skill_bodies from package_root on any host, then actual input and rule files, including the bound venue/project context when supplied; venue/advisor instructions refine packaged defaults under the user request. Respect the scope and exclusions in every check and correction. Final response must be only result JSON. Include run_id, step_id, role, phase, request_sha256 (hash of this exact request file), agent_execution_id (actual host session UUID), outcome completed, target copied exactly, summary explaining actual work, rule_reads copied from rules after actual reads, applied_passes and exclusions copied exactly. Generator additionally returns artifact={path,sha256,bytes} and addressed_findings IDs, writes a NEW candidate path each cycle; Evaluator/Reflector return checks=[{id,status,rationale,locators:[...]}] for every required check and findings=[{id,blocking,message,locator}]. Empty findings require substantive checks explaining why. Required unavailable checks cannot pass. Reflector inspects diagnosis/plan/generation/evaluation and final bytes; new material issues reopen correction. No scholarly CLEAN, acceptance or lifecycle authority.'}
         pending['source_support_instruction'] = 'For each source_required attribution check marked pass, include nonempty source_support=[{source_id,source_locator,quote,claim,status:"supported"}]. Quote actual source and target bytes, use the bound source locator, and explain support including qualifications. Bibliographic resolution alone cannot clear attribution; contested or missing support must fail or remain unavailable.'
-        inventory_errors = (bibliography.inventory(
-            _read_bytes(pending['target']['path']).decode('utf-8-sig'))['errors']
-            if pending['target'] and role != 'generator' else [])
-        gap_allowed = bool(_syntax_gap(inventory_errors)) and _authors_own_syntax(contract, _read_bytes)
+        target_text = (_read_bytes(pending['target']['path']).decode('utf-8-sig')
+                       if pending['target'] and role != 'generator' and contract.get('review_scope') != 'prose_only' else None)
+        inventory_errors = bibliography.inventory(target_text)['errors'] if target_text is not None else []
+        gap_allowed = bool(_syntax_gap(inventory_errors)) and _within_authors_syntax(contract, target_text, _read_bytes)
         pending['bibliography_inventory_errors'] = inventory_errors
         pending['bibliography_parser_gap_allowed'] = gap_allowed
         pending['bibliography_instruction'] = ((

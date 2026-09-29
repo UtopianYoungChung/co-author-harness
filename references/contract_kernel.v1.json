@@ -1135,7 +1135,7 @@
       "id": "piw-coordinator",
       "path": "scripts/piw_coordinator.py",
       "revision_kind": "sha256",
-      "sha256": "503a956631ddbf48db6e445f2e834efa89a6b3a85bbd43d538ab320c13df6f1f",
+      "sha256": "5885341dc35d6e7b2c6fff88444440587311c4de5615abd64d0eee0abda47712",
       "migration_ids": []
     },
     {

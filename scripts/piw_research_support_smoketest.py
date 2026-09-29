@@ -683,6 +683,92 @@ class LightReviewAndParserGapTests(unittest.TestCase):
                 errors, uses = self._uses(f'Rovelli (2018, {locator}) argues this.')
                 self.assertEqual((errors, len(uses)), ([], 1))
 
+    TRIO_REFS = ('\n\n# References\n\nSmith, A., Jones, B., & Lee, C. (2018). A title.\n\n'
+                 'Zed, Z. (2018). Another.\n')
+
+    def test_second_author_grammar_accepts_real_names_and_collectives(self):
+        for sentence in ('Smith and Özdemir (2018, p. 3) argue this.', 'Smith and Łukasiewicz’s (2018) view.',
+                         'Smith and dos Santos (2018) argue this.', "Smith and d'Alembert (2018) argue this.",
+                         'Smith and al-Sayed (2018) argue this.', 'Smith and Jones Jr. (2018) argue this.',
+                         'Smith and his colleagues (2018) argue this.', 'Smith and other collaborators (2018).',
+                         'Smith and Anna de la Cruz (2018) argue this.', 'Smith et al. (2018, p. 4) argue this.'):
+            with self.subTest(sentence=sentence):
+                errors, uses = self._uses(sentence, self.TRIO_REFS)
+                self.assertEqual((errors, len(uses)), ([], 1))
+
+    def test_second_author_grammar_keeps_prose_and_sentence_breaks_out(self):
+        # The cited author (Zed) has no entry: no sentence may silently bind to Smith.
+        refs = '\n\n# References\n\nSmith, A., & Jones, B. (2018). A title.\n'
+        for sentence in ('Smith and Jones disagree about Zed (2018, p. 3).', 'Smith and Jones Disagree About Zed (2018).',
+                         'Smith and Jones. Zed (2018, p. 3) sides with one.', 'Smith and Jones\nZed (2018, p. 3).',
+                         'Smith and the review of Zed (2018).', 'Smith and Jones Lee Kim Zed (2018).'):
+            with self.subTest(sentence=sentence):
+                errors, uses = self._uses(sentence, refs)
+                self.assertTrue(errors)
+                self.assertEqual(uses, set())
+
+    def test_second_author_matcher_is_linear_on_hostile_input(self):
+        import time
+        prefix = 'Smith and ' + 'de ' * 5000 + 'Jones'
+        start = time.monotonic()
+        self.assertFalse(bibliography._narrative_author(prefix, 'Zed'))
+        self.assertFalse(bibliography._narrative_author(prefix + ' x', 'Smith'))
+        self.assertLess(time.monotonic() - start, 1.0)
+
+    def test_a_page_number_in_a_parenthetical_citation_is_not_a_year(self):
+        for locator in ('p. 1985', 'pp. 1200-1210'):
+            with self.subTest(locator=locator):
+                errors, uses = self._uses(f'This holds (Rovelli, 2018, {locator}).', self.PAIR_REFS)
+                self.assertEqual((errors, len(uses)), ([], 1))
+
+    def test_parser_gap_admits_no_more_syntax_than_the_author_wrote(self):
+        session, request = self.open('gap-more', revision=True, fixture=self.GAP)
+        coordinator.start(session, request)
+        result, evidence = fixture.complete_child(session, mutate=self.gap_check)
+        coordinator.ingest(session, result, evidence)
+        fixture.plan(session)
+        fixture.ingest_child(session, artifact=self.GAP_REVISED + b'\nAlso \\cite{extra}.\n')
+        result, evidence = fixture.complete_child(session, mutate=self.gap_check)
+        with self.assertRaises(piw.PIWError) as cm:
+            coordinator.ingest(session, result, evidence)
+        self.assertEqual(cm.exception.code, 'BIBLIOGRAPHY-PARSER-GAP')
+
+    MIXED = GAP.replace(b'See \\cite{anchor}.', b'See \\cite{anchor} and Nobody (2021).')
+
+    @staticmethod
+    def gap_with_finding(result, req, contract):
+        LightReviewAndParserGapTests.gap_check(result, req, contract)
+        result['findings'] = [{'id': 'B2', 'blocking': True, 'locator': 'paragraph 1',
+                               'message': 'Nobody (2021) has no reference entry and must be corrected.'}]
+
+    def test_parser_gap_beside_a_genuine_defect_needs_a_blocking_finding(self):
+        session, request = self.open('gap-mixed', revision=True, fixture=self.MIXED)
+        coordinator.start(session, request)
+        packet = coordinator.next_step(session)['request']
+        self.assertTrue(packet['bibliography_parser_gap_allowed'])
+        result, evidence = fixture.complete_child(session, mutate=self.gap_check)
+        with self.assertRaises(piw.PIWError) as cm:
+            coordinator.ingest(session, result, evidence)
+        self.assertEqual(cm.exception.code, 'BIBLIOGRAPHY-PARSER-GAP')
+        result, evidence = fixture.complete_child(session, mutate=self.gap_with_finding)
+        self.assertEqual(coordinator.ingest(session, result, evidence)['status'], 'plan')
+
+    def test_prose_only_work_has_no_parser_gap_to_report(self):
+        session, request = self.open('gap-prose', review_scope='prose_only')
+        coordinator.start(session, request)
+        fixture.plan(session)
+        fixture.ingest_child(session, artifact=MANUSCRIPT.replace('[1].', r'\cite{example}.').encode('utf-8'))
+        packet = coordinator.next_step(session)['request']
+        self.assertEqual(packet['bibliography_inventory_errors'], [])
+
+        def claim(result, req, contract):
+            result['checks'].append({'id': 'bibliography', 'status': 'unavailable', 'unavailable_reason': 'parser_gap',
+                                     'rationale': 'A claimed parser gap on a prose-only pass.', 'locators': ['paragraph 1']})
+        result, evidence = fixture.complete_child(session, mutate=claim)
+        with self.assertRaises(piw.PIWError) as cm:
+            coordinator.ingest(session, result, evidence)
+        self.assertEqual(cm.exception.code, 'BIBLIOGRAPHY-SCOPE')
+
     # -- package copy in a task lane -------------------------------------------------
     def test_package_copy_inside_the_staging_root_is_refused(self):
         session, request = self.open('copy')

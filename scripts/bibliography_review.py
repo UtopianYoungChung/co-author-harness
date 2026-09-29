@@ -40,9 +40,19 @@ def fingerprint(value):
 HEADING = re.compile(r'^#{1,6}\s+(?:references|bibliography|works cited)\s*$', re.I | re.M)
 NUMBER = re.compile(r'^(?:\[(\d+)\]|(\d+)[.)])\s*')
 YEAR = re.compile(r'(?<!\w)(?:\d{4}[a-z]?|n\.d\.)(?!\w)', re.I)
-_LEADING_YEAR = re.compile(
-    r'\s*(?P<year>\d{4}[a-z]?|n\.d\.)(?:\s*,\s*(?:manuscript\s+)?pp?\.\s*\d+(?:\s*[-–]\s*\d+)?'
-    r'(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*)?\s*', re.I)
+# A page locator after a year: "p. 3", "pp. 3-5", "manuscript p. 2", "pp. 3, 5-7". Deliberately
+# strict: anything else stays an unresolved citation rather than being guessed.
+_LOCATOR = (r'\s*,\s*(?:manuscript\s+)?pp?\.\s*\d+(?:\s*[-–]\s*\d+)?'
+            r'(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*')
+_LOCATOR_RE = re.compile(_LOCATOR + r'(?!\w)', re.I)
+_LEADING_YEAR = re.compile(r'\s*(?P<year>\d{4}[a-z]?|n\.d\.)(?:' + _LOCATOR + r')?\s*', re.I)
+# Citation syntax the inventory cannot read. One definition, so the coordinator can
+# compare how much of it the author wrote with how much a candidate contains.
+UNSUPPORTED_SYNTAX = re.compile(r'\\(?:[a-z]*cite\w*|bibitem)\b|\[@|\[\^')
+
+
+def unsupported_syntax_count(text):
+    return len(UNSUPPORTED_SYNTAX.findall(text))
 CITATION = re.compile(r'\[(?:\d+[\s,;\-–]*)+\]|\([^()\n]*(?:\d{4}[a-z]?|n\.d\.|personal communication)[^()\n]*\)', re.I)
 
 
@@ -50,20 +60,57 @@ def _author(reference):
     return re.split(r',|\s*\(', reference, maxsplit=1)[0].strip()
 
 
-# What may follow "A and" in "A and B (year)": "colleagues"/"others", or a name of up to
-# three capitalised words (given name, particles, surname). Lowercase prose after "and"
-# would attach a later, unlisted author to an earlier one:
+# What may follow "A and" in "A and B (year)": a collective ("colleagues", "his team",
+# "others") or a name of up to three capitalised words plus particles. Lowercase prose
+# after "and" would attach a later, unlisted author to an earlier one:
 # "Wolpert and Rovelli disagree about Smith (2018)" cites Smith, not Wolpert.
-_NAME_WORD = r'(?:(?:van|von|de|der|den|di|da|du|del|la|le|ten|ter)\s+)*(?-i:[A-Z])[\w’\'-]*'
-_SECOND_AUTHOR = (r'(?:colleagues|others|co-?authors|collaborators|' + _NAME_WORD
-                  + r'(?:\s+' + _NAME_WORD + r'){0,2})')
+_PARTICLES = frozenset('van von de der den di da du del della dos das do la le ten ter al el bin ibn ben af zu zur vom des'.split())
+_COLLECTIVE = re.compile(r"(?:(?:his|her|their|the|many|other|some|several)\s+)?"
+                         r"(?:colleagues?|co-?workers?|co-?authors?|collaborators?|associates?|team|students?|others)", re.I)
+_POSSESSIVE = re.compile(r"(?:[’']s|[’'])?\s*$")
+
+
+def _name_word(word):
+    """True for a capitalised word, a name particle, or an elided/hyphenated particle."""
+    stripped = word.rstrip('.')
+    if word != stripped and len(stripped) > 3:
+        return False        # "Rovelli." ends a sentence; only "J." and "Jr." are abbreviations
+    if any(mark in word for mark in ',;:()[]"“”'):
+        return False
+    lower = stripped.lower()
+    head, _, rest = stripped.partition('-')
+    return (stripped[:1].isupper() or lower in _PARTICLES or bool(re.match(r"(?:d|l|van)[’']\w", stripped, re.I))
+            or (head.lower() in _PARTICLES and rest[:1].isupper()))
+
+
+def _second_author(text):
+    text = text.strip()
+    if not text or '\n' in text:
+        return False
+    if _COLLECTIVE.fullmatch(text):
+        return True
+    words = text.split()
+
+    def particle(word):     # "de" is a particle; "De" (De', R.) is a surname
+        return word[:1].islower() and word.rstrip('.').lower() in _PARTICLES
+    names = [w for w in words if not particle(w)]
+    return len(words) <= 5 and 1 <= len(names) <= 3 and all(_name_word(w) for w in words) and not particle(words[-1])
 
 
 def _narrative_author(prefix, author):
     # A nearby author elsewhere in the paragraph is not a narrative attachment.
-    return bool(re.search(r'(?<!\w)' + re.escape(author)
-                          + r'(?:\s+et\s+al\.?|\s+(?:&|and)\s+' + _SECOND_AUTHOR + r')?'
-                          + r'(?:[’\']s|[’\'])?\s*$', prefix, re.I))
+    if not author:
+        return bool(re.search(r"(?<!\w)(?:[’']s|[’'])?\s*$", prefix))
+    for found in re.finditer(r'(?<!\w)' + re.escape(author), prefix, re.I):
+        rest = prefix[found.end():]
+        if len(rest) > 160:
+            continue
+        if re.fullmatch(r"(?:\s+et\s+al\.?)?(?:[’']s|[’'])?\s*", rest, re.I):
+            return True
+        joined = re.match(r'\s+(?:&|and)\s+(.+?)' + _POSSESSIVE.pattern, rest, re.I | re.S)
+        if joined and _second_author(joined.group(1)):
+            return True
+    return False
 
 
 def _calendar_year(value, prefix, references):
@@ -128,7 +175,7 @@ def inventory(text):
             continue
         tokens = []
         dates = []
-        if re.search(r'\\(?:[a-z]*cite\w*|bibitem)\b|\[@|\[\^', paragraph):
+        if UNSUPPORTED_SYNTAX.search(paragraph):
             errors.append(f'paragraph {paragraph_index}: unsupported citation syntax; adapt the inventory before clearance.')
         for token in CITATION.finditer(paragraph):
             value = token.group()
@@ -161,7 +208,7 @@ def inventory(text):
                 selected = [item]
             else:
                 for part in value[1:-1].split(';'):
-                    years = YEAR.findall(part)
+                    years = YEAR.findall(_LOCATOR_RE.sub('', part))
                     # "(year)" or "(year, p. N)": page numbers are not years, and the
                     # author is the narrative one preceding the parenthesis.
                     lead = _LEADING_YEAR.fullmatch(part)
