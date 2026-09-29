@@ -124,22 +124,32 @@ does not attempt a `bibliography_review`. Two kinds of error are different:
   author-year pair, duplicate numbers). The check is returned `fail` with a
   blocking finding for each, and correction proceeds as before.
 - **Citation syntax the inventory cannot read** (LaTeX `\cite`, Pandoc `[@key]`,
-  footnote citations). Where that syntax is in the author's own input, it is not a
-  defect, and correcting it would rewrite the author's citations to suit the
-  parser. The check is returned `unavailable` with `unavailable_reason: parser_gap`,
-  the unparsed citations in its locators and no `bibliography_review`
+  footnote citations). Where the author wrote that syntax, it is not a defect, and
+  correcting it would rewrite the author's citations to suit the parser. The check
+  is returned `unavailable` with `unavailable_reason: parser_gap`, the unparsed
+  citations in its locators and no `bibliography_review`
   (`bibliography_parser_gap_allowed` in the request says when this applies). Only
   that check is affected: the rest of the result stands, the gap is recorded once as
   a limitation rather than a correction target, and completion reports
   `bibliography_status: not_assessed_parser_gap`. The bibliography is unverified,
-  not cleared. Any other inventory error still gets its own blocking finding.
+  not cleared.
 
-`parser_gap` is refused for a new draft and for syntax the Generator introduced,
-because the Generator chose it and can use supported citations; it is refused when
-the inventory reports no unsupported syntax; and a `pass` or a `bibliography_review`
-is refused while such syntax is present (`BIBLIOGRAPHY-PARSER-GAP`). The Evaluator
-or Reflector then resubmits the check as described above; this refusal does not end
-the task.
+The coordinator admits `parser_gap` only when all of these hold:
+
+- the check is `unavailable` and the result has no `bibliography_review`;
+- the inventory of the reviewed bytes reports unsupported citation syntax;
+- the run has an input snapshot, so a new draft is never admitted;
+- the reviewed bytes hold at least one occurrence of that syntax and no more than the
+  author's own input holds, so syntax the Generator adds is never masked;
+- if the inventory also reports any other error, at least one finding in the result
+  is blocking. Those errors are defects in the text and keep the fail and correct path.
+
+A `prose_only` pass has no bibliography to assess, so it has no gap to report: the
+coordinator does not run the inventory for it and a `parser_gap` claim is refused
+(`BIBLIOGRAPHY-SCOPE`). A `pass` or a `bibliography_review` is refused while
+unsupported syntax is present (`BIBLIOGRAPHY-PARSER-GAP`), as is a `parser_gap` that
+fails any condition above. The Evaluator or Reflector then resubmits the check as
+described above; this refusal does not end the task.
 
 ### Harness defects are reported, not repaired
 
