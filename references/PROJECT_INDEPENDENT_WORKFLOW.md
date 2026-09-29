@@ -59,7 +59,8 @@ role label, path-presence check or completion=true flag alone proves no executio
 
 The caller may be Planner. Bind the conceptual brief or original file bytes,
 requested section/span, source access, profile, exclusions, check applicability,
-authorized output and a correction limit (three correction cycles by default).
+authorized output and a correction limit (three correction cycles by default; one in a
+light review).
 For revision, wait for independent Evaluator diagnosis before writing the bounded
 revision plan. Map each requested change and diagnosed defect to allowed edits.
 Mark unavailable optional checks as limitations; required unavailable checks hold
@@ -88,13 +89,71 @@ Generator cannot serve as Evaluator, even under another role label.
 
 ### reflector
 
-A third distinct native child performs required task closeout on the final
+A third distinct native child performs required task closeout (except under
+`review_depth: light`, where the final Evaluator carries it) on the final
 reviewed candidate and the actual preceding evidence. Read the Grounding Protocol
 and check source/claim traceability, computed metrics, rule references, scope,
 exclusions and unresolved findings. It does not edit prose or grant acceptance.
 Any new material finding reopens correction and independent evaluation, then a
 fresh closeout. No-change completion needs substantive diagnosis, review and
 reflection explaining why unchanged bytes satisfy the request.
+
+### Light review (`review_depth: light`)
+
+For a short deliverable (a memo, an outline, a bounded section), set
+`review_depth: light` in the `start` request. A new draft then runs Generator ->
+Evaluator, and a revision runs Evaluator diagnosis -> Planner plan -> Generator ->
+Evaluator. There is no separate Reflector dispatch: the final Evaluator is a
+distinct native context from the Generator and its request carries a
+`closeout_instruction`, so it re-examines traceability, scope, exclusions and
+unresolved findings on the exact final bytes. The correction limit defaults to
+one, and `SAFEGUARD_LAYER.md` is not bound or read. Argument coherence, the
+bibliography check, grounding, exclusions and exact-byte delivery are unchanged,
+and a run that still has blocking findings after its one correction ends
+`needs_revision`. Completion reports `review_depth: light` and a null reflection.
+Use the default `full` depth when the request asks for a reflection, a
+finalization, or a deliverable that will be relied on without further review.
+
+### Citations the inventory cannot parse
+
+The coordinator runs the citation inventory before dispatch and returns its errors
+as `bibliography_inventory_errors`. When there are any, the Evaluator or Reflector
+does not attempt a `bibliography_review`. Two kinds of error are different:
+
+- **A defect in the text** (a citation with no reference entry, an ambiguous
+  author-year pair, duplicate numbers). The check is returned `fail` with a
+  blocking finding for each, and correction proceeds as before.
+- **Citation syntax the inventory cannot read** (LaTeX `\cite`, Pandoc `[@key]`,
+  footnote citations). Where that syntax is in the author's own input, it is not a
+  defect, and correcting it would rewrite the author's citations to suit the
+  parser. The check is returned `unavailable` with `unavailable_reason: parser_gap`,
+  the unparsed citations in its locators and no `bibliography_review`
+  (`bibliography_parser_gap_allowed` in the request says when this applies). Only
+  that check is affected: the rest of the result stands, the gap is recorded once as
+  a limitation rather than a correction target, and completion reports
+  `bibliography_status: not_assessed_parser_gap`. The bibliography is unverified,
+  not cleared. Any other inventory error still gets its own blocking finding.
+
+`parser_gap` is refused for a new draft and for syntax the Generator introduced,
+because the Generator chose it and can use supported citations; it is refused when
+the inventory reports no unsupported syntax; and a `pass` or a `bibliography_review`
+is refused while such syntax is present (`BIBLIOGRAPHY-PARSER-GAP`). The Evaluator
+or Reflector then resubmits the check as described above; this refusal does not end
+the task.
+
+### Harness defects are reported, not repaired
+
+A defect in the harness itself (a parser or validator that refuses valid input, a
+smoketest that fails on the host) ends the task with the refusal code reported.
+This is not the recoverable `BIBLIOGRAPHY-PARSER-GAP` refusal above, which the child
+resubmits.
+Do not copy the package into the task area, patch it there, or run the fixture
+suites inside a task lane: that spends the task on maintenance and forks the rules
+the run claims to be bound to. A session whose staging root, or the shipment lane
+beside it, holds a copy of the package is refused with `PIW-RUNTIME-COPY`. The check
+is a tripwire on the package's `version.json`: it stops an ordinary run from
+continuing beside a copy, not a run that deliberately executes its own. Report the code, the input that
+triggered it and the minimal reproduction, and fix the package separately.
 
 ### Correction and delivery
 
@@ -176,7 +235,7 @@ Use `--help` for input, venue, explicit authoritative-binding and exclusion opti
 For `start`, request JSON binds `brief`, `requested_scope` (a description, plus
 `section` for a bounded Markdown section), selected `passes`, `profile`,
 `exclusions`, `required_checks`, optional source excerpts/venue/project context,
-`proposal_only` and `max_corrections`. Each required check has an `id` and
+`proposal_only`, `max_corrections` and `review_depth` (`full` or `light`). Each required check has an `id` and
 `required` boolean; a source-dependent check also declares `source_required`.
 With bound sources, the default grounding check is source-dependent. Its default
 `verification_level` is `attribution`; a check explicitly limited to citation
@@ -214,7 +273,7 @@ changed citation contexts reopen coverage. Numeric renumbering can reuse
 unchanged identities and attachments, while native final-byte review remains
 required. Unresolved evidence permits planning and draft correction but blocks
 satisfactory completion of dependent substantive checks.
-The default correction limit is three. No-change revision still follows the full
+The default correction limit is three (one in a light review). No-change revision still follows the full
 revision sequence and produces separately reviewed unchanged candidate bytes.
 
 The host object names the registered `adapter`, `subagents_available: true`,

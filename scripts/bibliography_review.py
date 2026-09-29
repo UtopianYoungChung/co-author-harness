@@ -40,6 +40,9 @@ def fingerprint(value):
 HEADING = re.compile(r'^#{1,6}\s+(?:references|bibliography|works cited)\s*$', re.I | re.M)
 NUMBER = re.compile(r'^(?:\[(\d+)\]|(\d+)[.)])\s*')
 YEAR = re.compile(r'(?<!\w)(?:\d{4}[a-z]?|n\.d\.)(?!\w)', re.I)
+_LEADING_YEAR = re.compile(
+    r'\s*(?P<year>\d{4}[a-z]?|n\.d\.)(?:\s*,\s*(?:manuscript\s+)?pp?\.\s*\d+(?:\s*[-–]\s*\d+)?'
+    r'(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*)?\s*', re.I)
 CITATION = re.compile(r'\[(?:\d+[\s,;\-–]*)+\]|\([^()\n]*(?:\d{4}[a-z]?|n\.d\.|personal communication)[^()\n]*\)', re.I)
 
 
@@ -47,10 +50,19 @@ def _author(reference):
     return re.split(r',|\s*\(', reference, maxsplit=1)[0].strip()
 
 
+# What may follow "A and" in "A and B (year)": "colleagues"/"others", or a name of up to
+# three capitalised words (given name, particles, surname). Lowercase prose after "and"
+# would attach a later, unlisted author to an earlier one:
+# "Wolpert and Rovelli disagree about Smith (2018)" cites Smith, not Wolpert.
+_NAME_WORD = r'(?:(?:van|von|de|der|den|di|da|du|del|la|le|ten|ter)\s+)*(?-i:[A-Z])[\w’\'-]*'
+_SECOND_AUTHOR = (r'(?:colleagues|others|co-?authors|collaborators|' + _NAME_WORD
+                  + r'(?:\s+' + _NAME_WORD + r'){0,2})')
+
+
 def _narrative_author(prefix, author):
     # A nearby author elsewhere in the paragraph is not a narrative attachment.
     return bool(re.search(r'(?<!\w)' + re.escape(author)
-                          + r'(?:\s+et\s+al\.?|\s+(?:&|and)\s+[\w .’\'-]+)?'
+                          + r'(?:\s+et\s+al\.?|\s+(?:&|and)\s+' + _SECOND_AUTHOR + r')?'
                           + r'(?:[’\']s|[’\'])?\s*$', prefix, re.I))
 
 
@@ -150,6 +162,12 @@ def inventory(text):
             else:
                 for part in value[1:-1].split(';'):
                     years = YEAR.findall(part)
+                    # "(year)" or "(year, p. N)": page numbers are not years, and the
+                    # author is the narrative one preceding the parenthesis.
+                    lead = _LEADING_YEAR.fullmatch(part)
+                    narrative_year = bool(lead)
+                    if lead:
+                        years = [lead['year']]
                     if not years:
                         errors.append(f'paragraph {paragraph_index}: unresolved citation {part.strip()}')
                     for year in years:
@@ -157,8 +175,7 @@ def inventory(text):
                         for ref in references:
                             # Author is the first surname/corporate author preceding a comma or year.
                             author = _author(ref['reference'])
-                            bare_year = bool(re.fullmatch(r'\s*' + re.escape(year) + r'\s*', part, re.I))
-                            author_matches = (_narrative_author(prefix, author) if bare_year else
+                            author_matches = (_narrative_author(prefix, author) if narrative_year else
                                               re.search(r'(?<!\w)' + re.escape(author) + r'(?!\w)', part, re.I))
                             if year.casefold() in [x.casefold() for x in YEAR.findall(ref['reference'])] and author_matches:
                                 candidates.append(ref)

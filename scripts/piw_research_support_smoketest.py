@@ -102,6 +102,96 @@ class BibliographyWorkflowTests(unittest.TestCase):
                 self.assert_refused(result, evidence, session, 'BIBLIOGRAPHY-INVENTORY')
                 self.assert_completion_blocked(session)
 
+    def test_narrative_page_locators_require_support_through_completion(self):
+        cases = (
+            ('Example', 'p. 3'), ('Example', 'p.3'), ('Example', 'pp. 3'),
+            ('Example', 'manuscript p. 3'), ('Example', 'manuscript pp. 3-5'),
+            ('Example', 'pp. 3-5'), ('Example', 'pp. 3–5'),
+            ('Example', 'pp. 3, 5, 7'), ('Example', 'pp. 3-5, 7–9'),
+            ('Example and Other', 'p. 3'), ('Example & Other', 'p. 3'),
+            ('Example et al.', 'p. 3'), ("Example's", 'p. 3'),
+            ('Example’s', 'p. 3'), ("Example and Other's", 'p. 3'),
+        )
+        for author, locator in cases:
+            with self.subTest(author=author, locator=locator):
+                text = MANUSCRIPT.replace('[1].', f'{author} (1970, {locator}).')
+                current = bibliography.inventory(text)
+                self.assertEqual(current['errors'], [])
+                self.assertEqual(current['non_citations'], [])
+                self.assertEqual(len(current['references']), 1)
+                self.assertEqual(len(current['uses']), 1)
+                session, result, evidence = self.setup_review(text)
+                support = result['bibliography_review']['source_support']
+                self.assertEqual(len(support), 1)
+                result['bibliography_review']['source_support'] = []
+                self.assert_refused(result, evidence, session, 'BIBLIOGRAPHY-COVERAGE')
+                self.assert_completion_blocked(session)
+                result['bibliography_review']['source_support'] = support
+                self.finish_review(session, result, evidence)
+
+    def test_narrative_page_locators_do_not_resolve_unattached_or_unknown_authors(self):
+        for citation in ('Unknown (1970, p. 3)', 'Example discusses the framework (1970, p. 3)',
+                         'Example. Another account (1970, p. 3)', '(1970, p. 3)',
+                         'Example (2027, p. 3)', 'Example (n.d., p. 3)'):
+            with self.subTest(citation=citation):
+                text = MANUSCRIPT.replace('[1].', citation + '.')
+                session, result, evidence = self.setup_review(text)
+                self.assertEqual(result['bibliography_review']['source_support'], [])
+                self.assert_refused(result, evidence, session, 'BIBLIOGRAPHY-INVENTORY')
+                self.assert_completion_blocked(session)
+
+    def test_narrative_page_locator_ambiguous_author_year_is_refused(self):
+        text = (MANUSCRIPT.replace('[1].', 'Example (1970, p. 3).')
+                + '\n[2] Example, B. (1970). A different framework.\n')
+        session, result, evidence = self.setup_review(text)
+        self.assertEqual(result['bibliography_review']['source_support'], [])
+        self.assert_refused(result, evidence, session, 'BIBLIOGRAPHY-INVENTORY')
+        self.assert_completion_blocked(session)
+
+    def test_narrative_page_locator_grammar_rejects_malformed_and_suffixed_parts(self):
+        for suffix in ('p. three', 'p 3', 'p.', 'pp. 3-', 'pp. 3,', 'pp. 3; 5',
+                       'pp. 3-5a', 'p. 3a', 'p. 3 extra', 'p. 3, see discussion',
+                       'sec. 3', 'appendix p. 3', 'manuscript 3', 'anything'):
+            with self.subTest(suffix=suffix):
+                text = MANUSCRIPT.replace('[1].', f'Example (1970, {suffix}).')
+                session, result, evidence = self.setup_review(text)
+                self.assert_refused(result, evidence, session, 'BIBLIOGRAPHY-INVENTORY')
+                self.assert_completion_blocked(session)
+
+    def test_narrative_page_locator_edits_invalidate_prior_coverage(self):
+        text = MANUSCRIPT.replace('[1].', 'Example (1970, p. 3).')
+        session, original, evidence = self.setup_review(text)
+        self.finish_review(session, original, evidence)
+        for locator in ('p. 4', 'pp. 3-4', 'manuscript p. 3'):
+            with self.subTest(locator=locator):
+                changed = text.replace('p. 3', locator)
+                session, result, evidence = self.setup_review(changed)
+                self.assertNotEqual(result['bibliography_review']['coverage_sha256'],
+                                    original['bibliography_review']['coverage_sha256'])
+                result['bibliography_review'] = copy.deepcopy(original['bibliography_review'])
+                self.assert_refused(result, evidence, session, 'BIBLIOGRAPHY-STALE')
+                self.assert_completion_blocked(session)
+
+    def test_repeated_narrative_page_citations_keep_distinct_use_ids_and_support(self):
+        for separator in (' ', '\n\n'):
+            with self.subTest(separator=separator):
+                text = MANUSCRIPT.replace('[1].', 'Example (1970, p. 3).')
+                text = text.replace('\n\n# References', separator +
+                    'Example (1970, p. 3) also distinguishes recording from approval.\n\n# References')
+                current = bibliography.inventory(text)
+                self.assertEqual(current['errors'], [])
+                self.assertEqual(len(current['uses']), 2)
+                self.assertEqual(len({row['use_id'] for row in current['uses']}), 2)
+                self.assertEqual(len({row['reference_id'] for row in current['uses']}), 1)
+                session, result, evidence = self.setup_review(text)
+                support = result['bibliography_review']['source_support']
+                self.assertEqual(len(support), 2)
+                result['bibliography_review']['source_support'] = support[:1]
+                self.assert_refused(result, evidence, session, 'BIBLIOGRAPHY-COVERAGE')
+                self.assert_completion_blocked(session)
+                result['bibliography_review']['source_support'] = support
+                self.finish_review(session, result, evidence)
+
     def test_citation_locators_and_qualifiers_reopen_review_through_completion(self):
         text = MANUSCRIPT.replace('[1].', '(Example, 1970, p. 1).')
         original_session, original, original_host = self.setup_review(text)
@@ -345,7 +435,7 @@ class BibliographyWorkflowTests(unittest.TestCase):
 
     def test_unsupported_syntax_is_not_silently_cleared(self):
         session, result, evidence = self.setup_review(MANUSCRIPT.replace('[1].', r'\cite{example}.'))
-        self.assert_refused(result, evidence, session, 'BIBLIOGRAPHY-INVENTORY')
+        self.assert_refused(result, evidence, session, 'BIBLIOGRAPHY-PARSER-GAP')
 
     def test_source_change_and_missing_challenging_search_remain_unresolved(self):
         session, result, evidence = self.setup_review()
@@ -385,6 +475,244 @@ class AttributionTests(unittest.TestCase):
                     with self.assertRaises(piw.PIWError):
                         coordinator.validate_result(contract, bound_request, result, state)
                     support[field] = before
+
+
+
+class LightReviewAndParserGapTests(unittest.TestCase):
+    GAP = (b'# Example manuscript\n\n## Anchor\nThe term "request" denotes a submitted item, not an approval. See \\cite{anchor}.\n\n'
+           b'## Scope\nEach reviewer examine one request. The queue record the decision after the review.\n')
+    GAP_REVISED = GAP.replace(b'reviewer examine', b'reviewer examines').replace(b'queue record', b'queue records')
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(prefix='light-review-')
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+
+    def open(self, name, **extra):
+        root = self.root / name
+        root.mkdir()
+        session, request = fixture.setup(root, max_corrections=extra.pop('max_corrections', 0),
+                                         revision=extra.pop('revision', False), fixture=extra.pop('fixture', fixture.FIXTURE))
+        request.update(extra)
+        return session, request
+
+    @staticmethod
+    def gap_check(result, req, contract):
+        for check in result['checks']:
+            if check['id'] == 'bibliography':
+                check.update(status='unavailable', unavailable_reason='parser_gap', locators=['paragraph 2'])
+        result.pop('bibliography_review', None)
+
+    @staticmethod
+    def fail_check(result, req, contract):
+        for check in result['checks']:
+            if check['id'] == 'bibliography':
+                check.update(status='fail', locators=['paragraph 1'])
+        result['findings'] = [{'id': 'B1', 'blocking': True, 'locator': 'paragraph 1',
+                               'message': 'The citation has no reference entry and must be corrected.'}]
+
+    def revision_at_evaluation(self, name, candidate=None, **extra):
+        session, request = self.open(name, revision=True, fixture=self.GAP, **extra)
+        coordinator.start(session, request)
+        result, evidence = fixture.complete_child(session, mutate=self.gap_check)
+        coordinator.ingest(session, result, evidence)
+        fixture.plan(session)
+        fixture.ingest_child(session, artifact=candidate if candidate is not None else self.GAP_REVISED)
+        return session
+
+    # -- light review ----------------------------------------------------------------
+    def test_light_review_skips_reflector_and_still_completes(self):
+        session, request = self.open('light', review_depth='light')
+        request.pop('max_corrections')
+        coordinator.start(session, request)
+        contract = piw.read_json(session / 'binding/run.json')
+        self.assertEqual(contract['review_depth'], 'light')
+        self.assertEqual(contract['max_corrections'], 1)
+        self.assertNotIn('SAFEGUARD_LAYER.md', [Path(x['path']).name for x in contract['rules']])
+        fixture.plan(session)
+        fixture.ingest_child(session)
+        step = fixture.ingest_child(session)
+        self.assertEqual(step['status'], 'ready_to_deliver')
+        completed = coordinator.deliver(session, session.parent / 'light.md')
+        self.assertTrue(completed['task_complete'])
+        self.assertEqual(completed['review_depth'], 'light')
+        self.assertIsNone(completed['reflection_execution_id'])
+        self.assertFalse(completed['lifecycle_terminal'])
+        self.assertFalse(completed['research_acceptance'])
+        self.assertEqual(fixture.verify_cli(session)[0], 0)
+
+    def test_light_review_final_evaluation_carries_the_closeout(self):
+        session, request = self.open('closeout', review_depth='light')
+        coordinator.start(session, request)
+        fixture.plan(session)
+        fixture.ingest_child(session)
+        packet = coordinator.next_step(session)
+        self.assertIn('closeout', packet['request']['closeout_instruction'].lower())
+
+    def test_light_review_ends_needs_revision_when_blockers_outlast_its_one_correction(self):
+        session, request = self.open('light-blocked', review_depth='light')
+        request.pop('max_corrections')
+        coordinator.start(session, request)
+        fixture.plan(session)
+        fixture.ingest_child(session)
+        self.assertEqual(fixture.ingest_child(session, blockers=True)['request']['phase'], 'generation')
+        fixture.ingest_child(session)
+        self.assertEqual(fixture.ingest_child(session, blockers=True)['status'], 'needs_revision')
+        self.assertFalse(fixture.verify_cli(session)[1]['task_complete'])
+
+    def test_full_review_is_unchanged_and_needs_a_reflector(self):
+        session, request = self.open('full')
+        coordinator.start(session, request)
+        fixture.plan(session)
+        fixture.ingest_child(session)
+        step = fixture.ingest_child(session)
+        self.assertEqual(step['request']['phase'], 'reflection')
+        self.assertIn('SAFEGUARD_LAYER.md', [Path(x['path']).name for x in piw.read_json(session / 'binding/run.json')['rules']])
+
+    def test_unknown_review_depth_is_refused(self):
+        session, request = self.open('depth', review_depth='quick')
+        with self.assertRaises(piw.PIWError) as cm:
+            coordinator.start(session, request)
+        self.assertEqual(cm.exception.code, 'PIW-REVIEW-DEPTH-INVALID')
+
+    # -- parser gap ------------------------------------------------------------------
+    def test_parser_gap_in_the_authors_input_limits_only_the_bibliography_check(self):
+        session = self.revision_at_evaluation('gap')
+        request = coordinator.next_step(session)['request']
+        self.assertTrue(request['bibliography_inventory_errors'])
+        self.assertTrue(request['bibliography_parser_gap_allowed'])
+        result, evidence = fixture.complete_child(session, mutate=self.gap_check)
+        self.assertEqual(coordinator.ingest(session, result, evidence)['request']['phase'], 'reflection')
+        result, evidence = fixture.complete_child(session, mutate=self.gap_check)
+        coordinator.ingest(session, result, evidence)
+        completed = coordinator.deliver(session, session.parent / 'gap.md')
+        self.assertTrue(completed['task_complete'])
+        self.assertEqual(completed['bibliography_status'], 'not_assessed_parser_gap')
+        self.assertEqual([x['id'] for x in completed['limitations']], ['bibliography'])
+        self.assertEqual(fixture.verify_cli(session)[0], 0)
+
+    def test_parser_gap_is_refused_for_a_new_draft_whose_generator_chose_the_syntax(self):
+        session, request = self.open('gap-draft')
+        coordinator.start(session, request)
+        fixture.plan(session)
+        fixture.ingest_child(session, artifact=MANUSCRIPT.replace('[1].', r'\cite{example}.').encode('utf-8'))
+        packet = coordinator.next_step(session)['request']
+        self.assertTrue(packet['bibliography_inventory_errors'])
+        self.assertFalse(packet['bibliography_parser_gap_allowed'])
+        result, evidence = fixture.complete_child(session, mutate=self.gap_check)
+        with self.assertRaises(piw.PIWError) as cm:
+            coordinator.ingest(session, result, evidence)
+        self.assertEqual(cm.exception.code, 'BIBLIOGRAPHY-PARSER-GAP')
+
+    def test_parser_gap_introduced_by_the_generator_is_refused(self):
+        session, request = self.open('gap-introduced', revision=True, fixture=fixture.FIXTURE)
+        coordinator.start(session, request)
+        fixture.ingest_child(session)
+        fixture.plan(session)
+        fixture.ingest_child(session, artifact=fixture.REVISED + b'\nSee \\cite{new}.\n')
+        result, evidence = fixture.complete_child(session, mutate=self.gap_check)
+        with self.assertRaises(piw.PIWError) as cm:
+            coordinator.ingest(session, result, evidence)
+        self.assertEqual(cm.exception.code, 'BIBLIOGRAPHY-PARSER-GAP')
+
+    def test_parser_gap_cannot_be_claimed_on_a_clean_inventory(self):
+        session, request = self.open('gap-false')
+        coordinator.start(session, request)
+        fixture.plan(session)
+        fixture.ingest_child(session, artifact=MANUSCRIPT.encode('utf-8'))
+        result, evidence = fixture.complete_child(session, mutate=self.gap_check)
+        with self.assertRaises(piw.PIWError) as cm:
+            coordinator.ingest(session, result, evidence)
+        self.assertEqual(cm.exception.code, 'BIBLIOGRAPHY-PARSER-GAP')
+
+    def test_a_pass_cannot_clear_citation_syntax_the_inventory_cannot_read(self):
+        session = self.revision_at_evaluation('gap-pass')
+        result, evidence = fixture.complete_child(session)
+        with self.assertRaises(piw.PIWError) as cm:
+            coordinator.ingest(session, result, evidence)
+        self.assertEqual(cm.exception.code, 'BIBLIOGRAPHY-PARSER-GAP')
+
+    def test_genuine_citation_defects_keep_the_fail_and_correct_path(self):
+        session, request = self.open('defect', max_corrections=1)
+        coordinator.start(session, request)
+        fixture.plan(session)
+        fixture.ingest_child(session, artifact=MANUSCRIPT.replace('[1].', 'Nobody (2021).').encode('utf-8'))
+        self.assertFalse(coordinator.next_step(session)['request']['bibliography_parser_gap_allowed'])
+        result, evidence = fixture.complete_child(session, mutate=self.fail_check)
+        self.assertEqual(coordinator.ingest(session, result, evidence)['request']['phase'], 'generation')
+
+    def test_parser_gap_limitation_is_recorded_once_and_replaces_stale_ones(self):
+        session = self.revision_at_evaluation('gap-once')
+        for _ in range(2):
+            result, evidence = fixture.complete_child(session, mutate=self.gap_check)
+            coordinator.ingest(session, result, evidence)
+        state = coordinator.replay(session)[3]
+        self.assertEqual([x['id'] for x in state['limitations']], ['bibliography'])
+
+    # -- narrative citation grammar ---------------------------------------------------
+    REFS = ('\n\n# References\n\nKolchinsky, A., & Wolpert, D. (2018). Semantic information.\n\n'
+            'Wolpert, D. (2018). Second paper.\n\nRovelli, C. (2018). Meaning.\n')
+
+    PAIR_REFS = ('\n\n# References\n\nKolchinsky, A., & Wolpert, D. (2018). Semantic information.\n\n'
+                 'Rovelli, C. (2018). Meaning.\n')
+
+    def _uses(self, sentence, refs=None):
+        current = bibliography.inventory('# Note\n\n' + sentence + (refs or self.REFS))
+        return current['errors'], {u['reference_id'] for u in current['uses']}
+
+    def test_and_tail_binds_only_a_second_surname(self):
+        for sentence in ('Wolpert and Rovelli disagree about Smith (2018, p. 3).',
+                         'Wolpert and Rovelli disagree. Smith (2018, p. 3) sides with one.',
+                         'Kolchinsky and Wolpert also cite Smith (2018, p. 3).'):
+            with self.subTest(sentence=sentence):
+                errors, uses = self._uses(sentence)
+                self.assertTrue(errors)
+                self.assertEqual(uses, set())
+
+    def test_and_tail_resolves_a_later_author_and_a_true_pair(self):
+        for sentence in ('Kolchinsky and Wolpert build on Rovelli (2018, manuscript p. 2).',
+                         'Kolchinsky and Wolpert (2018, pp. 3-5) argue this.',
+                         'Kolchinsky & Wolpert’s (2018, p. 3) account is examined.'):
+            with self.subTest(sentence=sentence):
+                errors, uses = self._uses(sentence, self.PAIR_REFS)
+                self.assertEqual((errors, len(uses)), ([], 1))
+
+    def test_a_four_digit_page_number_is_not_read_as_a_second_year(self):
+        for locator in ('p. 1985', 'pp. 1200-1210', 'manuscript p. 2001'):
+            with self.subTest(locator=locator):
+                errors, uses = self._uses(f'Rovelli (2018, {locator}) argues this.')
+                self.assertEqual((errors, len(uses)), ([], 1))
+
+    # -- package copy in a task lane -------------------------------------------------
+    def test_package_copy_inside_the_staging_root_is_refused(self):
+        session, request = self.open('copy')
+        coordinator.start(session, request)
+        (session / 'runtime' / 'co-author-harness').mkdir(parents=True)
+        (session / 'runtime' / 'co-author-harness' / 'version.json').write_text('{"name": "co-author-harness"}', encoding='utf-8')
+        with self.assertRaises(piw.PIWError) as cm:
+            coordinator.next_step(session)
+        self.assertEqual(cm.exception.code, 'PIW-RUNTIME-COPY')
+
+    def test_package_copy_beside_a_shipment_lane_staging_tree_is_refused(self):
+        lane = self.root / 'work' / 'reviews' / 'harness' / 'shipments' / 's1'
+        staging = lane / 'co-author-harness' / 'staging' / 'run1'
+        (staging / 'binding').mkdir(parents=True)
+        (lane / 'runtime' / 'other').mkdir(parents=True)
+        (lane / 'runtime' / 'other' / 'version.json').write_text('{"name": "other"}', encoding='utf-8')
+        piw._refuse_package_copy(staging)
+        (lane / 'runtime' / 'co-author-harness').mkdir()
+        (lane / 'runtime' / 'co-author-harness' / 'version.json').write_text('{"name": "co-author-harness"}', encoding='utf-8')
+        with self.assertRaises(piw.PIWError) as cm:
+            piw._refuse_package_copy(staging)
+        self.assertEqual(cm.exception.code, 'PIW-RUNTIME-COPY')
+
+    def test_unrelated_or_malformed_version_files_do_not_refuse_a_session(self):
+        session, request = self.open('copy-ok')
+        coordinator.start(session, request)
+        for name, text in (('a', '{"name": "other"}'), ('b', '[[[' * 100000), ('c', 'not json')):
+            (session / name / name).mkdir(parents=True)
+            (session / name / name / 'version.json').write_text(text, encoding='utf-8')
+        self.assertEqual(coordinator.next_step(session)['status'], 'plan')
 
 
 if __name__ == '__main__':

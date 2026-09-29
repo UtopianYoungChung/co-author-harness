@@ -18,6 +18,7 @@ import coherence_prefilter
 
 require = native.require
 PROFILES = {'draft': 'Produce a new deliverable from the bound brief and supplied sources.', 'refine': 'Improve requested wording and local clarity while preserving argument, terminology and citations.', 'structural': 'Revise organization only within the explicitly authorized scope; preserve claims and sources.', 'deep': 'Make the explicitly requested substantive revision; do not infer authority to alter unrelated material.', 'stability': 'Check whether the requested material needs any change; explained no-change is valid after all required roles.'}
+REVIEW_DEPTHS = ('full', 'light')
 
 
 def _paths(session_path):
@@ -119,6 +120,8 @@ def start(session_path: Path, request: dict) -> dict:
     require(review_scope in ('substantive', 'prose_only'), 'PIW-SCOPE-REQUIRED', 'Review scope must be substantive or prose_only')
     host = native.bind_host(request.get('host', {}), root)
     exclusions = sorted(set('chung-academic-voice-pass' if 'chung' in str(x).lower() else x for x in request.get('exclusions', [])))
+    review_depth = request.get('review_depth', 'full')
+    require(review_depth in REVIEW_DEPTHS, 'PIW-REVIEW-DEPTH-INVALID', 'review_depth must be full or light')
     passes = request.get('passes', ['grammar-mechanics-pass', 'sentence-level-pass'])
     applied = [x for x in passes if x not in exclusions]
     checks = request.get('required_checks', [{'id': 'brief_and_scope', 'required': True}, {'id': 'grammar', 'required': True}, {'id': 'grounding', 'required': True, 'source_required': bool(request.get('source_excerpts'))}])
@@ -131,7 +134,7 @@ def start(session_path: Path, request: dict) -> dict:
     original = (root / 'binding/original.bin').read_bytes() if session.get('mss_pin') else None
     if original is not None:
         requested_scope = _scope(original, requested_scope)
-    limit = request.get('max_corrections', 3)
+    limit = request.get('max_corrections', 1 if review_depth == 'light' else 3)
     require(isinstance(limit, int) and 0 <= limit <= 20, 'PIW-CORRECTION-LIMIT', 'Correction limit must be 0..20')
     sources = []
     for item in request.get('source_excerpts', []):
@@ -145,7 +148,7 @@ def start(session_path: Path, request: dict) -> dict:
                 'brief': request['brief'], 'profile': profile, 'profile_definition': PROFILES[profile], 'project_context': project_context, 'requested_scope': requested_scope, 'input': session.get('mss_pin'),
                 'input_snapshot': piw.identity(root / 'binding/original.bin') if original is not None else None,
                 'proposal_only': bool(request.get('proposal_only', False)), 'passes': applied, 'exclusions': exclusions,
-                'rules': piw.rule_bindings(applied, exclusions), 'package_version': piw.read_json(piw.ROOT / 'version.json'),
+                'rules': piw.rule_bindings(applied, exclusions, light=review_depth == 'light'), 'review_depth': review_depth, 'package_version': piw.read_json(piw.ROOT / 'version.json'),
                 'required_checks': checks, 'max_corrections': limit, 'source_excerpts': sources, 'review_scope': review_scope,
                 'host': host, 'output_authority': 'task-local deliverable; input apply is separate',
                 'lifecycle_terminal': False, 'research_acceptance': False}
@@ -190,6 +193,17 @@ def effective_checks(contract, target=None, read_bytes=None):
             checks = [x for x in checks if x['id'] != 'bibliography']
             checks.append({'id': 'bibliography', 'required': True})
     return checks
+
+
+def _syntax_gap(errors):
+    return [x for x in errors if 'unsupported citation syntax' in x]
+
+
+def _authors_own_syntax(contract, reader):
+    if not contract.get('input_snapshot'):
+        return False
+    text = reader(contract['input_snapshot']['path']).decode('utf-8-sig')
+    return bool(_syntax_gap(bibliography.inventory(text)['errors']))
 
 
 def validate_result(contract, request, result, state, read_bytes=None):
@@ -256,7 +270,19 @@ def validate_result(contract, request, result, state, read_bytes=None):
     elif bibliography_check:
         require(bibliography_check['status'] in ('pass', 'fail', 'unavailable'),
                 'BIBLIOGRAPHY-UNASSESSED', 'A cited manuscript cannot mark its bibliography not applicable')
-        if bibliography_check['status'] == 'pass' or result.get('bibliography_review'):
+        syntax = _syntax_gap(bibliography.inventory(reader(request['target']['path']).decode('utf-8-sig'))['errors'])
+        if bibliography_check.get('unavailable_reason') == 'parser_gap':
+            # Only citation syntax the inventory cannot read, and that the author wrote,
+            # is a parser limit. It makes this one check unavailable; the rest of the
+            # result stands. Every other inventory error is a defect in the text.
+            require(bibliography_check['status'] == 'unavailable' and not result.get('bibliography_review'),
+                    'BIBLIOGRAPHY-PARSER-GAP', 'parser_gap is an unavailable bibliography check with no bibliography_review')
+            require(bool(syntax) and _authors_own_syntax(contract, reader), 'BIBLIOGRAPHY-PARSER-GAP',
+                    "parser_gap is admitted only for unsupported citation syntax that the inventory reports and that is present in the author's own input bytes")
+        elif syntax and (bibliography_check['status'] == 'pass' or result.get('bibliography_review')):
+            raise piw.PIWError('BIBLIOGRAPHY-PARSER-GAP', 'The inventory cannot parse this citation syntax (' + '; '.join(syntax[:3])
+                               + "), so no bibliography_review can clear it. Report the check unavailable with unavailable_reason parser_gap when the syntax is in the author's input, otherwise fail with a blocking finding.")
+        elif bibliography_check['status'] == 'pass' or result.get('bibliography_review'):
             try:
                 bibliography.validate(reader(request['target']['path']).decode('utf-8-sig'),
                                       result.get('bibliography_review'), contract['source_excerpts'], reader,
@@ -304,7 +330,15 @@ def advance(contract, state, role, result):
     required.add('argument_coherence')
     if contract.get('review_scope', 'substantive') != 'prose_only':
         required.add('bibliography')
+    # A parser-gap limitation describes the bytes just reviewed; earlier ones are stale.
+    state['limitations'] = [x for x in state['limitations']
+                            if not (x.get('id') == 'bibliography' and x.get('unavailable_reason') == 'parser_gap')]
     for check in result['checks']:
+        if check['id'] == 'bibliography' and check['status'] == 'unavailable' and check.get('unavailable_reason') == 'parser_gap':
+            # Disclosed limitation, not a blocker: correction cannot fix the harness
+            # parser, and rewriting the author's citations to suit it is not permitted.
+            state['limitations'].append(check)
+            continue
         if check['id'] in required and check['status'] in ('fail', 'unavailable'):
             blockers.append({'id': check['id'], 'blocking': True, 'locator': ', '.join(check['locators']), 'message': check['rationale']})
         if check['status'] == 'unavailable' and check['id'] not in required:
@@ -321,7 +355,8 @@ def advance(contract, state, role, result):
             state['stage'] = 'generation'
     else:
         state['unresolved_findings'] = []
-        state['stage'] = 'reflection' if role == 'evaluator' else 'ready_to_deliver'
+        light = contract.get('review_depth') == 'light'
+        state['stage'] = 'reflection' if role == 'evaluator' and not light else 'ready_to_deliver'
 
 
 def replay(session_path):
@@ -380,7 +415,19 @@ def next_step(session_path):
                    'package_root': str(piw.ROOT),
                    'instruction': 'Perform the real assigned role in a distinct native context. Read role_prompt and skill_bodies from package_root on any host, then actual input and rule files, including the bound venue/project context when supplied; venue/advisor instructions refine packaged defaults under the user request. Respect the scope and exclusions in every check and correction. Final response must be only result JSON. Include run_id, step_id, role, phase, request_sha256 (hash of this exact request file), agent_execution_id (actual host session UUID), outcome completed, target copied exactly, summary explaining actual work, rule_reads copied from rules after actual reads, applied_passes and exclusions copied exactly. Generator additionally returns artifact={path,sha256,bytes} and addressed_findings IDs, writes a NEW candidate path each cycle; Evaluator/Reflector return checks=[{id,status,rationale,locators:[...]}] for every required check and findings=[{id,blocking,message,locator}]. Empty findings require substantive checks explaining why. Required unavailable checks cannot pass. Reflector inspects diagnosis/plan/generation/evaluation and final bytes; new material issues reopen correction. No scholarly CLEAN, acceptance or lifecycle authority.'}
         pending['source_support_instruction'] = 'For each source_required attribution check marked pass, include nonempty source_support=[{source_id,source_locator,quote,claim,status:"supported"}]. Quote actual source and target bytes, use the bound source locator, and explain support including qualifications. Bibliographic resolution alone cannot clear attribution; contested or missing support must fail or remain unavailable.'
-        pending['bibliography_instruction'] = 'Read references/CITATION_DISCIPLINE.md. Substantive cited drafts require a bibliography check and bibliography_review in the result. Use scripts/bibliography_review.py inventory(target_text) to enumerate references, citation uses and non_citations; copy the exact non_citations classifications into the assessment, then inspect all claims in each cited paragraph and supply judgments; inventory output is not approval. Bind sources, actually inspected materials, all source_support use IDs, role, authority, directness, currency, discovery/challenging evidence and dispositions. A supported example cannot clear other uses. New references/claims/roles reopen affected judgments; pure numbering changes may reuse identical coverage. Prose-only work must state bibliography not assessed. Unresolved evidence blocks dependent claims, while independent planning/drafting may continue.'
+        inventory_errors = (bibliography.inventory(
+            _read_bytes(pending['target']['path']).decode('utf-8-sig'))['errors']
+            if pending['target'] and role != 'generator' else [])
+        gap_allowed = bool(_syntax_gap(inventory_errors)) and _authors_own_syntax(contract, _read_bytes)
+        pending['bibliography_inventory_errors'] = inventory_errors
+        pending['bibliography_parser_gap_allowed'] = gap_allowed
+        pending['bibliography_instruction'] = ((
+            'The coordinator already ran the inventory and it reports bibliography_inventory_errors, so do not attempt a bibliography_review. '
+            + ("The unsupported citation syntax is in the author's own input and is not a defect: report the bibliography check as status unavailable with unavailable_reason parser_gap, "
+               "list the unparsed citations in its locators, give every other inventory error its own blocking finding, and never ask for the author's citation syntax to change. "
+               if gap_allowed else
+               'Report the bibliography check as fail and give each inventory error its own blocking finding; citation syntax the parser cannot read, in text the Generator wrote, is corrected by using numeric [n] or author-year citations. '))
+            if inventory_errors else '') + 'Read references/CITATION_DISCIPLINE.md. Substantive cited drafts require a bibliography check and bibliography_review in the result. Use scripts/bibliography_review.py inventory(target_text) to enumerate references, citation uses and non_citations; copy the exact non_citations classifications into the assessment, then inspect all claims in each cited paragraph and supply judgments; inventory output is not approval. Bind sources, actually inspected materials, all source_support use IDs, role, authority, directness, currency, discovery/challenging evidence and dispositions. A supported example cannot clear other uses. New references/claims/roles reopen affected judgments; pure numbering changes may reuse identical coverage. Prose-only work must state bibliography not assessed. Unresolved evidence blocks dependent claims, while independent planning/drafting may continue.'
         if pending['target']:
             read_context, changed_units, scope_units = coherence_scope(contract, pending['target'], stage)
             needed, changed_ids, neighbour_ids = coherence.required_units(
@@ -429,6 +476,11 @@ def next_step(session_path):
             'clear irrelevant placement and a coherent bridge does not clear an unsupported '
             'claim. Defects outside the write scope are findings only; they confer no write '
             'authority. Outcome is review_complete, changes_required or review_incomplete.')
+        if contract.get('review_depth') == 'light' and stage == 'evaluation':
+            pending['closeout_instruction'] = (
+                'Light review: no separate Reflector runs, so this final evaluation is also the closeout. In addition to the '
+                'required checks, confirm in your summary that source and claim traceability, scope, exclusions and every '
+                'unresolved finding were re-examined on these exact bytes. Any new material issue is a blocking finding.')
         path = root / 'logs' / f'{len(log["events"]):03d}-{stage}-request.json'
         piw.write_json(path, pending)
         log['pending'] = piw.identity(path)

@@ -149,8 +149,11 @@ sentence whole across a boundary the pre-filter found only by declaring that
 boundary an abbreviation, with a reason, and only a short form qualifies
 (`COHERENCE-SENTENCE-MERGED`). Each commitment row, and each occurrence
 locator, quotes text that occurs in the unit it names (`COHERENCE-PASSAGE-UNBOUND`).
-This file and `SAFEGUARD_LAYER.md` are bound by content in every contract, so a
-change to either invalidates an earlier completion.
+This file and `SAFEGUARD_LAYER.md` are bound by content in every full-depth
+contract, so a change to either invalidates an earlier completion. A
+`review_depth: light` contract binds this file only and never reads
+`SAFEGUARD_LAYER.md`; the obligation is then carried by this file and the
+request's `coherence_instruction`.
 
 **Mechanical validation establishes evidence integrity and coverage. It does not
 establish semantic correctness.** `scripts/coherence_review.py` can confirm that

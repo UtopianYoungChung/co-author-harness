@@ -1,6 +1,6 @@
 ---
 name: run-draft
-description: 'Draft from a brief without a pre-existing project using distinct native Generator, Evaluator and Reflector contexts, exact-byte review and required closeout. Explicit governed lifecycle requests retain assignment publication and acceptance gates.'
+description: 'Draft from a brief without a pre-existing project using distinct native Generator, Evaluator and Reflector contexts, exact-byte review and required closeout (carried by the final Evaluator under review_depth light). Explicit governed lifecycle requests retain assignment publication and acceptance gates.'
 trigger: 'when the user says "run draft," "begin draft," "stage = draft," or invokes "/run-draft"'
 version: 0.50.0
 user-invocable: true
@@ -12,7 +12,10 @@ Ordinary requests use `project_independent`; follow
 `references/PROJECT_INDEPENDENT_WORKFLOW.md` before the governed workflow below.
 The caller may be Planner; Generator, Evaluator and Reflector are distinct real
 native child contexts. Bind the brief, input, scope, rules, exclusions and output
-authority; wait for actual child outcomes. Reflection closeout is required.
+authority; wait for actual child outcomes. Reflection closeout is required
+unless the request sets `review_depth: light`, the fast path for a short memo,
+outline or bounded section: no separate Reflector, one correction cycle, and the
+final Evaluator carries the closeout (see the shared runbook).
 Task completion is verified separately from scholarly CLEAN, lifecycle terminal
 status and research acceptance. A missing child capability blocks this workflow
 with `PIW-HOST-CAPABILITY-UNAVAILABLE`; read-only passes remain available.
@@ -41,11 +44,16 @@ the task is complete (commands resolve from the package root, as below):
 Never write a completion record or a `task_complete` value yourself. When a
 step is refused, report its code: the draft may still be useful, but it is
 uncertified, not complete.
+A defect in the harness itself (a validator refusing valid input, a failing
+smoketest) ends the task with the code reported. Never copy or patch the package
+inside the task area; `PIW-RUNTIME-COPY` refuses a task area or shipment lane that
+holds a copy. `BIBLIOGRAPHY-PARSER-GAP` is not such a defect: the child resubmits
+the check as the shared runbook describes.
 
 For an existing manuscript, independent diagnosis precedes the Planner's revision
 plan and Generator edits. Preserve unrequested bytes, terms, claims and citations.
 Proposal-only delivery leaves the original untouched. Every correction returns to
-Evaluator, with three correction cycles by default; unresolved findings end
+Evaluator, with three correction cycles by default (one under `review_depth: light`); unresolved findings end
 `needs_revision`. New Reflector findings reopen correction and evaluation.
 
 Chung voice applies only when selected and never when explicitly excluded.

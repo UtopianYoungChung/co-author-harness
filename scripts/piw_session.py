@@ -175,14 +175,41 @@ def validate_session(piw_session: Path | str) -> dict:
         original = identity(staging / 'binding/original.bin')
         if any(original[k] != pin[k] for k in ('sha256', 'bytes')):
             raise PIWError('PIW-INPUT-SNAPSHOT-DRIFT', 'Original byte snapshot changed')
+    _refuse_package_copy(staging)
     return {'ok': True, 'code': 'OK', 'session': session, 'staging_root': str(staging)}
 
-def rule_bindings(passes: list[str], exclusions: list[str]) -> list[dict]:
-    # ARGUMENT_COHERENCE.md and SAFEGUARD_LAYER.md are mandatory for every prose
-    # review, so they are bound by content here: a change to either invalidates
-    # completion exactly as a change to a bound pass rule does.
+
+def _refuse_package_copy(staging: Path) -> None:
+    # A harness defect is reported, never repaired inside a task lane. A copy of
+    # the package under the task area is how a run patches and re-tests the
+    # harness in place: that spends the task on maintenance and forks the rules
+    # the run claims to be bound to. Bounded scan, package identity by version.json.
+    roots = [staging]
+    # Shipment lane <lane>/co-author-harness/staging/<run>: a copy beside that tree
+    # (the incident's first copy sat at <lane>/runtime) is in the same task lane.
+    parents = staging.parents
+    if len(parents) > 3 and staging.parent.name == 'staging' and parents[1].name == 'co-author-harness' and parents[3].name == 'shipments':
+        roots.append(parents[2])
+    for candidate in (c for root in roots for c in (*root.glob('*/version.json'), *root.glob('*/*/version.json'))):
+        try:
+            is_package = read_json(candidate).get('name') == 'co-author-harness'
+        except (OSError, ValueError, AttributeError, RecursionError):
+            continue
+        if is_package:
+            raise PIWError('PIW-RUNTIME-COPY', 'A copy of the harness package exists inside the task area: '
+                           + str(candidate.parent) + '. Report the harness defect and stop; do not patch or re-test the package in a task lane.')
+
+
+def rule_bindings(passes: list[str], exclusions: list[str], light: bool = False) -> list[dict]:
+    # ARGUMENT_COHERENCE.md and SAFEGUARD_LAYER.md are bound by content in every
+    # full-depth contract: a change to either invalidates completion exactly as a
+    # change to a bound pass rule does. A light review binds ARGUMENT_COHERENCE.md only.
     names = ['GROUNDING_PROTOCOL.md', 'CITATION_DISCIPLINE.md', 'ARGUMENT_COHERENCE.md',
              'SAFEGUARD_LAYER.md']
+    if light:
+        # Light review: the 624-line safeguard catalogue is not read. The automatic
+        # argument-coherence and bibliography checks keep their own rules.
+        names.remove('SAFEGUARD_LAYER.md')
     for name in passes:
         if name in exclusions:
             continue

@@ -41,7 +41,7 @@ This file is a thin router. The substantive Reflector prompt was split into two 
 
 | Planner-issued mode | Read this file as the agent prompt |
 |---|---|
-| **Task-closeout** (`project_independent`, required) | `references/PROJECT_INDEPENDENT_WORKFLOW.md` reflector responsibility |
+| **Task-closeout** (`project_independent`, required unless `review_depth: light`) | `references/PROJECT_INDEPENDENT_WORKFLOW.md` reflector responsibility |
 | **Reflector-lightweight** (Ph1/Ph2/Ph3, on demand) | `agents/reflector-probe.md` |
 | **Reflector-full** (Ph4 close-out, scheduled after G.4 PASS) | `agents/reflector-closeout.md` |
 | Mode not declared | **Halt and ask the Planner.** Do not guess. The split is mode-significant; running the wrong half violates the dispatch contract and may emit out-of-scope artefacts (e.g. plugin proposals from a lightweight probe). |

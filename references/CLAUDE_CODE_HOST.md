@@ -74,7 +74,8 @@ session actually has the Agent tool. Unknown or false is refused with
    the exact result JSON, and pins both log prefixes. Later appends to a live
    session do not invalidate a pin; editing pinned bytes does.
 
-Distinct Generator, Evaluator, and Reflector executions remain mandatory; the
+Distinct Generator, Evaluator, and Reflector executions remain mandatory (the
+Reflector is omitted only under `review_depth: light`); the
 caller (Planner) cannot present itself as a child. Task completion via
 `piw_completion_guard.py verify` grants no lifecycle, scholarly CLEAN, or
 research acceptance authority. Synthetic fixtures in

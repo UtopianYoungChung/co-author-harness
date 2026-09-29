@@ -5,7 +5,7 @@ drafting and revision. Project lifecycle protocols below apply only to declared
 governed operations. A read-only skill uses its packaged rule body and actual
 judgment; do not require project bootstrap, a graph or a four-role manuscript
 loop. Ordinary drafts/revisions require real Generator/Evaluator/Reflector
-contexts and evidence-verified task completion, without invented project history.
+contexts (no Reflector under `review_depth: light`) and evidence-verified task completion, without invented project history.
 
 
 **Typed output boundary.** `references/role_output_contract.json` 3.0.0 is the sole machine authority for the six fixed roles and nine triggered F1-F9 classes. Resolve trigger occurrence, context, cardinality, ordering, path, and typed suppression there. Legacy artifacts remain readable but never become shipment-v2 transaction evidence, application proof, or acceptance authority by presence.

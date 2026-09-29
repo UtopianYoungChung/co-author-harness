@@ -80,14 +80,17 @@ def verify_completion(session_path: Path | str) -> dict[str, Any]:
         reviews = [(e, r) for e, r in results if r['phase'] == 'evaluation']
         reflections = [(e, r) for e, r in results if r['phase'] == 'reflection']
         generations = [(e, r) for e, r in results if r['role'] == 'generator']
-        if not reviews or not reflections or not generations:
+        light = contract.get('review_depth') == 'light'
+        if not reviews or not generations or (not reflections and not light):
             raise piw.PIWError('PIW-REQUIRED-EVIDENCE-MISSING', 'Generation, independent final evaluation and reflection are required')
-        for _, result in (reviews[-1], reflections[-1]):
+        if light and reflections:
+            raise piw.PIWError('PIW-REQUIRED-EVIDENCE-MISSING', 'A light-review run has no Reflector stage')
+        for _, result in (reviews[-1], *reflections[-1:]):
             if result['target'] != state['candidate']:
                 raise piw.PIWError('PIW-FINAL-REVIEW-STALE', 'Final review/reflection did not inspect delivered bytes')
         if state['unresolved_findings']:
             raise piw.PIWError('PIW-NEEDS-REVISION', 'Unresolved blocking findings remain')
-        coherence_summary = _verify_coherence(coordinator, contract, state, reviews[-1][1], reflections[-1][1])
+        coherence_summary = _verify_coherence(coordinator, contract, state, reviews[-1][1], reflections[-1][1] if reflections else None)
         return {'ok': True, 'status': 'task_complete', 'code': 'PIW-TASK-COMPLETE', 'task_complete': True,
                 'coherence': coherence_summary, 'coherence_status': coherence_summary['status'],
                 'completion': True, 'piw_work_id': contract['run_id'], 'run_id': contract['run_id'],
@@ -96,10 +99,11 @@ def verify_completion(session_path: Path | str) -> dict[str, Any]:
                 'proposal_only': contract['proposal_only'], 'profile': contract.get('profile'), 'project_context': contract.get('project_context'), 'venue': contract.get('venue'), 'rules': contract['rules'], 'applied_passes': contract['passes'],
                 'exclusions': contract['exclusions'], 'source_excerpts': contract['source_excerpts'],
                 'generator_execution_id': state['generator_execution_id'], 'evaluator_execution_id': reviews[-1][1]['agent_execution_id'],
-                'reflection_execution_id': reflections[-1][1]['agent_execution_id'],
-                'evidence': role_events, 'evaluation': reviews[-1][0]['result'], 'reflection': reflections[-1][0]['result'],
+                'reflection_execution_id': reflections[-1][1]['agent_execution_id'] if reflections else None, 'review_depth': contract.get('review_depth', 'full'),
+                'evidence': role_events, 'evaluation': reviews[-1][0]['result'], 'reflection': reflections[-1][0]['result'] if reflections else None,
                 'checks': reviews[-1][1]['checks'], 'unresolved_blocking_findings': [], 'limitations': state['limitations'],
                 'bibliography_status': ('not_assessed_prose_only' if contract.get('review_scope') == 'prose_only' else
+                                        'not_assessed_parser_gap' if any(x['id'] == 'bibliography' and x.get('unavailable_reason') == 'parser_gap' for x in reviews[-1][1]['checks']) else
                                         'assessed' if any(x['id'] == 'bibliography' and x['status'] == 'pass' for x in reviews[-1][1]['checks']) else 'not_applicable'),
                 'change_summary': generations[-1][1]['summary'], 'correction_cycles': state['corrections'],
                 'lifecycle_terminal': False, 'research_acceptance': False, 'terminal': False, 'clean': False,
@@ -119,7 +123,7 @@ def _verify_coherence(coordinator, contract, state, evaluation, reflection) -> d
     """
     import coherence_review as coherence
     import piw_session as piw
-    for role, result in (('evaluation', evaluation), ('reflection', reflection)):
+    for role, result in (('evaluation', evaluation), *((('reflection', reflection),) if reflection else ())):
         check = next((x for x in result.get('checks', []) if x.get('id') == 'argument_coherence'), None)
         if not check:
             raise piw.PIWError('COHERENCE-REVIEW-MISSING',
