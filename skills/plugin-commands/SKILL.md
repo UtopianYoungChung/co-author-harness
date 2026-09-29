@@ -33,6 +33,7 @@ for internal routing, compatibility, and truthful failure behavior.
 |---|---|
 | New or unclassified project | `/classify-manuscript` |
 | Start or continue M1-M4 drafting | `/run-draft` |
+| Short memo, outline or bounded section, quickly | `/run-fast` |
 | Review and revise a draft | `/run-iterate --profile refine` |
 | Structural, deep, or byte-stable iteration | `/run-iterate --profile structural|deep|stability` |
 | Submission-bound close-out | `/run-finalize` |
@@ -68,6 +69,7 @@ receipt for that governed evidence.
 | `/plugin-commands` | degraded | Show the supported command catalog and routing. | Orientation or quick recall. |
 | `/classify-manuscript` | degraded | Establish paper type, P-stage, venue, and review requirements. | Before review or lifecycle work. |
 | `/run-draft` | active | Coordinate Planner/Generator/Evaluator/Reflector on staging for draft. | Start or continue drafting on staging. |
+| `/run-fast` | active | Draft or revise a short deliverable with one Generator child and one distinct Evaluator child; the result is an uncertified working draft. | A course memo, outline or bounded section; never a governed milestone. |
 | `/run-iterate` | active | Coordinate the four hands on staging for refine/structural/deep/stability. | Improve an existing draft on staging. |
 | `/run-finalize` | active | Coordinate the four hands on staging; Evaluator certifies shipment bytes. | After a certified draft, before Writer apply. |
 | `/run-reflection` | degraded | Coordinate reflection on a certified staging shipment (lightweight or full). | After a certified shipment. |

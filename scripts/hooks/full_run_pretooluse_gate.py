@@ -22,6 +22,10 @@ that territory a folder name is not evidence of a lifecycle, so ordinary
 writes proceed even when a path happens to contain ``research`` or
 ``milestones``.
 
+Under ``project_independent``, ``FRC_FAST_SESSION`` (the ``binding.json`` of a
+fast-lane session, ``scripts/fast_lane.py``) stands in for ``FRC_PIW_SESSION``:
+direct writes are allowed only in that session's ``draft/`` and ``review/`` folders.
+
 ``FRC_REQUIRE_SCOPE=1`` is an opt-in that refuses every event when no valid
 scope is declared. Any other value, including ``0`` or unset, is the default
 passthrough policy. ``FRC_GATE_HOOK_DISABLE`` remains the higher-priority
@@ -270,6 +274,22 @@ def _terminal_phase_reached(root: Path) -> bool:
     return isinstance(data, dict) and data.get("terminal_phase_reached") is True
 
 
+def _fast_lane_write(p: Path, binding_path: str) -> int:
+    """Fast-lane children write only candidates and findings inside their session folder."""
+    import piw_session
+    try:
+        binding = Path(binding_path).resolve()
+        if piw_session.read_json(binding).get("lane") != "fast":
+            raise ValueError("FRC_FAST_SESSION does not name a fast-lane binding.json")
+        piw_session.assert_output(p)
+        target = p.resolve()
+        if not any(target.is_relative_to(binding.parent / sub) for sub in ("draft", "review")):
+            raise ValueError("fast-lane writes are confined to the session draft/ and review/ folders")
+    except (OSError, ValueError) as exc:
+        return _deny(f"[{getattr(exc, 'code', 'FAST-OUTPUT-SCOPE')}] {exc}")
+    return _allow()
+
+
 def _handle_write(tool_input: dict, *, cwd: str | None = None,
                   tool_name: str = "Write") -> int:
     raw = os.environ.get(ACTIVE_SCOPE_ENV, "").strip().lower()
@@ -300,6 +320,8 @@ def _handle_write(tool_input: dict, *, cwd: str | None = None,
     if scope == invocation.PROJECT_INDEPENDENT:
         import piw_session
         session_path = os.environ.get("FRC_PIW_SESSION", "")
+        if not session_path and os.environ.get("FRC_FAST_SESSION"):
+            return _fast_lane_write(p, os.environ["FRC_FAST_SESSION"])
         if not session_path:
             return _deny("[FRC-PIW-SESSION-REQUIRED] standalone writes require the bound task session")
         try:

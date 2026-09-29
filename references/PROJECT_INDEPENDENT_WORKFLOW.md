@@ -114,6 +114,43 @@ and a run that still has blocking findings after its one correction ends
 Use the default `full` depth when the request asks for a reflection, a
 finalization, or a deliverable that will be relied on without further review.
 
+### Fast lane
+
+`/run-fast` (`scripts/fast_lane.py`, `skills/run-fast/SKILL.md`) is the shortest route for a
+short deliverable: a course memo, an outline or a bounded section. It runs two child
+dispatches, a Generator and then a distinct Evaluator, plus one Generator correction when the
+Evaluator's verdict is blocking (`--max-corrections`, default one). It declares
+`run_scope: project_independent` and is separate from the coordinator lane, which stays as it is
+for M4, the final paper and any governed milestone.
+
+- **Reading list.** The session binds by identity `GROUNDING_PROTOCOL.md`,
+  `CITATION_DISCIPLINE.md` and the rule files of a pass the user explicitly requested and did
+  not exclude. `ARGUMENT_COHERENCE.md`, `SAFEGUARD_LAYER.md` and the role prompts are not bound
+  or read. A brief that needs argument-coherence review, a reflection or verified completion
+  uses the coordinator lane.
+- **Sequence.** `open`, then `request` and `record` for the Generator, then for the Evaluator.
+  The script refuses an Evaluator before a Generator record, a second Generator unless the last
+  verdict was blocking and a correction remains, and the same child id in both roles. Blockers
+  after the limit end `needs_revision`, and delivery is refused. The Evaluator writes findings in
+  a fixed shape (a verdict line, then `[BLOCKING]` and `[ADVISORY]` lines) that the script parses;
+  a malformed file, or a verdict that disagrees with its blocking lines, is refused.
+- **Citation gate.** `deliver` runs the citation inventory on the final candidate. Any inventory
+  error refuses delivery (`FAST-CITATIONS-UNRESOLVED`), except unsupported citation syntax that
+  the author's own input holds at least as much of. That exception is the coordinator's
+  `parser_gap` rule, and the bibliography is then unverified, not cleared. The Generator writes
+  `[FACT NEEDED]` or `[CONCRETE EXAMPLE NEEDED]` where a fact or example is missing rather than
+  inventing one (Grounding Protocol Rule 6).
+- **Delivery.** The exact candidate bytes are written to a new output file. The destination may
+  not be the input file or a file in the session folder and passes the destination capability
+  check. `receipt.json` records the identities, the corrections used, the findings, the child ids
+  and models as the host declared them, and the bound rules.
+- **What it does not grant.** The receipt carries `certified: false`, `lifecycle_terminal: false`
+  and `research_acceptance: false`. Child ids are not checked against host logs, no reflection
+  runs, and no completion record is produced. A request or brief that claims lifecycle, promotion,
+  acceptance or `full_lifecycle` is refused (`FAST-NON-TERMINAL`). Under the hook gate, set
+  `FRC_FAST_SESSION` to the session's `binding.json` in place of `FRC_PIW_SESSION`; children may
+  then write only under the session's `draft/` and `review/` folders.
+
 ### Citations the inventory cannot parse
 
 The coordinator runs the citation inventory before dispatch and returns its errors

@@ -186,7 +186,7 @@
       "id": "capability-registry",
       "path": "references/capabilities.yaml",
       "revision_kind": "sha256",
-      "sha256": "cf96d6b61d4158d7320d49f4a9423fdf3eeecc49db0fd78b70adac7e74604ab2",
+      "sha256": "ddf0436ce9ebaec465d16cc3efeb03d7bab453dbb10e0a36f7220f41f7fcc982",
       "migration_ids": [
         "capability-closure-six-plane-v1"
       ]
@@ -843,7 +843,7 @@
       "id": "fixture-runner",
       "path": "scripts/analysis/fixture_runner.py",
       "revision_kind": "sha256",
-      "sha256": "cb4f95ad4babacd44ddaa437a80ec5c356c021f76f686582c567e911c3c205a1",
+      "sha256": "d565f24a4297446cdc6a958088e5a8a382d1798622b5d392b242499c70fea652",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -871,7 +871,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "ee2738fe2e8c36abc54dda1cc34031f24dadfbacbfab69517dfedb1cc90d668f",
+      "sha256": "e1ef808e28f3f42cc23415dde8aa51519167991a2cc5dbfd3346414f7aeec1be",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

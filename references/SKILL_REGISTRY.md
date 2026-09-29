@@ -531,6 +531,16 @@ Instrument name: **centroid-check**. Own sentence-logic pass on top of a `bindin
 - **Non-overlap (deliberate):** not a STYLE_COMMITMENTS C-n; does not replace C-7 idiolect protection, `/sentence-level-pass`, `/analytic-move-audit`, or `/public-interest-accountability-pass`. Evaluator evaluate fire tables now name this pass; it remains prompt-mediated and is not a C-n.
 - **Sibling:** SK-24 `public-interest-accountability-pass` (optional overlay), SK-13 `suchman-register-audit` (register audit), C-7 substrate `voice_preservation_guidelines.md` (preservation, not target register).
 
+### SK-50. `run-fast`
+- **File:** `skills/run-fast/SKILL.md`
+- **Pattern:** Public fast lane for a short deliverable (a course memo, an outline, a bounded section). The caller runs `scripts/fast_lane.py` (`open`, `request`, `record`, `deliver`, `status`) and dispatches one Generator child and one distinct Evaluator child. The reading list is `GROUNDING_PROTOCOL.md`, `CITATION_DISCIPLINE.md` and the rule files of an explicitly requested pass. Delivery is gated mechanically on the citation inventory and writes the exact reviewed candidate bytes with an uncertified receipt.
+- **Created:** 2026-09-28
+- **Source:** A Paper 3 M1 memo revision through the coordinator lane took most of an hour; the memo needed the package's guarantees (no fabrication, resolvable citations, distinct writer and reviewer, exact bytes, no lifecycle authority) without its full role sequence.
+- **Tier:** Package
+- **Status:** Active (script-backed; `scripts/fast_lane_smoketest.py`). The output is an uncertified working draft: no lifecycle, acceptance or scholarly CLEAN authority.
+- **Depends on:** `scripts/fast_lane.py`, `scripts/piw_session.py`, `scripts/bibliography_review.py`, `references/PROJECT_INDEPENDENT_WORKFLOW.md` (Fast lane).
+- **Sibling:** SK-38 `run-iterate` and the `run-draft` coordinator lane, which remain the route for M4, the final paper and governed milestones.
+
 ---
 
 ## Planner intents (not slash commands)
