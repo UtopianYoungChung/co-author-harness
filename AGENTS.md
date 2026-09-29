@@ -15,6 +15,8 @@ first prove its tip is reachable from `main` so no committed history is lost.
 
 **Relationship to the package substrate.** This file decides *when* and *how* the package is invoked. The substrate lives in `agents/`, `skills/`, `references/`, and `scripts/` — **Harness Root → Package Substrate → Component Files.** This root file does not duplicate orchestration rules inside those trees.
 
+**Model assignment (binding, 2026-09-29).** Joseph: "Only the current model—the highest available model running at the highest possible effort—is adequate for planning and review, including orchestration. The current model should orchestrate all other jobs, assigning them to the appropriate lower models." He applied it to this package, which he classes as an agent platform acting as the tool for drafting and revising all research artifacts. Planning, orchestration, evaluation and reflection run on the current model at maximum effort. Drafting and other bounded jobs may go to lower models. The model routes in `agents/*.md` change only on Joseph's word. Allocation detail: `references/MODEL_ALLOCATION.md`.
+
 **Producer boundary (binding, revised 2026-07-22).** The harness is a producer,
 not a decision maker. It may write private Stage reports, evidence, and
 manifests only inside an active research package's exact lane
