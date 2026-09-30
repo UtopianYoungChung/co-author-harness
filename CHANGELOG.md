@@ -14,6 +14,8 @@ Ordinary revision instructions now bind the authorized route and execution runti
 
 The Windows fixture-owner smoke test now expects the controller's existing refusal to detach a worker when its enclosing Job disallows breakaway.
 
+The scholarly-evaluation fixture now uses a finite 1,500-second tree-inclusive timeout with a two-second cleanup reserve, sized from a 1,192.785-second supervised diagnostic with about 25% headroom; that diagnostic is not release qualification.
+
 This is a package maintenance release. Private task-specific application recovery and workspace lint repairs are shipped separately in the local deployment record; their data and source text are excluded from this public package.
 
 ## Unreleased
