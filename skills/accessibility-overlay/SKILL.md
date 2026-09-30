@@ -30,6 +30,8 @@ pattern_source: >-
 version: 1.5
 ---
 
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
+
 # Accessibility Overlay (SAFEGUARD Check 8)
 
 You are executing the **Reader-Experience defence** overlay — the eight Sub-checks A–H of SAFEGUARD Check 8 in structured, Evaluator-native findings form. The overlay is **additive**: it does not replace any existing step, does not modify the manuscript, and does not mutate the DETERMINISTIC_CHECKS §9b pre-filter output it consumes. Every finding it produces carries a sub-check locator (A–H) and a line/span anchor (or, for Sub-check G, a structural-boundary locator; for Sub-check H, a passage-role + heading-path locator) so that downstream Reflector Phase 2g recurrence accounting can trace it back to the text that generated it.

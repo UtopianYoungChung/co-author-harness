@@ -6,6 +6,8 @@ trigger: when the user says "Ph1 plan-and-draft," "draft pass," "run phase 1," "
 version: 0.7.4
 ---
 
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
+
 # run-phase-1 — Ph1 Plan & Draft
 
 

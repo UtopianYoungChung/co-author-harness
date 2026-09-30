@@ -100,8 +100,10 @@ EXPECTED_BOUNDS: dict[str, tuple[float, float]] = {
 }
 
 
-def _read_escalation_log(project_root: pathlib.Path) -> list[GateFiring]:
-    log = project_root / "reviews" / "escalation_log.md"
+def _read_escalation_log(
+    project_root: pathlib.Path, lane: pathlib.Path | None = None
+) -> list[GateFiring]:
+    log = (project_root if lane is None else lane) / "reviews" / "escalation_log.md"
     if not log.exists():
         return []
     out: list[GateFiring] = []
@@ -123,9 +125,9 @@ def _read_escalation_log(project_root: pathlib.Path) -> list[GateFiring]:
     return out
 
 
-def _count_rounds(project_root: pathlib.Path) -> int:
+def _count_rounds(project_root: pathlib.Path, lane: pathlib.Path | None = None) -> int:
     """Approximate round count per project = distinct date stamps in step_findings/."""
-    step = project_root / "reviews" / "step_findings"
+    step = (project_root if lane is None else lane) / "reviews" / "step_findings"
     if not step.exists():
         return 0
     dates: set[str] = set()
@@ -215,6 +217,9 @@ def main() -> int:
                     help="rolling window size in rounds (default 6)")
     ap.add_argument("--output", default=None,
                     help="write report to file; default stdout")
+    ap.add_argument("--shipment-id", default=None,
+                    help="active shipment id for governed Workbench roots "
+                         "(or env COAUTHOR_SHIPMENT_ID); logs are read from its lane")
     args = ap.parse_args()
 
     if args.output:
@@ -235,12 +240,18 @@ def main() -> int:
     all_firings: list[GateFiring] = []
     rounds_total = 0
     projects_scanned: list[str] = []
+    from output_lane import OutputLaneError, resolve_write_root
     for root in roots:
-        firings = _read_escalation_log(root)
+        try:
+            lane = resolve_write_root(root, args.shipment_id)
+        except OutputLaneError as exc:
+            sys.stderr.write(f"[gate_threshold_tuner] {root}: {exc}\n")
+            return 3
+        firings = _read_escalation_log(root, lane)
         if firings:
             all_firings.extend(firings)
             projects_scanned.append(root.name)
-        rounds_total += _count_rounds(root)
+        rounds_total += _count_rounds(root, lane)
 
     if rounds_total == 0 and not all_firings:
         sys.stderr.write(

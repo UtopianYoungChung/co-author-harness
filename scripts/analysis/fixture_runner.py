@@ -444,7 +444,10 @@ REGISTRY: dict[str, list[dict]] = {
     "scripts/subprocess_text_policy_smoketest.py": [_default_case()],
     "scripts/update_version_manifests_smoketest.py": [_default_case()],
     "scripts/write_release_checksum_smoketest.py": [_default_case()],
+    "scripts/tests/test_output_lane.py": [_default_case()],
+    "scripts/tests/test_output_lane_routing.py": [_default_case()],
     "scripts/tests/test_resolve_includes.py": [_default_case()],
+    "scripts/tests/test_role_ledger.py": [_default_case()],
 
     "scripts/version_policy_smoketest.py": [_default_case()],
 }

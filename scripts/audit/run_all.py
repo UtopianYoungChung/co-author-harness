@@ -37,6 +37,7 @@ from audit_style import (
 from audit_craft import audit_craft
 from audit_citations import audit_source_locators
 from d_style_profile_check import build_report as build_d_style_profile_report
+from output_lane import OutputLaneError, is_governed_workbench_root, resolve_write_root
 from reader_accessibility_policy import (
     PolicyError,
     policy_error_payload,
@@ -66,6 +67,35 @@ def audit_target(path: Path) -> FindingsReport:
     for _name, fn in AUDITORS:
         report.extend(fn(text, path))
     return report
+
+
+def default_output_paths(
+    project_root: Path,
+    *,
+    shipment_id: str | None = None,
+    date: str | None = None,
+    cycle_id: str = "iter0",
+) -> dict[str, Path]:
+    """Default ``reviews/`` outputs of a run over ``project_root``, under the write root.
+
+    The write root is the shipment lane in a governed Workbench package and the
+    project root elsewhere (``scripts/output_lane.py``). ``findings`` is
+    working-directory relative outside a governed package, as before. Raises
+    ``OutputLaneError`` for a governed package with no shipment id.
+    """
+
+    root = resolve_write_root(project_root, shipment_id)
+    stamp = date or datetime.now().strftime("%Y-%m-%d")
+    return {
+        "findings": (
+            root / "reviews" / "findings.json"
+            if is_governed_workbench_root(project_root)
+            else Path("reviews/findings.json")
+        ),
+        "d_style": root / "reviews" / f"d_style_profile_{stamp}.json",
+        "accessibility": root / "reviews" / f"reader_accessibility_candidates_{cycle_id}.json",
+        "product_assurance": root / "reviews" / f"product_assurance_{cycle_id}.json",
+    }
 
 
 def run_d_style_profile(
@@ -166,14 +196,18 @@ def main(argv: List[str] | None = None) -> int:
              "lookups (testing/migration only); see --wiki-root. Defaults to the "
              "installed package. Recorded as path_roots_mode=override.",
     )
+    parser.add_argument(
+        "--shipment-id",
+        default=None,
+        help="Active shipment id (governed Workbench package; default: env COAUTHOR_SHIPMENT_ID, then the active-shipment pointer). "
+             "Default reviews/ outputs go under the write root; explicit output paths are unchanged.",
+    )
     parser.add_argument("--skip-accessibility", action="store_true", help="Skip profile-driven Check 8 candidate dispatch")
     parser.add_argument("--semantic-receipt", type=Path, help="compatibility-only semantic receipt; emits diagnostic product-assurance findings and never lifecycle evidence")
     parser.add_argument("--product-assurance-out", type=Path, help="Exact diagnostic compatibility report path (required with --stdout when --semantic-receipt is used)")
     parser.add_argument("--fail-on", choices=["none", "any", "inviolable"], default="none", help="Exit 2 within this diagnostic mechanics command if findings match: none (default; exit 0, unchanged contract), any finding, or only inviolable severity. This result is never governed product or lifecycle qualification. C-7 caution: 'any' also checks advisory craft/voice/length candidates (idiolect vs. defect needs an author-baseline read this deterministic pass cannot do) — prefer 'inviolable' for automated diagnostics, or pair 'any' with a human C-7 review.")
     args = parser.parse_args(argv)
     out_defaulted = args.out is None
-    if out_defaulted:
-        args.out = Path("reviews/findings.json")
 
     if args.semantic_receipt:
         print(
@@ -190,6 +224,29 @@ def main(argv: List[str] | None = None) -> int:
         print(f"[BLOCKER] project root not found: {args.project_root}", file=sys.stderr)
         return 2
 
+    # Default reviews/ outputs resolve under the write root (scripts/output_lane.py).
+    defaults: dict[str, Path] = {}
+    if args.project_root:
+        try:
+            defaults = default_output_paths(
+                args.project_root, shipment_id=args.shipment_id,
+                date=args.date, cycle_id=args.cycle_id,
+            )
+        except OutputLaneError as exc:
+            # A governed package with no shipment id fails closed, but only a
+            # run that would write a defaulted output needs the lane.
+            defaulted_write = (
+                (out_defaulted and not args.stdout)
+                or (not args.skip_d_style_profile and not args.d_style_profile_out)
+                or (not args.skip_accessibility and not args.accessibility_out)
+                or (bool(args.semantic_receipt) and not args.product_assurance_out)
+            )
+            if defaulted_write:
+                print(f"[BLOCKER] {exc}", file=sys.stderr)
+                return 4
+    if out_defaulted:
+        args.out = defaults.get("findings", Path("reviews/findings.json"))
+
     from destination_capability import (
         DEST_MISROUTED,
         DEST_PROTECTED,
@@ -202,19 +259,13 @@ def main(argv: List[str] | None = None) -> int:
         project_kind = classify(args.project_root) if args.project_root else None
         destinations = ([] if args.stdout else [args.out])
         if args.project_root and not args.skip_d_style_profile:
-            destinations.append(
-                args.d_style_profile_out
-                or args.project_root / "reviews" /
-                f"d_style_profile_{args.date or datetime.now().strftime('%Y-%m-%d')}.json")
+            destinations.append(args.d_style_profile_out or defaults["d_style"])
         if args.project_root and not args.skip_accessibility:
-            destinations.append(
-                args.accessibility_out
-                or args.project_root / "reviews" /
-                f"reader_accessibility_candidates_{args.cycle_id}.json")
+            destinations.append(args.accessibility_out or defaults["accessibility"])
         product_output = None
         if args.semantic_receipt:
             product_output = args.product_assurance_out or (
-                args.project_root / "reviews" / f"product_assurance_{args.cycle_id}.json"
+                defaults["product_assurance"]
                 if args.project_root else args.out.with_name("product_assurance.json")
             )
             destinations.append(product_output)
@@ -250,7 +301,7 @@ def main(argv: List[str] | None = None) -> int:
     product_output: Path | None = None
     if args.semantic_receipt:
         product_output = args.product_assurance_out or (
-            args.project_root / "reviews" / f"product_assurance_{args.cycle_id}.json"
+            defaults["product_assurance"]
             if args.project_root else args.out.with_name("product_assurance.json")
         )
         try:
@@ -294,7 +345,7 @@ def main(argv: List[str] | None = None) -> int:
             args.project_root,
             manuscript_path=args.target.resolve(),
             date=args.date,
-            output=args.d_style_profile_out,
+            output=args.d_style_profile_out or defaults["d_style"],
         )
     accessibility_report: dict[str, object] | None = None
     accessibility_output: Path | None = None
@@ -302,7 +353,7 @@ def main(argv: List[str] | None = None) -> int:
         try:
             accessibility_report, accessibility_output = run_accessibility_prefilters(
                 args.project_root.resolve(), args.target.resolve(), phase=args.phase,
-                cycle_id=args.cycle_id, output=args.accessibility_out,
+                cycle_id=args.cycle_id, output=args.accessibility_out or defaults["accessibility"],
                 profile_path=args.accessibility_profile,
                 wiki_root=args.wiki_root, workspace_root=args.workspace_root,
                 harness_root=args.harness_root,

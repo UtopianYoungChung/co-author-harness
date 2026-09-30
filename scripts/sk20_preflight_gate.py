@@ -26,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from coupling_readiness_check import CheckResult, derive_noop_reason, resolve_project_claude_path, run_checks
 from graph_authority_gate import evaluate_graph_authority
 from milestone_path_contract import canonical_deliverable
+from output_lane import OutputLaneError, resolve_write_root
 
 
 OUTCOME_READY = "READY"
@@ -185,7 +186,7 @@ def _ensure_safe_reviews_dir(project_root: Path) -> Path:
             if not reviews.is_dir() or _is_reparse(reviews):
                 raise GateIOError("reviews must be a real project-local directory, not a file or reparse point")
         else:
-            reviews.mkdir()
+            reviews.mkdir(parents=True)
         resolved = reviews.resolve(strict=True)
         resolved.relative_to(project_root)
         return resolved
@@ -439,11 +440,15 @@ def main() -> int:
     parser.add_argument("--references-path", required=False, help="Override references path")
     parser.add_argument("--classification-path", required=False, help="Override classification path")
     parser.add_argument("--allow-legacy-graph-confidence", required=False, help="Allow compatibility normalization for legacy numeric/null graph confidence values (true/false)")
+    parser.add_argument("--shipment-id", required=False, help="Active shipment id (governed Workbench package; default: env COAUTHOR_SHIPMENT_ID, then the active-shipment pointer)")
     args = parser.parse_args()
 
     from destination_capability import DestinationRefused, guard_project_root
     try:
-        guard_project_root(args.project_root)
+        guard_project_root(resolve_write_root(args.project_root, args.shipment_id))
+    except OutputLaneError as exc:
+        print(f"[BLOCKER] {exc}")
+        return 4
     except DestinationRefused as exc:
         print(f"[BLOCKER] {exc}")
         return 4
@@ -456,7 +461,8 @@ def main() -> int:
 
     try:
         project_root = _validate_project_root(args.project_root)
-        reviews_dir = project_root / "reviews"
+        write_root = resolve_write_root(project_root, args.shipment_id)
+        reviews_dir = write_root / "reviews"
         readiness_path = reviews_dir / f"coupling_readiness_{stamp}.json"
         noop_path = reviews_dir / f"sk20_noop_{stamp}.json"
         overrides = {
@@ -476,14 +482,14 @@ def main() -> int:
             default_manuscript = canonical_deliverable("M3")
         overrides["manuscript_path"] = str(_read_only_input_path(project_root, args.manuscript_path, default_manuscript))
         overrides["references_path"] = str(_read_only_input_path(project_root, args.references_path, "references/REFERENCES.md"))
-        overrides["classification_path"] = str(_read_only_input_path(project_root, args.classification_path, "reviews/classification.md"))
+        overrides["classification_path"] = str(_read_only_input_path(write_root, args.classification_path, "reviews/classification.md"))
         applicability, config_metadata, reason_code, reason_detail = _resolve_configuration(project_root, args)
         if applicability == OUTCOME_READY:
             effective = config_metadata["effective_config"]
             overrides["wiki_linked"] = "true"
             overrides["coupling_e_on_review"] = "true"
             overrides["wiki_path"] = effective["wiki_path"]
-            results, check_metadata = run_checks(project_root, overrides=overrides)
+            results, check_metadata = run_checks(project_root, overrides=overrides, write_root=write_root)
             config_metadata.update(check_metadata)
             if all(item.ok for item in results):
                 outcome = OUTCOME_READY
@@ -513,8 +519,8 @@ def main() -> int:
             deletes.append(noop_path)
         else:
             writes[noop_path] = noop_payload
-        output_warnings = _commit_outputs(project_root, writes, deletes)
-    except (GateIOError, OSError, UnicodeError, json.JSONDecodeError) as exc:
+        output_warnings = _commit_outputs(write_root, writes, deletes)
+    except (GateIOError, OutputLaneError, OSError, UnicodeError, json.JSONDecodeError) as exc:
         print(json.dumps({"outcome": OUTCOME_MISCONFIGURED, "error_code": "SK20_IO", "message": str(exc)}, indent=2))
         return 2
 

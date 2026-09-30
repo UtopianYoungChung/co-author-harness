@@ -19,6 +19,8 @@ pattern_source: >-
 version: 1.0
 ---
 
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
+
 # Graph Grounding Overlay
 
 ## FAIL-CLOSED: Graph authority unavailable

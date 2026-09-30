@@ -7,6 +7,9 @@ created_from: INF3001 Round 1 review, 2026-04-09 — Baumer/i* contradiction was
 pattern_source: SAFEGUARD_LAYER.md Check 4 (Contradiction Audit)
 version: 1.0
 ---
+
+**Write root (binding):** seat-produced files this skill reads (for example `reviews/classification.md`, `reviews/DO_NOT_DISTURB.md`) are read from the write root, not the project root — see `references/_snippets/write-root.md`. Package-native files (manuscript, effective `research_notes/directives.md`) are read where the package keeps them.
+
 # Check Contradictions
 
 You are running a targeted contradiction audit on an academic manuscript. This skill implements SAFEGUARD_LAYER Check 4 as a standalone, user-invocable check.

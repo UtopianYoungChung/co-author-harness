@@ -514,6 +514,9 @@ WIRED_MUTATORS = [
 
 
 LIFECYCLE_MUTATORS = {"checkpoint begin", "checkpoint accept", "checkpoint recover"}
+# A governed Workbench root with no active shipment id is refused fail-closed by
+# scripts/output_lane.py (the harness-authored writers route through it).
+SHIPMENT_ID_REFUSAL = "name the active shipment id"
 
 
 def case_mutator_wiring() -> None:
@@ -537,7 +540,7 @@ def case_mutator_wiring() -> None:
                     or "AMC-RECOVERY-ACK" in out
                     or "AMC-RECOVERY" in out
                 )
-            ) or "DEST-PROTECTED" in out or (
+            ) or "DEST-PROTECTED" in out or SHIPMENT_ID_REFUSAL in out or (
                 label == "process gate"
                 and (
                     "APG-CONTRACT-MISSING" in out
@@ -619,7 +622,11 @@ def case_output_redirect_refusals() -> None:
             # the traceback -- measured 2026-07-22 on d_style_profile_check.
             check(f"{label}: refuses with the documented code 4", r.returncode == 4,
                   f"rc={r.returncode}")
-            check(f"{label}: names DEST-PROTECTED", "DEST-PROTECTED" in out,
+            # d_style_profile_check routes through output_lane: a governed
+            # Workbench root with no shipment id is refused before the guard.
+            check(f"{label}: names DEST-PROTECTED",
+                  "DEST-PROTECTED" in out
+                  or (label.startswith("d-style") and SHIPMENT_ID_REFUSAL in out),
                   out.strip().splitlines()[-1][:80] if out.strip() else "silent")
             check(f"{label}: clean diagnostic, no traceback",
                   "Traceback" not in out,
@@ -755,7 +762,8 @@ def case_installer_workspace_and_read_only_modes() -> None:
         read_only = (
             ("check8_g --stdout-only",
              [sys.executable, str(SCRIPTS / "check8_g_prefilter.py"), "--project-root",
-              str(project), "--manuscript", str(manuscript), "--stdout-only"], {0}),
+              str(project), "--manuscript", str(manuscript), "--stdout-only",
+              "--p-stage", "P1"], {0}),
             ("render_lifecycle_state --check",
              [sys.executable, str(SCRIPTS / "render_lifecycle_state.py"), "--project-root",
               str(project), "--check"], None),

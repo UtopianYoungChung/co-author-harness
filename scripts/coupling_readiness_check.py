@@ -135,9 +135,13 @@ def derive_noop_reason(results: List[CheckResult], metadata: Dict[str, object]) 
 def run_checks(
     project_root: Path,
     overrides: Optional[Dict[str, object]] = None,
+    write_root: Optional[Path] = None,
 ) -> Tuple[List[CheckResult], Dict[str, object]]:
     overrides = overrides or {}
-    classification_path = Path(str(overrides.get("classification_path"))) if overrides.get("classification_path") else project_root / "reviews" / "classification.md"
+    if write_root is None:
+        from output_lane import resolve_write_root
+        write_root = resolve_write_root(project_root)
+    classification_path = Path(str(overrides.get("classification_path"))) if overrides.get("classification_path") else write_root / "reviews" / "classification.md"
     manuscript_path = Path(str(overrides.get("manuscript_path"))) if overrides.get("manuscript_path") else project_root / "manuscript" / "main.md"
     references_path = Path(str(overrides.get("references_path"))) if overrides.get("references_path") else project_root / "references" / "REFERENCES.md"
 
@@ -313,9 +317,11 @@ def main() -> int:
     parser.add_argument("--references-path", required=False, help="Override references path for freshness checks")
     parser.add_argument("--classification-path", required=False, help="Override classification path")
     parser.add_argument("--allow-legacy-graph-confidence", required=False, help="Allow compatibility normalization for legacy numeric/null graph confidence values (true/false)")
+    parser.add_argument("--shipment-id", required=False, help="Active shipment id (governed Workbench package; default: env COAUTHOR_SHIPMENT_ID, then the active-shipment pointer)")
     args = parser.parse_args()
 
     from destination_capability import DestinationRefused, assert_writable
+    from output_lane import OutputLaneError, resolve_write_root
     try:
         for dest in (args.output_json, getattr(args, "noop_output_json", None)):
             if dest:
@@ -337,7 +343,12 @@ def main() -> int:
         "classification_path": args.classification_path,
         "allow_legacy_graph_confidence": parse_cli_bool(args.allow_legacy_graph_confidence),
     }
-    results, metadata = run_checks(project_root, overrides=overrides)
+    try:
+        write_root = resolve_write_root(project_root, args.shipment_id)
+    except OutputLaneError as exc:
+        print(f"[BLOCKER] {exc}")
+        return 4
+    results, metadata = run_checks(project_root, overrides=overrides, write_root=write_root)
 
     ready = all(item.ok for item in results)
     failed_keys = [item.key for item in results if not item.ok]

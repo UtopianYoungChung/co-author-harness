@@ -1153,6 +1153,17 @@ def validate_path(path: Path) -> List[Finding]:
     return findings
 
 
+def _artefact_project_root(path: Path) -> Path:
+    """Package root of a reviews/ artefact; a shipment-lane artefact
+    (``<package>/reviews/harness/shipments/<id>/reviews/x.md``) resolves to the
+    package, not the lane."""
+    parts = path.parts
+    for i in range(len(parts) - 5, -1, -1):
+        if parts[i] == "reviews" and parts[i + 1] in ("harness", ".harness") and parts[i + 2] == "shipments":
+            return Path(*parts[:i]) if i else Path(".")
+    return path.parent.parent if path.parent.name == "reviews" else path.parent
+
+
 def validate_reader_accessibility_evidence(fm: Dict[str, Any], path: Path) -> List[Finding]:
     """Bind F1's human view to exact Check 8/profile/manuscript/candidate bytes."""
     findings: List[Finding] = []
@@ -1160,7 +1171,7 @@ def validate_reader_accessibility_evidence(fm: Dict[str, Any], path: Path) -> Li
     trusted_cycle_id = fm.get("cycle_id")
     if not isinstance(trusted_cycle_id, str) or not trusted_cycle_id:
         return [Finding(path, "R-Refl-FM-RA", "MAJOR", "cycle_id", "F1 cycle_id is required for reader-accessibility provenance")]
-    project_root = path.parent.parent if path.parent.name == "reviews" else path.parent
+    project_root = _artefact_project_root(path)
     def bound(relative: str, expected: str, field: str) -> Path | None:
         candidate = (project_root / relative).resolve()
         try: candidate.relative_to(project_root.resolve())

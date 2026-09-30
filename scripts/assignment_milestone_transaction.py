@@ -44,6 +44,7 @@ from milestone_handoff_policy import (
     resolve_handoff_policy,
 )
 from milestone_path_contract import handoff_path, snapshot_path
+from output_lane import OutputLaneError, is_never_redirected, resolve_write_root
 from scholarly_evaluation_binding import (
     ScholarlyBindingError,
     validate_scholarly_binding,
@@ -2380,6 +2381,37 @@ def _validate_m4_acceptance_policy(
     return policy, policy_file, check8_file, hashlib.sha256(policy_bytes).hexdigest()
 
 
+def _m5_terminal_canonical_paths(project: Path, terminal_round: str) -> dict[str, str]:
+    """Canonical project-relative path of each single-path M5 terminal binding role.
+
+    Harness-authored roles live under the write root (scripts/output_lane.py):
+    the shipment lane in a governed Workbench package (shipment id from
+    ``COAUTHOR_SHIPMENT_ID`` or the active-shipment pointer; this module has
+    no CLI), the project root elsewhere.
+    ``events_log`` is the tool control plane and is never redirected.
+    """
+
+    try:
+        lane = resolve_write_root(project).relative_to(project).as_posix()
+    except OutputLaneError as exc:
+        raise MilestoneTransactionError("AMC-TERMINAL", str(exc)) from exc
+    canonical = {
+        "g4_signoff": "reviews/G4_signoff.md",
+        "ship_signoff": "reviews/ph4_ship_signoff.md",
+        "final_round_report": f"reviews/final_round_report_{terminal_round}.md",
+        "reflector_full": "reviews/reflection_report.md",
+        "events_log": "reviews/.harness/events.jsonl",
+        "findings": "reviews/findings.json",
+        "convergence_log": "reviews/convergence_log.md",
+    }
+    if lane == ".":
+        return canonical
+    return {
+        role: rel if is_never_redirected(rel) else f"{lane}/{rel}"
+        for role, rel in canonical.items()
+    }
+
+
 def _validate_m5_terminal_policy(
     project: Path, policy_path: Path, artifact: dict[str, Any]
 ) -> tuple[dict[str, Any], Path, list[Path], str]:
@@ -2413,15 +2445,7 @@ def _validate_m5_terminal_policy(
     seen: dict[str, int] = {}
     dependencies = [policy_file, check8_file]
     normalized: list[dict[str, str]] = []
-    canonical = {
-        "g4_signoff": "reviews/G4_signoff.md",
-        "ship_signoff": "reviews/ph4_ship_signoff.md",
-        "final_round_report": f"reviews/final_round_report_{terminal_round}.md",
-        "reflector_full": "reviews/reflection_report.md",
-        "events_log": "reviews/.harness/events.jsonl",
-        "findings": "reviews/findings.json",
-        "convergence_log": "reviews/convergence_log.md",
-    }
+    canonical = _m5_terminal_canonical_paths(project, terminal_round)
     for row in bindings:
         if not isinstance(row, dict) or set(row) != {"role", "path", "sha256"} or row.get("role") not in TERMINAL_BINDING_ROLES:
             raise MilestoneTransactionError("AMC-TERMINAL", "terminal binding must contain only a recognized role, path, and sha256")

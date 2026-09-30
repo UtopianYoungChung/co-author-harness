@@ -14,6 +14,8 @@ description: |
   </example>
 ---
 
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`. In a governed Workbench package the Planner names the active shipment id at run start by running `python <package-root>/scripts/output_lane.py set-active --project-root <package> --shipment-id <id>`; that records the pointer `reviews/.harness/active_shipment.json`, which scripts and hooks resolve when no `--shipment-id` or `COAUTHOR_SHIPMENT_ID` is given (a governed package with no resolvable id fails closed). Pass `--shipment-id` to child dispatches and scripts where one is offered.
+
 ## Project-independent planner entry
 
 For `run_scope: project_independent`, follow

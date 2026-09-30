@@ -95,6 +95,7 @@ import argparse
 import hashlib
 import io
 import json
+import os
 import re
 import sys
 from pathlib import Path, PurePosixPath
@@ -116,6 +117,7 @@ if str(SCRIPTS) not in sys.path:
 import assignment_process_gate as apg              # noqa: E402
 import destination_capability as destination       # noqa: E402
 import invocation_scope as invocation              # noqa: E402
+import output_lane                                # noqa: E402
 import milestone_framework_validate as mfv         # noqa: E402
 import phase_state_validate as psv                 # noqa: E402
 from draft_evidence_verifier import (              # noqa: E402
@@ -1013,7 +1015,11 @@ def check_authorship(project_root: Path, *, require_receipt: bool = True) -> lis
         return findings
 
     files = [p.relative_to(project_root).as_posix() for p in substantive]
-    log = project_root / "manuscript" / "revision_log.md"
+    try:
+        log = output_lane.resolve_write_root(project_root) / "manuscript" / "revision_log.md"
+    except output_lane.OutputLaneError as exc:
+        findings.append(_f("FRC-SHIPMENT-ID-MISSING", str(exc), files=files))
+        return findings
     if not log.is_file():
         findings.append(_f(
             "FRC-AUTHORSHIP",
@@ -1378,7 +1384,7 @@ def _findings_json_findings(project_root: Path, state: dict) -> list[dict]:
     duplicate-authority problem this gate exists to stop repeating.
     """
     rel = "reviews/findings.json"
-    path = project_root / rel
+    path = output_lane.resolve_write_root(project_root) / rel
     if not path.is_file():
         return [_u("deterministic", FRC_LOCAL["findings_json"], rel,
                    "absent: no deterministic-check evidence at the canonical path")]
@@ -1397,7 +1403,7 @@ def _convergence_findings(project_root: Path) -> list[dict]:
     """Requirement 9 (journal half), via ppa.validate_terminal_convergence_log."""
     return [_u("convergence", code, where, message)
             for code, where, message in ppa.validate_terminal_convergence_log(
-                project_root / "reviews" / "convergence_log.md")]
+                output_lane.resolve_write_root(project_root) / "reviews" / "convergence_log.md")]
 
 
 def _artefact_family_findings(project_root: Path, *, source: str, rel: str | None,
@@ -1451,7 +1457,8 @@ def _f4_findings(project_root: Path) -> list[dict]:
     `reviews/**/reflector_full*` -- a name this contract never specified, which
     is how a suggestively named file came to satisfy a requirement.
     """
-    path = project_root / "reviews" / "reflection_report.md"
+    lane = output_lane.resolve_write_root(project_root)
+    path = lane / "reviews" / "reflection_report.md"
     return _artefact_family_findings(
         project_root, source="reflector",
         rel="reviews/reflection_report.md",
@@ -1489,7 +1496,7 @@ def _f8_findings(project_root: Path, state: dict) -> list[dict]:
                    "exists to abolish. The Planner writes this atomically with "
                    "terminal_phase_reached at terminal close.")]
 
-    reviews = project_root / "reviews"
+    reviews = output_lane.resolve_write_root(project_root) / "reviews"
     canonical = reviews / f"final_round_report_{bound}.md"
     rel = f"reviews/final_round_report_{bound}.md"
 
@@ -1702,8 +1709,9 @@ def _structured_terminal_signoff_findings(project_root: Path, state: dict) -> li
                 findings.append(_u("signoff", "FRC-TERMINAL-EVIDENCE-BINDING", f"milestone_framework.milestones.M5.policy_evidence.bindings[{index}]", f"cannot read terminal evidence binding: {exc}")); continue
             if current != row.get("sha256"):
                 findings.append(_u("signoff", "FRC-TERMINAL-EVIDENCE-BINDING", f"milestone_framework.milestones.M5.policy_evidence.bindings[{index}]", "terminal evidence hash is stale"))
+    lane = output_lane.resolve_write_root(project_root)
     for relative, expected in specs.items():
-        path = project_root / relative
+        path = lane / relative
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeError) as exc:
@@ -1772,6 +1780,12 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
         findings.append(_f("FRC-TERMINAL-UNPROVEN",
                            "terminal claim with no authoritative project: zero of the "
                            "fifteen requirements can be satisfied"))
+        return findings
+
+    try:
+        output_lane.resolve_write_root(project_root)
+    except output_lane.OutputLaneError as exc:
+        findings.append(_f("FRC-SHIPMENT-ID-MISSING", str(exc)))
         return findings
 
     if state_override is None:
@@ -2055,6 +2069,9 @@ def check_terminal(project_root: Path, state_override: dict | None = None) -> li
 
 
 def cmd_terminal(args) -> int:
+    if getattr(args, "shipment_id", None):
+        # Env fallback is the one shipment-id channel (scripts/output_lane.py).
+        os.environ[output_lane.SHIPMENT_ID_ENV] = args.shipment_id
     # PIW staging receipts must never satisfy terminal (AT-8).
     root = args.project_root
     if root is not None:
@@ -2123,6 +2140,8 @@ def main(argv: list[str] | None = None) -> int:
 
     t = sub.add_parser("terminal", help="is a terminal claim earned?")
     t.add_argument("--project-root", type=Path)
+    t.add_argument("--shipment-id", default=None,
+                   help="Active shipment id (governed Workbench package; default: env COAUTHOR_SHIPMENT_ID, then the active-shipment pointer)")
     t.set_defaults(fn=cmd_terminal)
 
     i = sub.add_parser("intent", help="classify a request's run scope")

@@ -4,6 +4,8 @@ description: Establish paper type, P-stage (P0/P1/P2), venue, and default final 
 trigger: when the user asks to classify a manuscript, start a review, or determine review depth and gating before evaluation
 version: 1.0
 ---
+
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
 # Classify Manuscript
 
 **Invoke-only / fail-closed.** Stays invoke-able. Does not auto-dispatch as scholarly CLEAN and does not mint CLEAN.

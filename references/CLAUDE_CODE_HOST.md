@@ -180,6 +180,53 @@ launching shell or in the project's `.claude/settings.json`:
 `FRC_REQUIRE_SCOPE=1` refuses every event without a valid scope, and
 `FRC_GATE_HOOK_DISABLE=1` turns the gate off.
 
+### Role entry and exit ledger (MG 1.0.15 1.11c)
+
+Master Governance 1.0.15 clause 1.11c requires the platform to record each
+role entry and exit with the session identity (FINDING-20260929-002). The
+hooks run `scripts/hooks/role_ledger.py`, which appends one hash-chained JSONL
+line per transition (`ts`, `host`, `session_id`, `event`, `role`,
+`role_source`, `agent_id`, `agent_type`, `cwd`, `transcript_path`,
+`hook_event_name`, `prev_sha256`, `command`). It prints nothing, always exits 0
+and never blocks a session; a failed write goes to stderr and the event is
+dropped, and a ledger lock still held after 5 seconds also drops the event (the
+ledger is never written unlocked). `COAUTHOR_ROLE_LEDGER_DISABLE=1` turns it off.
+
+| Host event | Condition | Recorded |
+| --- | --- | --- |
+| `SubagentStart` | `agent_type` is `co-author-harness:<role>` | enter, role `<role>`, source `subagent` |
+| `SubagentStop` | same | exit, same role |
+| `UserPromptExpansion` | command is a harness run command (`run-iterate`, `run-draft`, `run-finalize`, `run-fast`, `run-phase-1` to `4`, `run-phase-3-stability`, `run-reflection`; bare or `co-author-harness:` prefixed) | Planner enter, source `command`, once per session |
+| `PreToolUse` (matcher `Skill`) | the skill is one of those commands, main thread only | Planner enter, source `skill`, once per session |
+| `SessionEnd` | a Planner role is open for that session (main thread) | exit, role `planner`, source `command` |
+
+A Planner holds its role for the whole session, so its exit is recorded at
+`SessionEnd` (end of the session), never at `Stop` (end of a turn): `Stop`
+records nothing on Claude Code. `SessionEnd` with no open Planner role records
+nothing, and a session that never ends cleanly leaves its Planner entry open.
+`run-generator-session` runs a Generator session, not the Planner role, and is
+not recorded. Open Planner roles are kept in `state.json` beside the ledger.
+
+Ledger location, first match (by the hook's working directory):
+
+1. A governed Workbench work-id root (`research/60_Workbench/<work-id>`, the
+   working directory or one of its ancestors, found through
+   `destination_capability`): `<work-id root>/reviews/.harness/roles/ledger.jsonl`,
+   the tool control plane. `destination_capability.assert_writable` must accept
+   it; otherwise nothing is written.
+2. Every other case, including a non-governed project (which is never
+   written to) and a session whose working directory is outside its governed
+   package: `$CLAUDE_PLUGIN_DATA/roles/ledger.jsonl` (or `$PLUGIN_DATA`).
+3. Neither: the event is dropped with a note on stderr.
+
+Field names are from the Claude Code hooks reference (agent_id and agent_type
+on the subagent events, `command_name` on `UserPromptExpansion`). The script
+also reads `command` and `expansion_command`, and reads the Skill tool's name
+from `tool_input.skill`, `skill_name`, `name` or `command`; the docs page
+checked on 2026-09-29 did not show the Skill tool's input keys, so that
+mapping is defensive and unconfirmed against a live payload. Codex covers only
+entries; see `docs/agent-instructions/codex-host.md`.
+
 ### Session context
 
 Claude Code does not load a plugin's `AGENTS.md`, so the grounding floor would

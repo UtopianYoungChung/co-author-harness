@@ -6,6 +6,8 @@ trigger: when the user says "Ph2 review-and-revise," "run phase 2," "first evalu
 version: 0.15.1
 ---
 
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
+
 # run-phase-2 -- compatibility router to /run-iterate refine
 
 

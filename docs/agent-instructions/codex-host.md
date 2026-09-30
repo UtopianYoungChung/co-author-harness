@@ -110,6 +110,22 @@ paths that skip tool hooks. A synthetic adapter test proves the decision logic,
 not live installation, trust, or full-lifecycle qualification. The existing
 trace verification and lifecycle gates remain required.
 
+## Role ledger (MG 1.0.15 1.11c): partial
+
+`scripts/hooks/role_ledger.py` records role entry and exit for Master
+Governance 1.0.15 clause 1.11c. On Codex it records only what the host
+exposes: a `PreToolUse` on `spawn_agent` writes an `enter` line (role
+`subagent`, or `subagent:<name>` when `tool_input` names the agent) and `Stop`
+writes a `turn_end` line only for a session that has already recorded an entry. **Codex exposes no subagent-stop event, so role exits
+are not recorded on Codex.** This is an open requirement against clause 1.11c,
+not a claim of coverage. The Codex `spawn_agent` payload keys for an agent name
+(`agent_type`, `agent_name`, `name`, `role`) are read defensively and have not
+been confirmed against a live payload. The ledger and its location rules are
+described in `references/CLAUDE_CODE_HOST.md`. These entries use inline
+`sh`/`cmd.exe` commands rather than `run_codex_hook`, because that launcher
+runs `codex_gate.py` only; the script needs only the standard library, always
+exits 0, and is trusted through the same `/hooks` review as the others.
+
 ## Verify each layer separately
 
 1. Run `python scripts/skill-check.py` and

@@ -6,6 +6,8 @@ trigger: auto-invoked by seed-snowball-discovery (SK-33) as a pre-seed step when
 version: 1.0
 ---
 
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
+
 # inherit-snowball-from-wiki — Cross-Project Pre-Seed Inheritance
 
 ## FAIL-CLOSED: Graph authority unavailable

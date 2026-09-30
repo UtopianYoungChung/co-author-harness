@@ -12,6 +12,8 @@ pattern_source: GROUNDING_PROTOCOL.md Rule 4 (every theoretical claim must be ci
 version: 1.0
 ---
 
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
+
 # Retrofit Concept Grounding
 ## Output-routing preflight (current hard stop)
 

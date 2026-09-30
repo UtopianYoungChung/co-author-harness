@@ -83,6 +83,7 @@ from pathlib import Path
 from typing import Any
 
 import milestone_framework_validate as milestone_validator
+import output_lane
 
 
 # ----------------------------------------------------------------- constants
@@ -241,6 +242,19 @@ class CheckContext:
     now_utc: datetime.datetime = field(
         default_factory=lambda: datetime.datetime.now(datetime.timezone.utc)
     )
+    write_root: Path | None = None
+
+    @property
+    def lane(self) -> Path:
+        """Root of harness-authored package files (scripts/output_lane.py).
+
+        Reads of seat-written files (convergence_log, classification, phase
+        exit artefacts) follow the write root; ``reviews/phase_state.json``
+        stays at ``project_root``.
+        """
+        if self.write_root is not None:
+            return self.write_root
+        return output_lane.resolve_write_root(self.project_root)
 
 
 @dataclass(frozen=True)
@@ -525,7 +539,7 @@ def check_clause_a(ctx: CheckContext) -> None:
     prior_tier = PRIOR_TIER_FOR_TARGET.get(ctx.target_tier)
     if prior_tier is None:  # target == T1: no prior artefact required
         return
-    artefact_path = ctx.project_root / ARTEFACT_PATH[prior_tier]
+    artefact_path = ctx.lane / ARTEFACT_PATH[prior_tier]
     text = _read_text_or_none(artefact_path)
     if not text:
         ctx.findings.append(
@@ -701,7 +715,7 @@ def check_clause_c(ctx: CheckContext) -> None:
     phase_state_schema.md §6.1 codes E-ESCALATION-WITHOUT-OWNER /
     E-OWNERSHIP-TRANSFER-WITHOUT-RATIONALE).
     """
-    log_path = ctx.project_root / "reviews" / "convergence_log.md"
+    log_path = ctx.lane / "reviews" / "convergence_log.md"
     text = _read_text_or_none(log_path)
     if text is None:
         # At T2 target with no convergence log yet, this is acceptable — the log
@@ -769,7 +783,7 @@ def check_clause_d(ctx: CheckContext) -> None:
     section = ctx.target_section
 
     # (d.1) classification.md presence — v0.11.0 c11.
-    classification_path = ctx.project_root / "reviews" / "classification.md"
+    classification_path = ctx.lane / "reviews" / "classification.md"
     if not classification_path.exists():
         ctx.findings.append(
             Finding(
@@ -1114,7 +1128,7 @@ def check_clause_f(ctx: CheckContext) -> None:
     # additive: it does not change `_is_mcr_cleared`, does not affect the
     # exit code (W- prefix routes to warnings per main()), and does not
     # substitute for the TerminalSignoffRow that authorizes Ph3 -> Ph3_converged.
-    log_path = ctx.project_root / "reviews" / "convergence_log.md"
+    log_path = ctx.lane / "reviews" / "convergence_log.md"
     log_text = _read_text_or_none(log_path)
     if log_text:
         for s in sections:
@@ -1381,7 +1395,7 @@ def check_clause_g(ctx: CheckContext) -> None:
     for i, row in enumerate(tail):
         ctx.findings.extend(_check_tier_entry_log_row(ctx, row, i))
 
-    signoff_path = ctx.project_root / "reviews" / "ph3_convergence_signoff.md"
+    signoff_path = ctx.lane / "reviews" / "ph3_convergence_signoff.md"
     text = _read_text_or_none(signoff_path)
     if text:
         rows = _parse_t3_signoff_rows(text)
@@ -1426,6 +1440,11 @@ def main(argv: list[str] | None = None) -> int:
         help="validate the Ph4 terminal-close boundary (M5 + G.4) instead of Ph4 admission",
     )
     parser.add_argument("--json", action="store_true")
+    parser.add_argument(
+        "--shipment-id",
+        default=None,
+        help="Active shipment id (governed Workbench package; default: env COAUTHOR_SHIPMENT_ID, then the active-shipment pointer)",
+    )
     args = parser.parse_args(argv)
 
     target_phase = args.target_tier.replace("T", "Ph", 1)
@@ -1444,6 +1463,9 @@ def main(argv: list[str] | None = None) -> int:
             "is not a directory.\n"
         )
         return 2
+    if args.shipment_id:
+        # The milestone gate resolves its lane from the environment.
+        os.environ[output_lane.SHIPMENT_ID_ENV] = args.shipment_id
 
     phase_path = args.project_root / "reviews" / "phase_state.json"
     try:
@@ -1484,6 +1506,12 @@ def main(argv: list[str] | None = None) -> int:
 
     ledger, section = load_ledger(args)
 
+    try:
+        write_root = output_lane.resolve_write_root(args.project_root, args.shipment_id)
+    except output_lane.OutputLaneError as exc:
+        sys.stderr.write(f"[pre_phase_advance_check] error: {exc}" + chr(10))
+        return 2
+
     ctx = CheckContext(
         project_root=args.project_root,
         target_tier=args.target_tier,
@@ -1492,6 +1520,7 @@ def main(argv: list[str] | None = None) -> int:
         ledger=ledger,
         t3_staleness_budget_days=args.t3_staleness_budget_days,
         strict_clause_f=args.strict_clause_f,
+        write_root=write_root,
     )
 
     check_clause_a(ctx)

@@ -9,6 +9,8 @@ tier_binding: >
   Response-letter manuscript-class within Ph3 (disposition settled 2026-07-07; the former independent T3R sibling ladder is retired — T3R survives as this entry point's historical label, v0.5.0 ancestry). Invoked by the Planner when the classification record carries paper_type=response-letter (legacy records carrying tier=T3R route here). Emits the three T3R artifacts (`reviews/response_letter_findings_<date>.md`, `reviews/response_letter_reframe_brief_<date>.md`, `manuscript/response_letter.md`) under `TIER_PROTOCOL.md §2.5` contract.
 version: 1.1
 ---
+
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
 # Response-Letter Review
 
 You are reviewing a response letter (or rebuttal) for an academic venue submission. This skill implements the response-letter-specific rules from `research_paper_writing_guidelines.md §8` combined with targeted SAFEGUARD_LAYER integrity checks.

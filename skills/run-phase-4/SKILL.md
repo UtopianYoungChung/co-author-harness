@@ -6,6 +6,8 @@ trigger: when the user says "Ph4 finalize-and-close," "run phase 4," "ship this,
 version: 0.8.0
 ---
 
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
+
 # run-phase-4 — Ph4 Finalize & Close
 
 > **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. The `references/…` and `scripts/…` paths in this skill resolve against that root, not against this skill's own directory. On hosts that do not fill it in (Codex, a source checkout), use the package directory that contains `version.json`.

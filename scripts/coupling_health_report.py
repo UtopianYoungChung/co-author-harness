@@ -22,8 +22,8 @@ def read_json(path: Path) -> Dict[str, object]:
         return {}
 
 
-def collect_health(project_root: Path) -> Dict[str, object]:
-    reviews_dir = project_root / "reviews"
+def collect_health(project_root: Path, write_root: Path | None = None) -> Dict[str, object]:
+    reviews_dir = (project_root if write_root is None else write_root) / "reviews"
     readiness_files = sorted(reviews_dir.glob("coupling_readiness_*.json"))
     noop_files = sorted(reviews_dir.glob("sk20_noop_*.json"))
     overlay_files = sorted(reviews_dir.glob("graph_overlay_*.md"))
@@ -168,19 +168,26 @@ def main() -> int:
         required=False,
         help="Optional JSON output path (default: <project>/reviews/coupling_health.json)",
     )
+    parser.add_argument("--shipment-id", required=False, help="Active shipment id (governed Workbench package; default: env COAUTHOR_SHIPMENT_ID, then the active-shipment pointer)")
     args = parser.parse_args()
 
     project_root = Path(args.project_root)
-    health = collect_health(project_root)
+    from output_lane import OutputLaneError, resolve_write_root
+    try:
+        write_root = resolve_write_root(project_root, args.shipment_id)
+    except OutputLaneError as exc:
+        print(f"[BLOCKER] {exc}")
+        return 4
+    health = collect_health(project_root, write_root)
 
-    md_output = args.output_md or str(project_root / "reviews" / "coupling_health.md")
-    json_output = args.output_json or str(project_root / "reviews" / "coupling_health.json")
+    md_output = args.output_md or str(write_root / "reviews" / "coupling_health.md")
+    json_output = args.output_json or str(write_root / "reviews" / "coupling_health.json")
 
     md_path = Path(md_output)
     json_path = Path(json_output)
     from destination_capability import DestinationRefused, assert_writable, guard_project_root
     try:
-        guard_project_root(project_root)
+        guard_project_root(write_root)
         assert_writable(md_path, purpose="coupling-health markdown output")
         assert_writable(json_path, purpose="coupling-health JSON output")
     except DestinationRefused as exc:

@@ -316,17 +316,35 @@ def main() -> int:
         help="P-stage gap envelope; default: parse reviews/classification.md or P1",
     )
     ap.add_argument(
+        "--shipment-id",
+        default=None,
+        help="Active shipment id (governed Workbench package; default: env COAUTHOR_SHIPMENT_ID, then the active-shipment pointer)",
+    )
+    ap.add_argument(
         "--stdout-only",
         action="store_true",
         help="Print stub to stdout; do not write reviews/deterministic_*.md",
     )
     args = ap.parse_args()
     project_root = args.project_root.resolve()
+    from output_lane import OutputLaneError, resolve_write_root
+    try:
+        write_root = resolve_write_root(project_root, args.shipment_id)
+    except OutputLaneError as exc:
+        if args.stdout_only and args.p_stage:
+            # read-only mode with an explicit P-stage: nothing is read from
+            # or written to a lane.
+            write_root = project_root
+        else:
+            print(f"[BLOCKER] {exc}" + (
+                " (--stdout-only reads the P-stage from the lane; pass --p-stage)"
+                if args.stdout_only else ""))
+            return 4
     if not args.stdout_only:
         # --stdout-only writes nothing, so it needs no write capability.
         from destination_capability import DestinationRefused, guard_project_root
         try:
-            guard_project_root(project_root)
+            guard_project_root(write_root)
         except DestinationRefused as exc:
             print(f"[BLOCKER] {exc}")
             return 4
@@ -336,7 +354,7 @@ def main() -> int:
     if not ms_path.is_file():
         raise SystemExit(f"manuscript not found: {args.manuscript}")
 
-    p_stage = args.p_stage or _parse_pstage(project_root)
+    p_stage = args.p_stage or _parse_pstage(write_root)
     text = ms_path.read_text(encoding="utf-8", errors="replace")
     profile = load_profile()
     stats, total_wc, n_head, over_5000 = analyze(text, ms_path, p_stage, profile)
@@ -349,11 +367,11 @@ def main() -> int:
         print(wrapped, end="")
         return 0
 
-    (project_root / "reviews").mkdir(parents=True, exist_ok=True)
+    (write_root / "reviews").mkdir(parents=True, exist_ok=True)
     merged = merge_into_reviews(
-        project_root, args.cycle_id, wrapped, mstart
+        write_root, args.cycle_id, wrapped, mstart
     )
-    out = project_root / "reviews" / f"deterministic_{args.cycle_id}.md"
+    out = write_root / "reviews" / f"deterministic_{args.cycle_id}.md"
     out.write_text(merged, encoding="utf-8", newline="\n")
     print(f"Wrote {out}")
     return 0

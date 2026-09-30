@@ -5,6 +5,8 @@ trigger: when the user runs /claim-coverage-audit on a section, when the user wa
 version: 1.0
 ---
 
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
+
 # claim-coverage-audit — Per-Claim Source Mapping for Ph1 → Ph2 Admission
 
 **Bibliography boundary.** Apply `references/CITATION_DISCIPLINE.md` §6. This score and source-resolution map are discovery/coverage aids, not scholarly bibliography clearance. Synthesis similarity, metadata resolution or a passing threshold cannot clear unassessed references or citation uses; full role/currency/directness judgments require inspected evidence and final-version coverage.

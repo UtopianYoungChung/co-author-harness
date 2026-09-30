@@ -336,6 +336,14 @@
       "class": "excluded",
       "reason": "user-invoked Codex setup tool: dry run by default; with --write creates only the six coauthor_*.toml role pointers in the explicitly named --agent-dir and, when requested, one --config-output fragment; refuses the harness package, a directory enclosing it, and any destination inside a governed workspace (dry runs included), and never overwrites a different existing file",
       "sha256": "6ac1f2b84e8fe429b2a10192b4cff0e5d9ce35a92ffcb7ea9d5d212c567ba526"
+    },
+    "scripts/hooks/role_ledger.py": {
+      "class": "guarded",
+      "regression": "scripts/tests/test_role_ledger.py::test_project_inside_governed_tree_but_not_work_id_is_skipped"
+    },
+    "scripts/output_lane.py": {
+      "class": "guarded",
+      "regression": "scripts/tests/test_output_lane.py::test_set_active_refuses_non_governed_and_bad_id"
     }
   }
 }

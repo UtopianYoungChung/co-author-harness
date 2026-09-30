@@ -8,6 +8,8 @@ created_from: v0.3.3 integration analysis addendum — placeholder-namespace and
 pattern_source: GROUNDING_PROTOCOL.md Rule 1 and Rule 4 applied reflexively to the plugin's own advertised tool surface
 version: 1.0
 ---
+
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
 # Tool-Contract Round-Trip Test
 
 You are running a pre-release round-trip test of the plugin's external-verifier tier. This skill reflexively applies Rule 1 (read-before-cite) and Rule 4 (verify-before-reference) to the plugin's own tool surface — every verifier the plugin references must be invoked, every response payload must be inspected, and every undocumented contract field must be surfaced before the plugin ships.

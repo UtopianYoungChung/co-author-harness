@@ -16,6 +16,8 @@ description: |
   </example>
 ---
 
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
+
 > **File resolution (plugin context).** Rule and orchestration documents live under `<package-root>/references/`, where `<package-root>` is `${CLAUDE_PLUGIN_ROOT}` on Claude hosts and otherwise the installed package directory containing `version.json` (Codex or the opened checkout; a bound request names it as `package_root`). Read from there. Package scripts resolve the same way: run them as `python "<package-root>/scripts/…"` from the project directory, because a bare `python scripts/…` resolves against the project, not the package.
 
 ## Project-independent evaluator entry

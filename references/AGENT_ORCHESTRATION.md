@@ -1,5 +1,7 @@
 # AGENT ORCHESTRATION — Four-Agent Architecture
 
+**Write root (binding).** Every project-relative harness-authored path this document tells a role or script to write or read (`reviews/...`, `research_notes/...`, `manuscript/revision_log.md`, ...) is relative to the write root: the active shipment lane `reviews/harness/shipments/<shipment-id>/` in a governed Workbench package, the project root elsewhere. The rule, its three never-redirected exceptions (`reviews/phase_state.json`, `reviews/.harness/**`, the re-pin files) and its provenance (Master Governance 1.0.15 clause 1.11b / Annex D; FINDING-20260929-001) are defined once in `references/_snippets/write-root.md`; resolve with `scripts/output_lane.py`.
+
 ## Ordinary tasks before lifecycle routing
 
 Read `PROJECT_INDEPENDENT_WORKFLOW.md` first for ordinary drafting, revision or

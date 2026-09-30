@@ -325,20 +325,30 @@ def main(argv: Optional[List[str]] = None) -> int:
         default=Path.cwd(),
         help="Project root containing reviews/ subdirectory (default: cwd)",
     )
+    ap.add_argument(
+        "--shipment-id",
+        default=None,
+        help="Active shipment id (governed Workbench package; default: env COAUTHOR_SHIPMENT_ID, then the active-shipment pointer)",
+    )
     args = ap.parse_args(argv)
 
     from destination_capability import DestinationRefused, guard_project_root
+    from output_lane import OutputLaneError, resolve_write_root
     try:
-        guard_project_root(args.project_root)
+        write_root = resolve_write_root(args.project_root, args.shipment_id)
+        guard_project_root(write_root)
+    except OutputLaneError as exc:
+        print(f"[BLOCKER] {exc}", file=sys.stderr)
+        return 4
     except DestinationRefused as exc:
         print(f"[BLOCKER] {exc}", file=sys.stderr)
         return 4
 
-    reviews_dir = args.project_root / "reviews"
+    reviews_dir = write_root / "reviews"
     if not reviews_dir.is_dir():
         print(
             f"ERROR: {reviews_dir} does not exist (no reviews/ subdir under "
-            f"{args.project_root})",
+            f"{write_root})",
             file=sys.stderr,
         )
         return 2

@@ -5,6 +5,8 @@ trigger: when the user invokes /seed-snowball-discovery, when run-phase-1 Step 4
 version: 1.0
 ---
 
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
+
 # seed-snowball-discovery — Ph1 Entry Reference Scaffolding
 
 Apply `references/CITATION_DISCIPLINE.md` §6 before source admission. Record intended role, backward/forward discovery and challenging evidence, actual verification and unresolved limits in existing REFERENCES and verification records. A discovery hit, classic status or publisher reputation alone cannot establish fitness or current-field coverage.

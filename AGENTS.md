@@ -48,6 +48,7 @@ write nothing and so need no write capability.
 The lookalike path `co-author-harness/outputs/co-author-harness/` is forbidden:
 project output must never become package state or make one project a governing
 body for the harness.
+Harness-authored package files (for example `reviews/revision_plan.md`, `reviews/convergence_log.md`, `research_notes/lessons_learned.md`) are written under one write root, the active shipment lane in a governed Workbench package and the project root elsewhere, resolved by `scripts/output_lane.py` and defined once in `references/_snippets/write-root.md`.
 
 *Consolidation (Option C″, 2026-04-21):* this repo root (`co-author-harness/`; formerly `research-writing-harness/`) is canonical; former `paper-harness/` is retired. Full tree, ownership, and history: [docs/agent-instructions/harness-architecture.md](docs/agent-instructions/harness-architecture.md) and [docs/agent-instructions/harness-history.md](docs/agent-instructions/harness-history.md). Workspace contract: `../../ROOT_ARCHITECTURE_INDEX.md`.
 

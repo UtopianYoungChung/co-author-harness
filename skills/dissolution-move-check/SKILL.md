@@ -7,6 +7,9 @@ created_from: v0.21.0 skill build, 2026-07-01 — the C-8 seven-move pass bundle
 pattern_source: analytic_construction_guidelines.md §2 M-2 (reconstruct → buried assumption → dissolve) + §5 (P-stage gating); Abbott 1988
 version: 1.0
 ---
+
+**Write root (binding):** seat-produced files this skill reads (for example `reviews/classification.md`, `reviews/DO_NOT_DISTURB.md`) are read from the write root, not the project root — see `references/_snippets/write-root.md`. Package-native files (manuscript, effective `research_notes/directives.md`) are read where the package keeps them.
+
 # Dissolution-Move Check (Abbott M-2)
 
 You are running the **single move M-2 (reconstruct → locate buried assumption → dissolve)** from commitment C-8 as an isolated pass. Abbott's signature dialectical move: state a rival **charitably and in full**, name the single unexamined assumption it rests on, and **dissolve** the dispute by relocating the question one level up — rather than contradicting the rival head-on. Head-on contradiction produces a standoff (the reader must pick a side on authority); dissolution shows the dispute was ill-posed.

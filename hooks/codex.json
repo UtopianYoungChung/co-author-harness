@@ -1,5 +1,5 @@
 {
-  "description": "Codex adapters for the harness scope/write and terminal-claim gates. Review and trust in Codex before use.",
+  "description": "Codex adapters for the harness scope/write and terminal-claim gates. Review and trust in Codex before use. The role-ledger entries are partial: spawn_agent entry and Stop turn_end only; Codex exposes no subagent-stop event.",
   "hooks": {
     "PreToolUse": [
       {
@@ -12,6 +12,17 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "^spawn_agent$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'PY=${COAUTHOR_HOOK_PYTHON:-${CLAUDE_PLUGIN_PYTHON:-}}; [ -n \"$PY\" ] || PY=$(command -v python3 || command -v python || true); [ -n \"$PY\" ] || { echo \"ROLE-LEDGER: no usable Python; event not recorded\" >&2; exit 0; }; COAUTHOR_ROLE_LEDGER_HOST=codex \"$PY\" -B \"${PLUGIN_ROOT}/scripts/hooks/role_ledger.py\" || exit 0'",
+            "commandWindows": "cmd.exe /d /c \"set COAUTHOR_ROLE_LEDGER_HOST=codex&& py -3 -B \"%PLUGIN_ROOT%\\scripts\\hooks\\role_ledger.py\" || exit /b 0\"",
+            "timeout": 30
+          }
+        ]
       }
     ],
     "Stop": [
@@ -21,6 +32,12 @@
             "type": "command",
             "command": "sh \"${PLUGIN_ROOT}/scripts/hooks/run_codex_hook.sh\"",
             "commandWindows": "cmd.exe /d /c \"\"%PLUGIN_ROOT%\\scripts\\hooks\\run_codex_hook.cmd\"\"",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "sh -c 'PY=${COAUTHOR_HOOK_PYTHON:-${CLAUDE_PLUGIN_PYTHON:-}}; [ -n \"$PY\" ] || PY=$(command -v python3 || command -v python || true); [ -n \"$PY\" ] || { echo \"ROLE-LEDGER: no usable Python; event not recorded\" >&2; exit 0; }; COAUTHOR_ROLE_LEDGER_HOST=codex \"$PY\" -B \"${PLUGIN_ROOT}/scripts/hooks/role_ledger.py\" || exit 0'",
+            "commandWindows": "cmd.exe /d /c \"set COAUTHOR_ROLE_LEDGER_HOST=codex&& py -3 -B \"%PLUGIN_ROOT%\\scripts\\hooks\\role_ledger.py\" || exit /b 0\"",
             "timeout": 30
           }
         ]

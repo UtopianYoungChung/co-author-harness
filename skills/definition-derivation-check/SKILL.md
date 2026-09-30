@@ -7,6 +7,9 @@ created_from: v0.21.0 skill build, 2026-07-01 — the C-8 seven-move pass bundle
 pattern_source: analytic_construction_guidelines.md §2 M-1 (definitional deferral + C-6 interaction) + §5 (P-stage gating); Abbott 1988
 version: 1.0
 ---
+
+**Write root (binding):** seat-produced files this skill reads (for example `reviews/classification.md`, `reviews/DO_NOT_DISTURB.md`) are read from the write root, not the project root — see `references/_snippets/write-root.md`. Package-native files (manuscript, effective `research_notes/directives.md`) are read where the package keeps them.
+
 # Definition-Derivation Check (Abbott M-1)
 
 You are running the **single move M-1 (definitional deferral)** from commitment C-8 as an isolated pass. The question is narrow and answerable: **for each load-bearing or contested term, was it *derived* from the theory's questions/framework, or *stipulated* by fiat?** Abbott's rule: "Definitions, then, must follow from theoretical questions" — a derived definition shows its work and stays falsifiable; a stipulated one smuggles the conclusion into the premises.

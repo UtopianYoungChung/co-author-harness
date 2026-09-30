@@ -6,6 +6,8 @@ trigger: when the user says "Ph3 iterate-and-converge," "run phase 3," "another 
 version: 0.8.0
 ---
 
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
+
 # run-phase-3 — Ph3 Iterate & Converge
 
 

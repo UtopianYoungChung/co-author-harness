@@ -7,6 +7,9 @@ created_from: Tier 2 skill build, 2026-04-11 — Sexton_Fiction_to_Academic_Writ
 pattern_source: Sexton_Fiction_to_Academic_Writing_Guide.md §§1–10 (Checklist for an Impactful Academic Paper); voice_preservation_guidelines.md (C-7 idiolect carve-out)
 version: 1.1
 ---
+
+**Write root (binding):** seat-produced files this skill reads (for example `reviews/classification.md`, `reviews/DO_NOT_DISTURB.md`) are read from the write root, not the project root — see `references/_snippets/write-root.md`. Package-native files (manuscript, effective `research_notes/directives.md`) are read where the package keeps them.
+
 # Narrative-Structure Pass (Sexton)
 
 You are running a targeted narrative-structure review on an academic paper. This skill implements Step 5 of the review pipeline as a standalone pass, drawing on `Sexton_Fiction_to_Academic_Writing_Guide.md`.

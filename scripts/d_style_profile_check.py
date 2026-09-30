@@ -752,6 +752,20 @@ def build_report(
     }
 
 
+def default_output_path(
+    project_root: Path, stamp: str, shipment_id: str | None = None
+) -> Path:
+    """Default report path: ``reviews/d_style_profile_<stamp>.json`` under the write root.
+
+    The write root is the shipment lane in a governed Workbench package and the
+    project root elsewhere (``scripts/output_lane.py``). Raises ``OutputLaneError``
+    for a governed package with no shipment id.
+    """
+    from output_lane import resolve_write_root
+
+    return resolve_write_root(project_root, shipment_id) / "reviews" / f"d_style_profile_{stamp}.json"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project-root", required=True, help="Project root containing research_notes/")
@@ -759,15 +773,29 @@ def main() -> int:
     parser.add_argument("--manuscript", help="Optional manuscript path for substantive D-STYLE surface checks")
     parser.add_argument("--date", help="Date stamp override (YYYY-MM-DD)")
     parser.add_argument("--output", help="Optional output JSON path")
+    parser.add_argument(
+        "--shipment-id",
+        default=None,
+        help="Active shipment id (governed Workbench package; default: env COAUTHOR_SHIPMENT_ID, then the active-shipment pointer)",
+    )
     parser.add_argument("--no-write", action="store_true", help="Print only; do not write a review artifact")
     parser.add_argument("--strict-exit", action="store_true", help="Return non-zero on BLOCKER")
     args = parser.parse_args()
 
     project_root = Path(args.project_root).resolve()
     from destination_capability import DestinationRefused, assert_writable, guard_project_root
+    from output_lane import OutputLaneError, resolve_write_root
+    try:
+        write_root = resolve_write_root(project_root, args.shipment_id)
+    except OutputLaneError as exc:
+        if args.no_write:
+            write_root = project_root  # read-only mode: no lane is written
+        else:
+            print(f"[BLOCKER] {exc}", file=sys.stderr)
+            return 4
     try:
         if not args.no_write:
-            guard_project_root(project_root)
+            guard_project_root(write_root)
             if args.output:
                 assert_writable(Path(args.output).resolve(), purpose="D-STYLE profile output")
     except DestinationRefused as exc:
@@ -784,7 +812,7 @@ def main() -> int:
     output_path: Path | None = None
     if not args.no_write:
         stamp = args.date or datetime.now().strftime("%Y-%m-%d")
-        output_path = Path(args.output).resolve() if args.output else project_root / "reviews" / f"d_style_profile_{stamp}.json"
+        output_path = Path(args.output).resolve() if args.output else default_output_path(project_root, stamp, args.shipment_id)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 

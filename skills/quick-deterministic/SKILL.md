@@ -7,6 +7,9 @@ created_from: v0.15.0-pre — promoted from LLM-prosecuted regex counting to a s
 pattern_source: scripts/audit/ (rule anchors in DETERMINISTIC_CHECKS.md)
 version: 2.0
 ---
+
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
+
 # Quick Deterministic Check (scripts-first)
 
 > **Package paths.** `${CLAUDE_PLUGIN_ROOT}` is the installed package root; Claude Code fills it in. The `references/…` and `scripts/…` paths in this skill resolve against that root, not against this skill's own directory. On hosts that do not fill it in (Codex, a source checkout), use the package directory that contains `version.json`.
@@ -23,9 +26,9 @@ You are running a fast mechanical pre-flight on an academic manuscript. As of v0
 
 2. **Invoke the audit suite:**
    ```
-   python "${CLAUDE_PLUGIN_ROOT}/scripts/audit/run_all.py" <target> --project-root <project-root> --date YYYY-MM-DD --out reviews/findings.json
+   python "${CLAUDE_PLUGIN_ROOT}/scripts/audit/run_all.py" <target> --project-root <project-root> --date YYYY-MM-DD
    ```
-   The script writes `reviews/findings.json`, writes `reviews/d_style_profile_YYYY-MM-DD.json` when `--project-root` is supplied, and prints a one-line summary. If no project root exists for the target, omit `--project-root` and state that D-STYLE profile routing and surface validation were skipped.
+   The script writes `reviews/findings.json` (default `--out`; do not pass an explicit cwd-relative `--out`, which would bypass the write root), writes `reviews/d_style_profile_YYYY-MM-DD.json` when `--project-root` is supplied, and prints a one-line summary. Both default outputs resolve under the write root: in a governed Workbench package that is the shipment lane (the active shipment id resolves as `--shipment-id`, `COAUTHOR_SHIPMENT_ID`, or the pointer recorded by `output_lane.py set-active`), elsewhere the paths are unchanged. If no project root exists for the target, omit `--project-root` and state that D-STYLE profile routing and surface validation were skipped.
 
 3. **Read `reviews/findings.json` and, when present, `reviews/d_style_profile_YYYY-MM-DD.json`.** Each mechanical finding carries `check_id`, `category`, `severity`, `locator (file:line)`, `evidence`, `rule_ref`, and `tentative`. The D-STYLE profile report carries the resolved routing obligations and surface findings for argument/warrant exposure, visual evidence, and assistance disclosure/logging.
 

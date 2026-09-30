@@ -5,6 +5,8 @@ trigger: when run-phase-2 Step 0.5's claim-coverage audit returns BELOW_THRESHOL
 version: 1.0
 ---
 
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`. Seat-produced files (`reviews/snowball_log.md`, `reviews/external_verification_log.md`, the Evaluator's findings) are read from the lane only; the accepted `references/REFERENCES.md` is read at the package, plus the lane copy of this shipment's own delta.
+
 # extend-snowball-incremental — Per-Claim Snowball Micro-Iteration at Ph2
 
 Apply `references/CITATION_DISCIPLINE.md` §6 to each proposed source and claim use. Search for qualifying/challenging evidence and use backward/forward discovery as appropriate. Keep candidates separate from verified and admitted sources; new admissions reopen affected manuscript coverage.
@@ -63,7 +65,7 @@ The no-op file is written to `reviews/extend_snowball_noop_<YYYY-MM-DD>_<claim_i
 
 ### Phase 1 — Anchor selection
 
-Read the target claim's text and locus. Read `references/REFERENCES.md` in full. Construct the **anchor seed set** as follows:
+Read the target claim's text and locus. Read `references/REFERENCES.md` in full: the accepted pool at the package and, when a governed package has a lane copy at `<write-root>/references/REFERENCES.md` (this shipment's pending delta), that copy as well, so a source already proposed in this shipment is not proposed again (dedupe against the accepted pool plus the lane delta). Construct the **anchor seed set** as follows:
 
 1. Select up to `per_seed_cap` papers from the existing pool whose title or annotation (column 3) lexically matches the claim's load-bearing nouns above the SK-NEW-B similarity threshold (default 0.6 cosine over normalised noun phrases; falls back to Jaccard 0.3 over normalised tokens when no embedding model is available). The match procedure mirrors SK-NEW-B's source-mapping logic verbatim — same tokeniser, same threshold, same canonical-citation-key sort — so SK-NEW-C's anchor selection is reproducible against SK-NEW-B's audit output.
 2. If fewer than 2 papers match, broaden to claim-kind matching: select papers whose `claim_anchors` metadata (when present) references the claim's kind (existential / comparison / mechanism / result / theoretical commitment per SK-NEW-B §3 Phase 1). If still fewer than 2, accept the smaller set; the per-seed cap is an upper bound, not a floor.

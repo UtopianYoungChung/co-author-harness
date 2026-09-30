@@ -347,10 +347,11 @@ def _append_revision_log(
     findings_a_count: int,
     findings_c_count: int,
     graph_captured: str,
+    revlog_dir: Path | None = None,
 ) -> None:
     """Append overlay-run entry to the revision log (idempotent)."""
     total = findings_a_count + findings_c_count
-    revlog = manuscript_path.parent / "revision_log.md"
+    revlog = (revlog_dir or manuscript_path.parent) / "revision_log.md"
     revlog.parent.mkdir(parents=True, exist_ok=True)
     entry = (
         f"{stamp} — SK-20 graph-overlay run — {total} findings "
@@ -372,8 +373,14 @@ def run_overlay(
     classification_path: Path,
     wiki_root: Path,
     stamp: str,
+    write_root: Path | None = None,
 ) -> Path:
-    """Orchestrate the SK-20 overlay: load, resolve, find, render, log."""
+    """Orchestrate the SK-20 overlay: load, resolve, find, render, log.
+
+    ``write_root`` is the output-lane write root (scripts/output_lane.py); it
+    defaults to ``project_root`` (non-governed projects are unchanged).
+    """
+    write_root = project_root if write_root is None else write_root
     corpus = _GraphCorpus(wiki_root)
 
     manuscript_text = manuscript_path.read_text(encoding="utf-8", errors="ignore")
@@ -404,12 +411,15 @@ def run_overlay(
         isolated_count=isolated_count,
     )
 
-    out_dir = project_root / "reviews"
+    out_dir = write_root / "reviews"
     out_dir.mkdir(parents=True, exist_ok=True)
     overlay_path = out_dir / f"graph_overlay_{stamp}.md"
     overlay_path.write_text(report_text, encoding="utf-8")
 
-    _append_revision_log(manuscript_path, stamp, len(findings_a), len(findings_c), corpus.captured_at)
+    _append_revision_log(
+        manuscript_path, stamp, len(findings_a), len(findings_c), corpus.captured_at,
+        revlog_dir=None if write_root == project_root else write_root / "manuscript",
+    )
     return overlay_path
 
 
@@ -427,12 +437,18 @@ def main() -> int:
     parser.add_argument("--references-path", required=False, help="Override references path")
     parser.add_argument("--classification-path", required=False, help="Override classification path")
     parser.add_argument("--allow-legacy-graph-confidence", required=False, help="Allow compatibility normalization for legacy numeric/null graph confidence values (true/false)")
+    parser.add_argument("--shipment-id", required=False, help="Active shipment id (governed Workbench package; default: env COAUTHOR_SHIPMENT_ID, then the active-shipment pointer)")
     args = parser.parse_args()
 
     project_root = Path(args.project_root)
     from destination_capability import DestinationRefused, guard_project_root
+    from output_lane import OutputLaneError, resolve_write_root
     try:
-        guard_project_root(project_root)
+        write_root = resolve_write_root(project_root, args.shipment_id)
+        guard_project_root(write_root)
+    except OutputLaneError as exc:
+        print(f"[BLOCKER] {exc}")
+        return 4
     except DestinationRefused as exc:
         print(f"[BLOCKER] {exc}")
         return 4
@@ -451,7 +467,7 @@ def main() -> int:
         "allow_legacy_graph_confidence": parse_cli_bool(args.allow_legacy_graph_confidence),
     }
 
-    checks, metadata = run_checks(project_root=project_root, overrides=overrides)
+    checks, metadata = run_checks(project_root=project_root, overrides=overrides, write_root=write_root)
     authority = evaluate_graph_authority(
         structural_ok=metadata.get("legacy_structural_ok")
         if "legacy_structural_ok" in metadata
@@ -472,7 +488,7 @@ def main() -> int:
         "metadata": metadata,
     }
 
-    reviews_dir = project_root / "reviews"
+    reviews_dir = write_root / "reviews"
     reviews_dir.mkdir(parents=True, exist_ok=True)
     readiness_path = reviews_dir / f"coupling_readiness_{stamp}.json"
     readiness_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
@@ -499,7 +515,7 @@ def main() -> int:
 
     manuscript_path = Path(str(overrides["manuscript_path"])) if overrides.get("manuscript_path") else project_root / "manuscript" / "main.md"
     references_path = Path(str(overrides["references_path"])) if overrides.get("references_path") else project_root / "references" / "REFERENCES.md"
-    classification_path = Path(str(overrides["classification_path"])) if overrides.get("classification_path") else project_root / "reviews" / "classification.md"
+    classification_path = Path(str(overrides["classification_path"])) if overrides.get("classification_path") else write_root / "reviews" / "classification.md"
     wiki_path_raw = str(overrides["wiki_path"]) if overrides.get("wiki_path") else metadata.get("wiki_path", "")
     wiki_root = Path(wiki_path_raw)
 
@@ -510,6 +526,7 @@ def main() -> int:
         classification_path=classification_path,
         wiki_root=wiki_root,
         stamp=stamp,
+        write_root=write_root,
     )
 
     print(json.dumps({

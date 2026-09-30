@@ -7,6 +7,9 @@ created_from: v0.20.0 skill build, 2026-07-01 — analytic_construction_guidelin
 pattern_source: analytic_construction_guidelines.md §2 (M-1…M-7) + §5 (P-stage gating, severity); Abbott 1988, The System of Professions
 version: 1.0
 ---
+
+**Write root (binding):** seat-produced files this skill reads (for example `reviews/classification.md`, `reviews/DO_NOT_DISTURB.md`) are read from the write root, not the project root — see `references/_snippets/write-root.md`. Package-native files (manuscript, effective `research_notes/directives.md`) are read where the package keeps them.
+
 # Analytic-Move Audit (Abbott)
 
 You are running a targeted **analytic-construction** review on theory-building prose. This skill implements commitment **C-8** as a standalone pass. It audits the layer between the sentence (Bacon / `sentence-level-pass`) and the whole-piece arc (Sexton / `narrative-structure-pass`), and between the theory's static anatomy (Baird / `IS-theory-pass`) and its voice (Suchman / C-7): **the rhetoric of the individual analytic move — how a single claim is won.**

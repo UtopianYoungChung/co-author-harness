@@ -7,6 +7,9 @@ created_from: Tier 3 skill build, 2026-04-11 — P-stage verification was buried
 pattern_source: project_writing_style_checklist.md Part 0 + REVIEW_ORCHESTRATION.md §3.2
 version: 1.0
 ---
+
+**Write root (binding):** seat-produced files this skill reads (for example `reviews/classification.md`, `reviews/DO_NOT_DISTURB.md`) are read from the write root, not the project root — see `references/_snippets/write-root.md`. Package-native files (manuscript, effective `research_notes/directives.md`) are read where the package keeps them.
+
 # P-Stage Checker
 
 You are verifying that a manuscript's vocabulary, argument arc, contribution claims, and structural register match its declared P-stage. This skill implements the P-stage gating logic from `project_writing_style_checklist.md` Part 0 and `REVIEW_ORCHESTRATION.md` §3.2 as a standalone check.

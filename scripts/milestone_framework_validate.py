@@ -39,6 +39,7 @@ from milestone_handoff_policy import (
     HandoffPolicyResolutionError,
     resolve_handoff_policy,
 )
+from output_lane import SHIPMENT_ID_ENV, OutputLaneError, resolve_write_root
 MILESTONE_SCHEMA_PATH = ROOT / "references" / "schemas" / "milestone_framework.schema.json"
 F9_SCHEMA_PATH = ROOT / "references" / "schemas" / "f9_milestone_handoff.schema.json"
 EXEMPLAR_REGISTRY_PATH = ROOT / "references" / "milestone_exemplars.json"
@@ -361,6 +362,24 @@ _GATE_TARGETS = {
 }
 
 
+PH3_SIGNOFF_REL = "reviews/ph3_convergence_signoff.md"
+
+
+def _signoff_write_root(project_root: Path) -> tuple[Path | None, str | None]:
+    """Root the seat-written Ph3 signoff is read under (scripts/output_lane.py).
+
+    The shipment lane in a governed Workbench package (shipment id from
+    ``--shipment-id``, ``COAUTHOR_SHIPMENT_ID`` or the active-shipment pointer),
+    the project root elsewhere.
+    Returns ``(None, message)`` for a governed package with no shipment id.
+    """
+
+    try:
+        return resolve_write_root(project_root), None
+    except OutputLaneError as exc:
+        return None, str(exc)
+
+
 def _gate_boundary_findings(
     project_root: Path, document: Any, boundary: str,
 ) -> list[Finding]:
@@ -426,9 +445,12 @@ def _gate_boundary_findings(
                     else "Ph4 admission requires accepted M4 and a ready or transaction-consumed F9 handoff"
                 ),
             ))
-        if not (project_root / "reviews" / "ph3_convergence_signoff.md").is_file():
+        lane, lane_error = _signoff_write_root(project_root)
+        if lane is None:
+            findings.append(_finding("MF-PHASE", PH3_SIGNOFF_REL, lane_error))
+        elif not (lane / PH3_SIGNOFF_REL).is_file():
             findings.append(_finding(
-                "MF-PHASE", "reviews/ph3_convergence_signoff.md",
+                "MF-PHASE", PH3_SIGNOFF_REL,
                 "Ph4 admission requires the canonical Ph3 convergence signoff; retired t3 paths are invalid",
             ))
     else:
@@ -470,9 +492,11 @@ def _gate_boundary_findings(
                     "MF-GATE-M5", f"milestone_framework.milestones.{upstream}",
                     f"terminal close is blocked while upstream {upstream} is reopened or needs revalidation",
                 ))
+        lane, lane_error = _signoff_write_root(project_root)
         for relative in ("reviews/G4_signoff.md", "reviews/ph4_ship_signoff.md"):
-            path = project_root / relative
-            if _signed_status(path) is None:
+            if lane is None:
+                findings.append(_finding("MF-GATE-M5", relative, lane_error))
+            elif _signed_status(lane / relative) is None:
                 findings.append(_finding(
                     "MF-GATE-M5", relative,
                     f"terminal close requires exactly one explicit `status: PASS|APPROVED|SIGNED` at {relative}",
@@ -3082,15 +3106,16 @@ def validate_document(
                     "Ph4 target has no valid unretracted MCR admission or ceiling-lock proof surface",
                 ))
             if requires_terminal_signoff:
-                signoff = _canonical_path(project_root, "reviews/ph3_convergence_signoff.md")
+                lane, lane_error = _signoff_write_root(project_root)
+                signoff = _canonical_path(lane, PH3_SIGNOFF_REL) if lane is not None else None
                 try:
                     signoff_text = signoff.read_text(encoding="utf-8") if signoff and signoff.is_file() else ""
                 except (OSError, UnicodeError):
                     signoff_text = ""
                 if "is_terminal: true" not in signoff_text:
                     findings.append(_finding(
-                        "MF-PHASE", "reviews/ph3_convergence_signoff.md",
-                        "Ph4 MCR continuity requires current terminal Ph3 convergence signoff evidence",
+                        "MF-PHASE", PH3_SIGNOFF_REL,
+                        lane_error or "Ph4 MCR continuity requires current terminal Ph3 convergence signoff evidence",
                     ))
 
     return _result(target, ledger, findings, evidence, skipped_checks)
@@ -3149,10 +3174,16 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--opening-new-cycle", action="store_true", help="enforce dispatch-bound pin epoch; target readiness alone does not open a cycle")
     parser.add_argument("--json", action="store_true")
     parser.add_argument(
+        "--shipment-id", default=None,
+        help="active shipment id (governed Workbench package; default: env COAUTHOR_SHIPMENT_ID, then the active-shipment pointer)",
+    )
+    parser.add_argument(
         "--exemplar-registry", type=Path, default=EXEMPLAR_REGISTRY_PATH,
         help="external milestone exemplar registry (test/maintenance injection; defaults to package registry)",
     )
     args = parser.parse_args(argv)
+    if args.shipment_id:
+        os.environ[SHIPMENT_ID_ENV] = args.shipment_id
     project_root = args.project_root
     if not project_root.is_dir():
         parser.error(f"--project-root is not a directory: {project_root}")

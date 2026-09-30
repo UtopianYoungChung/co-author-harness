@@ -15,6 +15,8 @@ description: |
   </example>
 ---
 
+**Write root (binding):** every project-relative path this file tells you to write is relative to the write root — see `references/_snippets/write-root.md`.
+
 ## Project-independent generator entry
 
 For `run_scope: project_independent`, follow
