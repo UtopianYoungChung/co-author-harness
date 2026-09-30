@@ -84,7 +84,7 @@
     "scripts/audit/test_audit.py": {
       "class": "test_only",
       "justification": "audit-suite smoketest writes only beneath a TemporaryDirectory project root it creates and removes",
-      "sha256": "3c31323ecc0c79076153fe7a8530fdc7b7e5143f26e49b17353b608362ac9d1e"
+      "sha256": "3b46424019f7b2102df25e557e6c01bb6c71bb706dd11e24fabf9b3a40fbbaa6"
     },
     "scripts/canonical_bibliography.py": {
       "class": "guarded",

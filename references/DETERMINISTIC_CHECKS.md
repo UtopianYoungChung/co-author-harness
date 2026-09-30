@@ -95,6 +95,18 @@ and `installed_cache` planes before runtime suites. The controlled gate binds
 clean `main` before its corpus and refuses source drift afterward. Missing
 cache authority leaves topology pending.
 
+Formal reuse is opt-in: run the required fixture runner with
+`--qualification-proof` directly under the existing Source controller on
+clean `main`. After its verified terminal proof and input-stability checks,
+commit only the generated manifest, build that commit once, then run the
+controlled five-plane gate with `--fixture-run <original-controller-run-dir>`.
+Reuse is valid only while tested input, raw input, registry, runner, and
+census bindings match. Missing, partial, failed, cached, or drifted proof
+blocks qualification without a fallback corpus. Without `--fixture-run`,
+the gate retains its full corpus execution. All five artifact-plane checks
+still run. Review the bound results before publishing and installing, and
+record those outcomes separately.
+
 ```powershell
 python scripts/release_qualification_controller_smoketest.py
 python scripts/qualification_plane_topology_smoketest.py

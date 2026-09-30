@@ -691,7 +691,7 @@
       "id": "release-gate",
       "path": "scripts/release-gate.sh",
       "revision_kind": "sha256",
-      "sha256": "c7bc3dd08caa95846a365a43f2e283127d2e11855fdd9e3cd5c9ff1baefb155b",
+      "sha256": "a1a4586802fe53e6dcd5bc693cbd42b87d8c2caed1e6740f6d1d7134c4b2d3f6",
       "migration_ids": [
         "qualification-architecture-v1"
       ]
@@ -843,7 +843,7 @@
       "id": "fixture-runner",
       "path": "scripts/analysis/fixture_runner.py",
       "revision_kind": "sha256",
-      "sha256": "c08a094c54bfe446e60893ed73a8eb64f550acbe9f35a595ab4dbe87a862f0cc",
+      "sha256": "ffd1379ba761be3ed4ea588bf093268573df7bb849b5e650d34caea99f060f1a",
       "migration_ids": [
         "lab-iteration-derived-handoff-v1",
         "typed-output-policy-v1"
@@ -871,7 +871,7 @@
       "id": "destination-coverage-registry",
       "path": "references/destination_coverage_registry.json",
       "revision_kind": "sha256",
-      "sha256": "518c756d1c2c58c38d18f4763b8f0d22e51fddf4f3acc6bd080dc722a3c99562",
+      "sha256": "12a9923dd1ae19f2da8bca7fee5e51bfb3c4bf1afaaa2d8d2f681f5bc92d8c3f",
       "migration_ids": [
         "typed-output-policy-v1"
       ]

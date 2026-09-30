@@ -55,6 +55,7 @@
 #   scripts/release-gate.sh --build                                   # probe + build zip
 #   scripts/release-gate.sh --build --outputs-dir /mnt/outputs        # full pipeline
 #   scripts/release-gate.sh --qualification-spec /external/five-plane-spec.json
+#   scripts/release-gate.sh --fixture-run <original-controller-run-dir> # opt-in corpus reuse
 #   scripts/release-gate.sh --peer-root /sessions/.../mnt/.remote-plugins/
 #   scripts/release-gate.sh --ship-intent                             # block on any in-flight marker
 #                                                                     # (efficiency placeholder, -wip version)
@@ -108,9 +109,9 @@ fi
 ORIGINAL_ARGS=("$@")
 CONTROLLER_INPUT_ARGS=()
 for (( ARG_I=0; ARG_I<${#ORIGINAL_ARGS[@]}; ARG_I++ )); do
-    if [[ "${ORIGINAL_ARGS[$ARG_I]}" == "--qualification-spec" ]]; then
+    if [[ "${ORIGINAL_ARGS[$ARG_I]}" == "--qualification-spec" || "${ORIGINAL_ARGS[$ARG_I]}" == "--fixture-run" ]]; then
         if (( ARG_I + 1 >= ${#ORIGINAL_ARGS[@]} )); then
-            echo "ERROR: --qualification-spec requires a path" >&2
+            echo "ERROR: ${ORIGINAL_ARGS[$ARG_I]} requires a path" >&2
             exit 2
         fi
         SPEC_INPUT="${ORIGINAL_ARGS[$((ARG_I + 1))]}"
@@ -125,7 +126,11 @@ PY
 )"
         fi
         ORIGINAL_ARGS[$((ARG_I + 1))]="$SPEC_INPUT"
-        CONTROLLER_INPUT_ARGS+=(--input "$SPEC_INPUT")
+        if [[ "${ORIGINAL_ARGS[$ARG_I]}" == "--fixture-run" ]]; then
+            CONTROLLER_INPUT_ARGS+=(--input-root "$SPEC_INPUT")
+        else
+            CONTROLLER_INPUT_ARGS+=(--input "$SPEC_INPUT")
+        fi
     fi
 done
 # A stale ambient marker from the pre-controller facade has no authority and
@@ -222,6 +227,7 @@ OUTPUTS_DIR=""
 PEER_ROOT=""
 SHIP_INTENT=0
 QUALIFICATION_SPEC=""
+FIXTURE_RUN=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -230,6 +236,7 @@ while [[ $# -gt 0 ]]; do
         --peer-root)    PEER_ROOT="$2"; shift 2 ;;
         --ship-intent)  SHIP_INTENT=1; shift ;;
         --qualification-spec) QUALIFICATION_SPEC="$2"; shift 2 ;;
+        --fixture-run) FIXTURE_RUN="$2"; shift 2 ;;
         -h|--help)
             grep '^#' "$0" | sed 's/^# \{0,1\}//'
             exit 0 ;;
@@ -258,6 +265,9 @@ if command -v cygpath >/dev/null 2>&1; then
     if [[ -n "$QUALIFICATION_SPEC" ]]; then
         QUALIFICATION_SPEC="$(cygpath -am "$QUALIFICATION_SPEC")"
     fi
+    if [[ -n "$FIXTURE_RUN" ]]; then
+        FIXTURE_RUN="$(cygpath -am "$FIXTURE_RUN")"
+    fi
 fi
 
 if [[ ! -f "$VERSION_MANIFEST" ]]; then
@@ -267,6 +277,13 @@ fi
 if [[ ! -f "$HOST_MANIFEST" ]]; then
     echo "ERROR: .claude-plugin/plugin.json not found at $HOST_MANIFEST" >&2
     exit 2
+fi
+if [[ -n "$FIXTURE_RUN" ]]; then
+    if ! python3 "$PLUGIN_ROOT/scripts/analysis/fixture_result_check.py" \
+        --fixture-run "$FIXTURE_RUN"; then
+        echo "[BLOCKER] supplied fixture proof is invalid; no fallback corpus" >&2
+        exit 2
+    fi
 fi
 
 # Auto-discover peer root if not supplied: walk up from the plugin root looking
@@ -1199,7 +1216,9 @@ if (( PLANE_QUALIFICATION_OK == 1 )); then
     echo ""
 
     echo "Authoritative fixture registry"
-    if ! python3 "$PLUGIN_ROOT/scripts/analysis/fixture_runner.py" --no-write; then
+    if [[ -n "$FIXTURE_RUN" ]]; then
+        echo "  [OK]      verified controlled fixture proof reused"
+    elif ! python3 "$PLUGIN_ROOT/scripts/analysis/fixture_runner.py" --no-write; then
         echo "  [BLOCKER] authoritative fixture registry failed"
         BLOCKERS=$((BLOCKERS + 1))
     else

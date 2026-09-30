@@ -4362,7 +4362,7 @@ time.sleep(60)
         )
         verification = Path(str(facade_root) + "-products") / facade_run_id / "verification"
         if os.name == "nt" and _FIXTURE_OWNER_MODE:
-            assert facade_process.returncode == 2, facade_output[1]
+            assert facade_process.returncode == 2, (facade_process.returncode, facade_receipt.get("state"), facade_receipt.get("diagnostic"))
             assert facade_output[0] == b""
             assert facade_receipt["state"] == "refused"
             assert facade_receipt["diagnostic"] == {

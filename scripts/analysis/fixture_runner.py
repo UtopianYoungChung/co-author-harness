@@ -96,7 +96,8 @@ Usage
 Exit: 0 pass; 1 corpus failure; 2 run void.
 --suite selects one or more REGISTRY keys (exact path, unique basename, or
 unique stem). It is NON_AUTHORITATIVE_PARTIAL and cannot write the committed
-manifest. The full --no-write corpus remains the release/qualification path.
+manifest. The default gate still uses the full --no-write corpus; controlled
+--qualification-proof execution enables opt-in reuse after exact validation.
 """
 
 from __future__ import annotations
@@ -630,6 +631,22 @@ def _cache_basis(rel: str, case: dict, tested_inputs: dict) -> dict:
     }
 
 
+def _qualification_git_binding(*, manifest_edit: bool = False) -> dict[str, str]:
+    def git(*args: str) -> str:
+        result = subprocess.run(
+            ["git", "--no-optional-locks", "-C", str(PLUGIN_ROOT), *args],
+            capture_output=True, text=True, encoding="utf-8", errors="strict", check=True,
+        )
+        return result.stdout.rstrip("\r\n")
+
+    if git("symbolic-ref", "--short", "HEAD") != "main":
+        raise ValueError("qualification proof requires main")
+    expected_status = " M docs/analysis/generated/fixture_manifest.json" if manifest_edit else ""
+    if git("status", "--porcelain=v1", "--untracked-files=all") != expected_status:
+        raise ValueError("qualification proof requires exact manifest-only status")
+    return {"head": git("rev-parse", "HEAD"), "tree": git("rev-parse", "HEAD^{tree}")}
+
+
 def run(registry: dict[str, list[dict]],
         universe: list[str] | None = None,
         *, write_manifest: bool = True,
@@ -637,6 +654,7 @@ def run(registry: dict[str, list[dict]],
         tier: str = "full",
         failure_transcript_root: str | Path | None = None,
         allow_unavailable: bool = False,
+        qualification_proof: bool = False,
         _test_only_allow_noncanonical_write: bool = False) -> int:
     """Execute the registry; write the manifest only on a fully green run.
 
@@ -655,6 +673,11 @@ def run(registry: dict[str, list[dict]],
         print(f"ERROR: unknown fixture tier {tier!r}", file=sys.stderr)
         return 2
     canonical_full = registry is REGISTRY and universe is None and tier == "full"
+    if qualification_proof and (not canonical_full or not write_manifest
+                                or cache_mode != "off" or allow_unavailable):
+        print("ERROR: qualification proof requires full, write, cache-off execution",
+              file=sys.stderr)
+        return 2
     if write_manifest and not canonical_full and not _test_only_allow_noncanonical_write:
         print("ERROR: NON_AUTHORITATIVE_PARTIAL may not write or void the canonical "
               "fixture manifest", file=sys.stderr)
@@ -713,6 +736,7 @@ def run(registry: dict[str, list[dict]],
             tier=tier,
             failure_transcript_root=transcript_root,
             allow_unavailable=allow_unavailable,
+            qualification_proof=qualification_proof,
         )
     finally:
         _release_lock(lock)
@@ -724,7 +748,8 @@ def _run_locked(registry: dict[str, list[dict]],
                 cache_mode: str,
                 tier: str,
                 failure_transcript_root: Path | None = None,
-                allow_unavailable: bool = False) -> int:
+                allow_unavailable: bool = False,
+                qualification_proof: bool = False) -> int:
     universe = set(universe_arg if universe_arg is not None
                    else discover_suite_universe())
     registered = set(registry)
@@ -748,6 +773,16 @@ def _run_locked(registry: dict[str, list[dict]],
     print(f"fixture_runner: {len(universe)} suites, "
           f"{sum(len(v) for v in registry.values())} registered case(s); "
           f"tier={tier} authority={authority} cache={cache_mode}")
+
+    proof_git = None
+    if qualification_proof:
+        try:
+            if not MANIFEST_PATH.is_file() or not _lock_path().is_file():
+                raise ValueError("qualification proof requires existing manifest and runner lock")
+            proof_git = _qualification_git_binding()
+        except (OSError, subprocess.CalledProcessError, UnicodeError, ValueError) as exc:
+            print(f"ERROR: qualification proof preflight refused: {exc}", file=sys.stderr)
+            return 2
 
     # VOID PRIOR EVIDENCE NOW -- after the lock, before the first suite. From
     # this point there is no green manifest until THIS run earns one, so a
@@ -1010,6 +1045,23 @@ def _run_locked(registry: dict[str, list[dict]],
     print(f"\nPASS: manifest written as a side effect of execution: "
           f"{MANIFEST_PATH.relative_to(PLUGIN_ROOT).as_posix()}")
     print(f"  run_id {run_id}; {len(suites_out)} suites, {len(cases_out)} cases")
+    if qualification_proof:
+        try:
+            if not MANIFEST_PATH.is_file() or not _lock_path().is_file():
+                raise ValueError("qualification proof lost manifest or runner lock")
+            if _qualification_git_binding(manifest_edit=True) != proof_git:
+                raise ValueError("source changed beyond the generated manifest")
+        except (OSError, subprocess.CalledProcessError, UnicodeError, ValueError) as exc:
+            _void_stale_manifest("qualification proof postflight failed")
+            print(f"ERROR: qualification proof postflight refused: {exc}", file=sys.stderr)
+            return 2
+        proof = {
+            "manifest_sha256": hashlib.sha256(MANIFEST_PATH.read_bytes()).hexdigest(),
+            "run_id": run_id, "head": proof_git["head"], "tree": proof_git["tree"],
+            "runner_sha256": manifest["runner_sha256"],
+            "census_sha256": hashlib.sha256(_CENSUS_PATH.read_bytes()).hexdigest(),
+        }
+        print("QUALIFICATION_PROOF " + json.dumps(proof, sort_keys=True, separators=(",", ":")))
     return 0
 
 
@@ -1055,6 +1107,7 @@ def resolve_suite_selectors(selectors: list[str]) -> dict[str, list[dict]]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--list", action="store_true", help="print the registry and exit")
+    ap.add_argument("--qualification-proof", action="store_true", help="controlled full write proof on clean main")
     ap.add_argument(
         "--failure-transcript-root",
         type=Path,
@@ -1092,6 +1145,12 @@ def main() -> int:
         help="explicit full/no-write cache assistance; release qualification uses off",
     )
     args = ap.parse_args()
+    if args.qualification_proof and (args.list or args.no_write or args.tier != "full"
+                                     or args.suite or args.allow_unavailable
+                                     or args.cache_mode != "off"):
+        print("ERROR: --qualification-proof requires full, write, cache-off selection",
+              file=sys.stderr)
+        return 2
     if args.list:
         for rel in sorted(REGISTRY):
             for c in REGISTRY[rel]:
@@ -1138,6 +1197,7 @@ def main() -> int:
         tier="full",
         failure_transcript_root=args.failure_transcript_root,
         allow_unavailable=args.allow_unavailable,
+        qualification_proof=args.qualification_proof,
     )
 
 
