@@ -4355,16 +4355,47 @@ time.sleep(60)
         assert not _alive_identities(ctl, facade_frontend)
         assert not _alive_identities(ctl, facade_owned)
         assert facade_output is not None
-        assert facade_process.returncode == 0, facade_output[1]
         facade_receipt_path = facade_root / facade_run_id / "receipt.json"
         assert facade_receipt_path.is_file()
         facade_receipt = ctl.status_run(
             run_root=facade_root, run_id=facade_run_id,
         )
-        assert facade_receipt["state"] == "succeeded"
-        assert facade_receipt["diagnostic"] is None
+        verification = Path(str(facade_root) + "-products") / facade_run_id / "verification"
+        if os.name == "nt" and _FIXTURE_OWNER_MODE:
+            assert facade_process.returncode == 2, facade_output[1]
+            assert facade_output[0] == b""
+            assert facade_receipt["state"] == "refused"
+            assert facade_receipt["diagnostic"] == {
+                "code": "RELEASE-CONTROLLER-PROCESS",
+                "detail": "detached Windows worker cannot escape the enclosing Job",
+            }
+            assert facade_receipt["worker"] is None
+            assert facade_receipt["prechild_refusal"] is not None
+            assert all(
+                facade_receipt[key] is None for key in (
+                    "process", "exit", "exit_capsule", "stdout", "stderr",
+                )
+            )
+            prechild = json.loads(Path(
+                facade_receipt["prechild_refusal"]["path"]
+            ).read_text(encoding="ascii"))
+            assert prechild["diagnostic"] == facade_receipt["diagnostic"]
+            assert prechild["intent_sha256"] == facade_receipt["intent_sha256"]
+            events = [
+                row["event"] for row in json.loads(
+                    (facade_root / facade_run_id / "journal.json").read_text(
+                        encoding="ascii"
+                    )
+                )["events"]
+            ]
+            assert "worker_spawned" not in events
+            assert "child_spawned" not in events
+        else:
+            assert facade_process.returncode == 0, facade_output[1]
+            assert facade_receipt["state"] == "succeeded"
+            assert facade_receipt["diagnostic"] is None
+            assert verification.is_dir()
         assert not source_evidence.exists()
-        assert (Path(str(facade_root) + "-products") / facade_run_id / "verification").is_dir()
         cases += 1
 
         direct_marker = subprocess.run(

@@ -12,6 +12,8 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 Ordinary revision instructions now bind the authorized route and execution runtime before preparation, require bounded mandatory reads and precise tool discovery, and record actual native actors and measured stages. Preferred providers do not authorize private transfers; required unapproved providers stay blocked. Existing separate evaluation, byte preservation, correction limits and destination authority remain controlling.
 
+The Windows fixture-owner smoke test now expects the controller's existing refusal to detach a worker when its enclosing Job disallows breakaway.
+
 This is a package maintenance release. Private task-specific application recovery and workspace lint repairs are shipped separately in the local deployment record; their data and source text are excluded from this public package.
 
 ## Unreleased
