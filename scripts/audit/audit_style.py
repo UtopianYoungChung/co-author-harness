@@ -52,6 +52,64 @@ LONG_SENTENCE_WARN = 60
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z\[])")
 WORD_RE = re.compile(r"\b\w+\b")
 
+FORM_HEADING_RE = re.compile(r"^##[ \t]+(.+?)\s*$")
+FORM_FENCES = ("~~~", chr(96) * 3)
+
+
+def _form_value_units(text: str) -> list[tuple[str, str, int]]:
+    """Return (field, value, original first line) for fenced portal values."""
+    lines = text.splitlines()
+    headings: list[tuple[int, str]] = []
+    for index, line in enumerate(lines):
+        match = FORM_HEADING_RE.fullmatch(line)
+        if match and match.group(1).strip():
+            headings.append((index, match.group(1).strip()))
+        elif line.startswith("##") and not line.startswith("###"):
+            raise ValueError(f"malformed form heading at line {index + 1}")
+    if not headings:
+        raise ValueError("no ## form field headings found")
+
+    units: list[tuple[str, str, int]] = []
+    for position, (heading_line, field) in enumerate(headings):
+        limit = headings[position + 1][0] if position + 1 < len(headings) else len(lines)
+        opener = heading_line + 1
+        while opener < limit and not lines[opener].strip():
+            opener += 1
+        if opener >= limit:
+            raise ValueError(f"field {field!r} at line {heading_line + 1} has no text fence")
+        opening = lines[opener].strip()
+        fence = next((marker for marker in FORM_FENCES if opening == marker + "text"), None)
+        if fence is None and field.casefold() == "about me":
+            for line_no in range(opener, limit):
+                if lines[line_no].strip().startswith(FORM_FENCES):
+                    raise ValueError(f"field {field!r} has a malformed text fence at line {line_no + 1}")
+            continue
+        if fence is None:
+            raise ValueError(f"field {field!r} at line {heading_line + 1} needs a text fence")
+        closer = opener + 1
+        while closer < limit and lines[closer].strip() != fence:
+            if any(lines[closer].strip().startswith(marker) for marker in FORM_FENCES):
+                raise ValueError(f"field {field!r} has a mismatched text fence at line {closer + 1}")
+            closer += 1
+        if closer == limit:
+            raise ValueError(f"field {field!r} at line {heading_line + 1} has an unclosed text fence")
+        start, end = opener + 1, closer
+        while start < end and not lines[start].strip():
+            start += 1
+        while end > start and not lines[end - 1].strip():
+            end -= 1
+        if start == end:
+            raise ValueError(f"field {field!r} at line {heading_line + 1} has an empty value")
+        if any(
+            any(line.strip().startswith(marker) for marker in FORM_FENCES)
+            for line in lines[closer + 1:limit]
+        ):
+            raise ValueError(f"field {field!r} has an unmatched fence after line {closer + 1}")
+        units.append((field, "\n".join(lines[start:end]), start + 1))
+    if not units:
+        raise ValueError("no fenced form values found")
+    return units
+
 
 def _emit_per_line(
     findings: List[Finding],
@@ -91,9 +149,9 @@ def audit_absolutes(text: str, target: Path) -> List[Finding]:
 
 def audit_emdash(text: str, target: Path) -> List[Finding]:
     findings: List[Finding] = []
-    paragraphs = re.split(r"\n\s*\n", text)
+    paragraphs = re.split(r"(\n\s*\n)", text)
     line_cursor = 1
-    for para in paragraphs:
+    for para, separator in zip(paragraphs[::2], paragraphs[1::2] + [""]):
         plain = len(EMDASH_PLAIN_RE.findall(para))
         latex = len(EMDASH_LATEX_RE.findall(para))
         pairs = max(plain, latex) // 2 + (plain + latex - 2 * (max(plain, latex) // 2))
@@ -109,7 +167,7 @@ def audit_emdash(text: str, target: Path) -> List[Finding]:
                     rule_ref="EMDASH_BUNDLE_DISCIPLINE.md#§3",
                 )
             )
-        line_cursor += para.count("\n") + 2
+        line_cursor += para.count("\n") + separator.count("\n")
     return findings
 
 
@@ -208,9 +266,22 @@ def audit_passive_voice(text: str, target: Path) -> List[Finding]:
     return findings
 
 
-def audit_file(path: Path) -> FindingsReport:
+def audit_file(path: Path, form_values: bool = False) -> FindingsReport:
     text = path.read_text(encoding="utf-8")
     report = FindingsReport(target=path.as_posix())
+    if form_values:
+        auditors = (
+            audit_absolutes, audit_emdash, audit_llm_tics, audit_voice,
+            audit_sentence_length, audit_passive_voice,
+        )
+        for field, value, first_line in _form_value_units(text):
+            for auditor in auditors:
+                for finding in auditor(value, path):
+                    relative_line = int(finding.locator.rsplit(":", 1)[1])
+                    finding.locator = locator_for(path, first_line + relative_line - 1)
+                    finding.evidence = f"{field}: {finding.evidence}"
+                    report.add(finding)
+        return report
     report.extend(audit_absolutes(text, path))
     report.extend(audit_emdash(text, path))
     report.extend(audit_llm_tics(text, path))
@@ -226,13 +297,19 @@ def main(argv: List[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("target", type=Path, help="Manuscript file to audit")
     parser.add_argument("--out", type=Path, default=None, help="Write findings.json here")
+    parser.add_argument("--form-values", action="store_true",
+                        help="Audit fenced text values under ## form field headings")
     args = parser.parse_args(argv)
 
     if not args.target.is_file():
         print(f"[BLOCKER] target not found: {args.target}", file=sys.stderr)
         return 2
 
-    report = audit_file(args.target)
+    try:
+        report = audit_file(args.target, form_values=args.form_values)
+    except ValueError as exc:
+        print(f"[BLOCKER] invalid form values: {exc}", file=sys.stderr)
+        return 2
     if args.out:
         report.write(args.out)
         print(f"OK wrote {args.out} ({report.counts()['total']} findings)")

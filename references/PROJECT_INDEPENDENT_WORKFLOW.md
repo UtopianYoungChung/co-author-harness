@@ -151,6 +151,20 @@ for M4, the final paper and any governed milestone.
   `FRC_FAST_SESSION` to the session's `binding.json` in place of `FRC_PIW_SESSION`; children may
   then write only under the session's `draft/` and `review/` folders.
 
+### Bounded revision execution
+
+For a revision with a defined byte scope, use the selected fast or coordinator lane above and the task-root contract. This is an execution procedure, not a per-edit runner. Preserve the request's exclusions and keep required native reviewers as distinct actors.
+
+- Before provider-specific preparation, establish authorization for the exact destination and read payload. Credentials and preferences do not transfer that authority. Distinguish a preferred route from a required one: an unapproved required provider stays blocked; an allowed native fallback may serve a preference, with the actual route recorded. Do not override model or provider pins or bypass host safety checks.
+- Bind the runtime interpreter, execution side, dependencies and search fallback once, then pass that identity to children. Probe the bound route before lane writes. Do not install dependencies as a routine revision step.
+- Consult the routing index once. Record mandatory reads that actually occurred by path, hash and byte length in the existing task facts or binding. Read each selected mandatory rule in full within an explicit output budget. Reuse an unchanged body by its facts key instead of printing it again; a changed hash requires a new read.
+- Find tools by exact semantic names and descriptions with capped results. A namespace match alone does not establish a tool match. Use schema-aware queries and treat unknown-shape errors as a prompt to inspect the schema before retrying.
+- Batch compatible local commands only after authorization and dependencies are settled. Keep semantic decisions, provider calls and mutation boundaries separate.
+- Define the allowed byte spans exactly, including structural bytes and count values. Refuse a stale source hash. Use existing verified write facilities and, for two targets, the existing journal and recovery path. Do not overwrite third-party edits.
+- In one existing task record, capture the actual native actor route and source, pending versus applied state, and monotonic setup, writing, review and application durations. Record unavailable cognition time, approval wait and charged tokens as null. Claim efficiency only from an observed comparable trace.
+
+This procedure grants no lifecycle completion, source acceptance or research acceptance.
+
 ### Citations the inventory cannot parse
 
 The coordinator runs the citation inventory before dispatch and returns its errors

@@ -6,6 +6,14 @@ Format follows the co-author-harness Reflector convention: each entry records *w
 
 ---
 
+## v0.51.1 — 30 September 2026
+
+**Form diagnostics and bounded revision execution.** Form-value audit mode now checks each recognized fenced value as a separate unit, preserves field names and original line locators, and refuses malformed field boundaries. Metadata is excluded without suppressing checks inside prose values. Enable it explicitly with `--form-values`; ordinary document diagnostics retain their existing behavior.
+
+Ordinary revision instructions now bind the authorized route and execution runtime before preparation, require bounded mandatory reads and precise tool discovery, and record actual native actors and measured stages. Preferred providers do not authorize private transfers; required unapproved providers stay blocked. Existing separate evaluation, byte preservation, correction limits and destination authority remain controlling.
+
+This is a package maintenance release. Private task-specific application recovery and workspace lint repairs are shipped separately in the local deployment record; their data and source text are excluded from this public package.
+
 ## Unreleased
 
 **Harness writes in a governed package go to the shipment lane, and role entry and exit are recorded (29 September 2026).** Master Governance 1.0.15 registers the harness as an agent platform whose footprint in a governed Workbench package is the shipment lane `reviews/harness/shipments/<id>/`, `reviews/.harness/<child>` and the re-pin files; the package root and `phase_state.json` are outside it (1.11b, Annex D). The role contracts and skills still directed seats to write about 35 package paths, such as `reviews/revision_plan.md`, `reviews/convergence_log.md` and `research_notes/lessons_learned.md` (FINDING-20260929-001, MAJOR). 1.11c also requires each role entry and exit to be recorded with the session identity, and nothing recorded them (FINDING-20260929-002, MINOR).
