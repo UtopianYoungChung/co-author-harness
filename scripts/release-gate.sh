@@ -270,6 +270,9 @@ if command -v cygpath >/dev/null 2>&1; then
     fi
 fi
 
+# py_compile writes even with -B; keep those bytes in the external product root.
+PY_COMPILE_CACHE_PREFIX="$PRODUCT_OUTPUT_DIR/pycache"
+
 if [[ ! -f "$VERSION_MANIFEST" ]]; then
     echo "ERROR: version.json not found at $VERSION_MANIFEST" >&2
     exit 2
@@ -615,7 +618,7 @@ done
 
 if (( MILESTONE_COMPILE_READY == 1 )); then
     echo "Milestone-feedback framework syntax check"
-    if ! python3 -m py_compile \
+    if ! python3 -X "pycache_prefix=$PY_COMPILE_CACHE_PREFIX" -m py_compile \
         "$PLUGIN_ROOT/scripts/assignment_process_gate.py" \
         "$PLUGIN_ROOT/scripts/assignment_dispatch_preflight.py" \
         "$PLUGIN_ROOT/scripts/assignment_receipt_transaction.py" \
@@ -824,7 +827,7 @@ for pyf in \
     "$PLUGIN_ROOT/scripts/plugin_calibrator_audit.py"
 do
     if [[ -f "$pyf" ]]; then
-        if python3 -m py_compile "$pyf"; then
+        if python3 -X "pycache_prefix=$PY_COMPILE_CACHE_PREFIX" -m py_compile "$pyf"; then
             echo "  [OK]      $( basename "$pyf" )"
         else
             echo "  [BLOCKER] $( basename "$pyf" ) failed python syntax check"
@@ -1118,9 +1121,8 @@ from pathlib import Path
 
 value = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 planes = {row["plane_kind"]: row["path"] for row in value["planes"]}
-print(value["source_commit"])
-for kind in ("source", "archive", "unpacked", "installed_cache"):
-    print(planes[kind])
+values = [value["source_commit"], *(planes[kind] for kind in ("source", "archive", "unpacked", "installed_cache"))]
+sys.stdout.buffer.write(("\n".join(values) + "\n").encode("utf-8"))
 PY
 )
         if (( ${#PLANE_VALUES[@]} != 5 )); then
@@ -1152,6 +1154,45 @@ PY
                 echo "  [BLOCKER] PLANE-ARCHIVE differs from the artifact built in this attempt"
                 BLOCKERS=$((BLOCKERS + 1))
             else
+                run_runtime_plane_probe() {
+                    local plane_kind="$1" local_root="$2" receipt="$3" probe_status temp
+                    temp="${receipt}.tmp.$$"
+                    [[ ! -e "$receipt" && ! -e "$temp" ]] || return 1
+                    if python3 "$PLUGIN_ROOT/scripts/runtime_plane_probe.py" \
+                        --local-root "$local_root" --baseline-root "$PLANE_SOURCE" \
+                        --cleared-zip "$PLANE_ARCHIVE" --source-commit "$PLANE_COMMIT" \
+                        --plane-kind "$plane_kind" --topology-receipt "$TOPOLOGY_RECEIPT" \
+                        --stdout > "$temp"; then
+                        probe_status=0
+                    else
+                        probe_status=$?
+                    fi
+                    if (( probe_status != 0 && probe_status != 2 )) || [[ ! -s "$temp" ]]; then
+                        rm -f "$temp"
+                        return 1
+                    fi
+                    if ! python3 - "$temp" "$plane_kind" "$probe_status" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+value = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+expected = {"qualified", "qualified_with_caveats"} if sys.argv[3] == "0" else {"blocked"}
+raise SystemExit(0 if value.get("receipt_type") == "runtime_plane_probe"
+                 and value.get("plane_kind") == sys.argv[2]
+                 and value.get("verdict") in expected else 1)
+PY
+                    then
+                        rm -f "$temp"
+                        return 1
+                    fi
+                    if ! mv "$temp" "$receipt"; then
+                        rm -f "$temp"
+                        return 1
+                    fi
+                    return "$probe_status"
+                }
+
                 PLANE_QUALIFICATION_OK=1
                 echo "Archive runtime plane"
                 if ! python3 "$PLUGIN_ROOT/scripts/archive_runtime_probe.py" \
@@ -1166,22 +1207,16 @@ PY
                 fi
 
                 echo "Unpacked runtime plane"
-                if ! python3 "$PLUGIN_ROOT/scripts/runtime_plane_probe.py" \
-                    --local-root "$PLANE_UNPACKED" --baseline-root "$PLANE_SOURCE" \
-                    --cleared-zip "$PLANE_ARCHIVE" --source-commit "$PLANE_COMMIT" \
-                    --plane-kind unpacked --topology-receipt "$TOPOLOGY_RECEIPT" \
-                    --out "$RUNTIME_EVIDENCE_DIR/unpacked-runtime-receipt.json"; then
+                if ! run_runtime_plane_probe unpacked "$PLANE_UNPACKED" \
+                    "$RUNTIME_EVIDENCE_DIR/unpacked-runtime-receipt.json"; then
                     echo "  [BLOCKER] unpacked runtime plane refused"
                     BLOCKERS=$((BLOCKERS + 1))
                     PLANE_QUALIFICATION_OK=0
                 fi
 
                 echo "Installed-cache runtime plane"
-                if ! python3 "$PLUGIN_ROOT/scripts/runtime_plane_probe.py" \
-                    --local-root "$PLANE_CACHE" --baseline-root "$PLANE_SOURCE" \
-                    --cleared-zip "$PLANE_ARCHIVE" --source-commit "$PLANE_COMMIT" \
-                    --plane-kind installed_cache --topology-receipt "$TOPOLOGY_RECEIPT" \
-                    --out "$RUNTIME_EVIDENCE_DIR/installed-cache-runtime-receipt.json"; then
+                if ! run_runtime_plane_probe installed_cache "$PLANE_CACHE" \
+                    "$RUNTIME_EVIDENCE_DIR/installed-cache-runtime-receipt.json"; then
                     echo "  [BLOCKER] installed-cache runtime plane refused"
                     BLOCKERS=$((BLOCKERS + 1))
                     PLANE_QUALIFICATION_OK=0

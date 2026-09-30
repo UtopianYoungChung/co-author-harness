@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import copy
 import json
 import subprocess
@@ -23,6 +24,23 @@ from scholarly_assurance_fixture_support import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+@contextmanager
+def product_gate_scratch():
+    parent = ROOT / ".harness-test-scratch"
+    created = not parent.exists()
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix="run-product-gate-c7-", dir=package_scratch(ROOT)
+        ) as temporary:
+            yield temporary
+    finally:
+        if created:
+            try:
+                parent.rmdir()
+            except OSError:
+                pass
 
 
 def expect_refusal(project: Path, code: str, call: Callable[[], Any]) -> None:
@@ -57,9 +75,7 @@ def main() -> int:
     schema = json.loads(gate.SCHEMA.read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
     cases = 0
-    with tempfile.TemporaryDirectory(
-        prefix="run-product-gate-c7-", dir=package_scratch(ROOT)
-    ) as temporary:
+    with product_gate_scratch() as temporary:
         project = Path(temporary) / "project"
         claim_text = (
             "This paper argues a bounded claim because evidence supports the "
