@@ -151,7 +151,7 @@ def _test_form_values() -> None:
         bad = subprocess.run(
             [sys.executable, str(HERE / "audit_style.py"), str(form),
              "--form-values"],
-            capture_output=True, text=True, encoding="utf-8",
+            capture_output=True, text=True, encoding="utf-8", errors="strict",
         )
         assert bad.returncode == 2, bad
         assert "invalid form values" in bad.stderr, bad
