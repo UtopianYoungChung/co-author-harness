@@ -72,7 +72,7 @@ def _assert_release_gate_bytecode_argv() -> None:
         "if command -v cygpath >/dev/null 2>&1; then\n    PLUGIN_ROOT="
     )
     rematerialize_fi = gate_text.index(
-        '\nfi\n\nif [[ ! -f "$VERSION_MANIFEST" ]]', rematerialize_if,
+        '\nfi\n', rematerialize_if,
     )
     cygpath_block = gate_text[rematerialize_if:rematerialize_fi]
     assert "dirname" not in cygpath_block
@@ -4447,9 +4447,16 @@ time.sleep(60)
         assert gate_text.index(post_build_marker) < gate_text.index(topology_marker) < gate_text.index(corpus_marker)
         assert "qualification_plane_topology.py" in gate_text
         assert "archive_runtime_probe.py" in gate_text
-        assert gate_text.count("runtime_plane_probe.py") >= 2
-        assert "--plane-kind unpacked" in gate_text
-        assert "--plane-kind installed_cache" in gate_text
+        assert 'if python3 "$PLUGIN_ROOT/scripts/runtime_plane_probe.py"' in gate_text
+        assert '--plane-kind "$plane_kind"' in gate_text
+        assert 'return "$probe_status"' in gate_text
+        dispatch = " ".join(gate_text.replace("\\\n", " ").split())
+        for plane_kind, plane_root, receipt_name in (
+            ("unpacked", "$PLANE_UNPACKED", "unpacked-runtime-receipt.json"),
+            ("installed_cache", "$PLANE_CACHE", "installed-cache-runtime-receipt.json"),
+        ):
+            assert (f'if ! run_runtime_plane_probe {plane_kind} "{plane_root}" '
+                    f'"$RUNTIME_EVIDENCE_DIR/{receipt_name}"; then') in dispatch
         assert "PLANE_TOPOLOGY_PENDING" in gate_text
         assert 'ORIGINAL_ARGS[$((ARG_I + 1))]="$SPEC_INPUT"' in gate_text
         assert 'CONTROLLER_INPUT_ARGS+=(--input "$SPEC_INPUT")' in gate_text
