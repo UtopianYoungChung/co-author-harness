@@ -8,6 +8,8 @@ loop. Ordinary drafts/revisions require real Generator/Evaluator/Reflector
 contexts (no Reflector under `review_depth: light`) and evidence-verified task completion, without invented project history.
 
 
+**Shared Jev calls (B:\Agents workspace).** Before preparing or interpreting Jev output, consult `B:\Agents\platform\jev-research\USAGE.md` and use its shared runner. The parent chooses a named bounded question and substantively adjudicates provisional signals; Jev is optional and no citation delegation is active. Keep the project's source admission, private-payload grant, model-allocation and destination rules. This is a workspace tool pointer, not a bundled plugin dependency or permission to export a manuscript.
+
 **Typed output boundary.** `references/role_output_contract.json` 3.0.0 is the sole machine authority for the six fixed roles and nine triggered F1-F9 classes. Resolve trigger occurrence, context, cardinality, ordering, path, and typed suppression there. Legacy artifacts remain readable but never become shipment-v2 transaction evidence, application proof, or acceptance authority by presence.
 
 **Scope.** This file governs how the executing agent invokes the **Research and Academic Paper Writing Package** when asked to review, edit, or critique academic writing. It sits **inside** the package folder and describes how the package is used; the **content rules themselves** live in the component files indexed by `MANIFEST.md`.
